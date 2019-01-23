@@ -1144,12 +1144,6 @@ static UniValue SoftForkMajorityDesc(int version, CBlockIndex* pindex, const Con
             activated = pindex->nHeight >= consensusParams.BIP65Height;
             break;
     }
-    // Riecoin TODO: We are using this VersionBitsState() check to show BIP66 and BIP65 activation with CSV. 
-    // Remove in a cleanup release.
-    if (VersionBitsState(pindex->pprev, consensusParams, Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
-        activated = true;
-    }
-    // Riecoin TODO: end
     rv.push_back(Pair("status", activated));
     return rv;
 }

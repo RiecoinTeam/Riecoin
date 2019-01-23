@@ -1798,16 +1798,12 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const Consens
 //    }
 
     // Start enforcing the DERSIG (BIP66) rule
-    // Riecoin TODO: Deploy BIP66 with CSV BIP9. Remove VersionBitsState() check and set BIP66Height
-    //if (pindex->nHeight >= consensusparams.BIP66Height) {
-    if (VersionBitsState(pindex->pprev, consensusparams, Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
+    if (pindex->nHeight >= consensusparams.BIP66Height) {
         flags |= SCRIPT_VERIFY_DERSIG;
     }
 
     // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) rule
-    // Riecoin TODO: Deploy BIP65 with CSV BIP9. Remove VersionBitsState() check and set BIP65Height
-    //if (pindex->nHeight >= consensusparams.BIP65Height) {
-    if (VersionBitsState(pindex->pprev, consensusparams, Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
+    if (pindex->nHeight >= consensusparams.BIP65Height) {
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
     }
 
@@ -3206,13 +3202,9 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
 
     // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
     // check for version 2, 3 and 4 upgrades
-    // Riecoin TODO: Since BIP66Height and BIP65Height consensus params are not yet set, we use CSV BIP9 check to reject blocks
-    // that have not upgraded. In the next cleanup release, we can use the consensusParam heights to check for this.
-    //if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
-    //   (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
-    //   (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height))
-    if ((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
-        (block.nVersion < 4 && VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE))
+    if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
+       (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
+       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 

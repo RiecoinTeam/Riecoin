@@ -82,8 +82,8 @@ public:
         consensus.BIP16Height = 1; // hard coded to always check
         consensus.BIP34Height = 1; // has always been active
         consensus.BIP34Hash = uint256S("78ae9b6ffc008e988a9b052bb331ab49dab0d627c145e3c96ab4b71b2e86a8b5");
-        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
-        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
+        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
+        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
         consensus.powLimit = ArithToUint256(MinPrimeSize);
         consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
@@ -188,8 +188,8 @@ public:
         consensus.BIP34Height = 1; // clo1, has always been active
         consensus.BIP34Hash = uint256();
         //consensus.BIP66Height = 12082; // clo1
-        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
-        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
+        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
+        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
         consensus.powLimit = ArithToUint256(MinPrimeSize);
         consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
