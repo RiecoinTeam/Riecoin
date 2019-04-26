@@ -85,12 +85,12 @@ public:
         consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
         consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
         consensus.powLimit = ArithToUint256(MinPrimeSize);
-        consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
+        consensus.nPowTargetTimespan = 48 * 60 * 60; // 48 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 274; // 95% of 2016
-        consensus.nMinerConfirmationWindow = 288; // nPowTargetTimespan / nPowTargetSpacing
+        consensus.nRuleChangeActivationThreshold = 864; // 75%
+        consensus.nMinerConfirmationWindow = 1152; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
@@ -104,6 +104,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1546300800; // January 1st, 2019.
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1577836800; // January 1st, 2020.
+
+        // To alert nodes that still use 95% threshold
+        consensus.vDeployments[Consensus::LOWER_THRESHOLD].bit = 2;
+        consensus.vDeployments[Consensus::LOWER_THRESHOLD].nStartTime = 1546300800; // January 1st, 2019.
+        consensus.vDeployments[Consensus::LOWER_THRESHOLD].nTimeout = 1577836800; // January 1st, 2020.
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000093bf63ce15ec087be1cb19337f378"); // 931912
