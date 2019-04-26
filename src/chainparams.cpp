@@ -85,12 +85,12 @@ public:
         consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
         consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height
         consensus.powLimit = ArithToUint256(MinPrimeSize);
-        consensus.nPowTargetTimespan = 48 * 60 * 60; // 48 hours
+        consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 864; // 75%
-        consensus.nMinerConfirmationWindow = 1152; // nPowTargetTimespan / nPowTargetSpacing
+        consensus.nMinerConfirmationWindow = 1152; // 48 h
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
