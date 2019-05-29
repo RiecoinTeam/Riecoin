@@ -82,8 +82,8 @@ public:
         consensus.BIP16Height = 1; // hard coded to always check
         consensus.BIP34Height = 1; // has always been active
         consensus.BIP34Hash = uint256S("78ae9b6ffc008e988a9b052bb331ab49dab0d627c145e3c96ab4b71b2e86a8b5");
-        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
-        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
+        consensus.BIP65Height = 1096704;  // Riecoin: Activated with CSV
+        consensus.BIP66Height = 1096704;  // Riecoin: Activated with CSV
         consensus.powLimit = ArithToUint256(MinPrimeSize);
         consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
@@ -187,9 +187,8 @@ public:
         consensus.BIP16Height = 1; // clo1, hard coded to always check
         consensus.BIP34Height = 1; // clo1, has always been active
         consensus.BIP34Hash = uint256();
-        //consensus.BIP66Height = 12082; // clo1
-        consensus.BIP65Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
-        consensus.BIP66Height = 9999999;  // Riecoin TODO: Set height to CSV BIP9 activation height, should be known now
+        consensus.BIP65Height = 16704;  // Riecoin: Activated with CSV
+        consensus.BIP66Height = 16704;  // Riecoin: Activated with CSV
         consensus.powLimit = ArithToUint256(MinPrimeSize);
         consensus.nPowTargetTimespan = 12 * 60 * 60; // 12 hours
         consensus.nPowTargetSpacing = 2.5 * 60;
@@ -203,13 +202,13 @@ public:
 
         // Deployment of BIP68, BIP112, and BIP113.
         consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1546300800; // January 1st, 2019
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1577836800; // January 1st, 2020
+        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1542844800; // November 22nd, 2018
+        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1574380800; // November 22nd, 2019
 
         // Deployment of SegWit (BIP141, BIP143, and BIP147)
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1546300800; // January 1st, 2019.
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1577836800; // January 1st, 2020.
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1542844800; // November 22nd, 2018
+        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1574380800; // November 22nd, 2019
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
