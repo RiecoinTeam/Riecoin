@@ -1,75 +1,59 @@
-Bitcoin Core integration/staging tree
-=====================================
+# Riecoin Core
 
-https://bitcoincore.org
+This repository hosts the Riecoin Core source code, the software enabling the use of the Riecoin currency.
 
-What is Bitcoin?
-----------------
+## Riecoin Introduction
 
-Bitcoin is an experimental digital currency that enables instant payments to
-anyone, anywhere in the world. Bitcoin uses peer-to-peer technology to operate
-with no central authority: managing transactions and issuing money are carried
-out collectively by the network. Bitcoin Core is the name of open source
-software which enables the use of this currency.
+Riecoin is a decentralized and open source peer to peer digital currency, released in 2014. It is a fork of Bitcoin, also Proof of Work (PoW) based, and proposes similar features. However, its PoW is better, and this is what distiguishes Riecoin from similar currencies.
 
-For more information, as well as an immediately usable, binary version of
-the Bitcoin Core software, see https://bitcoincore.org/en/download/, or read the
-[original whitepaper](https://bitcoincore.org/bitcoin.pdf).
+In short, computers supporting the Bitcoin network to make it secure by validating transactions are called miners, and must constantly solve a problem defined by the Bitcoin’s PoW type. This is a heavy task, consuming a lot of energy. In the Bitcoin and most PoW altcoins cases, the problem is to find an hash that meets an arbitrary criteria. To solve this problem, miners are continuously generating random hashes until they find one meeting the criteria.
 
-License
--------
+Riecoin miners are not looking for useless hashes, but prime constellations. These prime numbers are of interest to mathematicians and the scientific community, so Riecoin not only provides a secure payment network, but also valuable research data by making clever use of the computing power that is otherwise wasted. Additionally, work on its software may eventually lead to theoretical discoveries as developers and mathematicians improve it, for example by finding new algorithms for the miner.
 
-Bitcoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
-information or see https://opensource.org/licenses/MIT.
+Visit the [official website](https://riecoin.dev/) to find more resources about Riecoin.
 
-Development Process
--------------------
+## Build Riecoin Core
 
-The `master` branch is regularly built and tested, but is not guaranteed to be
-completely stable. [Tags](https://github.com/bitcoin/bitcoin/tags) are created
-regularly to indicate new official, stable release versions of Bitcoin Core.
+### Recent Debian/Ubuntu
 
-The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)
-and useful hints for developers can be found in [doc/developer-notes.md](doc/developer-notes.md).
+Here are basic build instructions to generate the Riecoin Core binaries, including the Riecoin-Qt GUI wallet. For more detailed instructions and options, read [this](doc/build-unix.md).
 
-Testing
--------
+First, get the build tools and dependencies, which can be done by running as root the following commands.
 
-Testing and code review is the bottleneck for development; we get more pull
-requests than we can review and test on short notice. Please be patient and help out by testing
-other people's pull requests, and remember this is a security-critical project where any mistake might cost people
-lots of money.
+```bash
+apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3
+apt install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev libdb-dev libdb++-dev libminiupnpc-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libgmp-dev
+```
 
-### Automated Testing
+Get the source code.
 
-Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
-submit new unit tests for old code. Unit tests can be compiled and run
-(assuming they weren't disabled in configure) with: `make check`. Further details on running
-and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
+```bash
+git clone https://github.com/riecointeam/riecoin.git
+```
 
-There are also [regression and integration tests](/test), written
-in Python, that are run automatically on the build server.
-These tests can be run (if the [test dependencies](/test) are installed) with: `test/functional/test_runner.py`
+Then,
 
-The Travis CI system makes sure that every pull request is built for Windows, Linux, and macOS, and that unit/sanity tests are run automatically.
+```bash
+cd riecoin
+./autogen.sh
+./configure --with-incompatible-bdb
+make
+```
 
-### Manual Quality Assurance (QA) Testing
+Note that this will use the BDB library provided by your repositories (downloaded using the apt command above), which may cause incompatibilities if you use wallets built by others or using Gitian. In particular, if you already used Riecoin Core, you should make a backup of the old data to be safe. If you want to use the standard BDB 4.8, you need to install it yourself and run `configure` without `--with-incompatible-bdb`. You can also build using Gitian.
 
-Changes should be tested by somebody other than the developer who wrote the
-code. This is especially important for large or high-risk changes. It is useful
-to add a test plan to the pull request description if testing the changes is
-not straightforward.
+The Riecoin-Qt binary is located in `src/qt`. You can run `strip riecoin-qt` to reduce its size a lot.
 
-Translations
-------------
+#### Gitian Build
 
-Changes to translations as well as new translations can be submitted to
-[Bitcoin Core's Transifex page](https://www.transifex.com/bitcoin/bitcoin/).
+Riecoin can be built using Gitian. The process is more complicated, but also deterministic: everyone building this way should obtain the exact same binaries. Official binaries are produced this way, so anyone can ensure that they were not created with an altered source code by building themselves using Gitian.
 
-Translations are periodically pulled from Transifex and merged into the git repository. See the
-[translation process](doc/translation_process.md) for details on how this works.
+See the [instructions](https://github.com/bitcoin-core/docs/blob/master/gitian-building.md) for Bitcoin, that should also work for Riecoin.
 
-**Important**: We do not accept translation changes as GitHub pull requests because the next
-pull from Transifex would automatically overwrite them again.
+### Other OSes
 
-Translators should also subscribe to the [mailing list](https://groups.google.com/forum/#!forum/bitcoin-translators).
+Either build using Gitian in a Debian or Ubuntu virtual or spare machine, or refer to the "build" documents in the [doc](doc) folder. The instructions were for Bitcoin but should be easily adaptable for Riecoin.
+
+## License
+
+Riecoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more information or see https://opensource.org/licenses/MIT.
