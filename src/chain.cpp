@@ -1,9 +1,12 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <chainparams.h>
+#include <cmath>
 
 /**
  * CChain implementation
@@ -119,19 +122,21 @@ void CBlockIndex::BuildSkip()
         pskip = pprev->GetAncestor(GetSkipHeight(nHeight));
 }
 
+/* We define the proof as function of the Difficulty d and l the constellation length, by
+	d^(l + 2.3)
+The power to l is inspired from the prime number theorem and the k-tuple conjecture, and the 2.3
+approximately takes in account the fact that it is harder to test longer numbers, in accordance to
+empirical data with the current miner. Note that formerly, and in the original Difficulty Adjustment
+Algorithm, 3 was used instead. */
 arith_uint256 GetBlockProof(const CBlockIndex& block)
 {
-    arith_uint256 bnTarget;
-    bool fNegative;
-    bool fOverflow;
-    bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
-    if (fNegative || fOverflow || bnTarget == 0)
-        return 0;
-    // We need to compute 2**256 / (bnTarget+1), but we can't represent 2**256
-    // as it's too large for an arith_uint256. However, as 2**256 is at least as large
-    // as bnTarget+1, it is equal to ((2**256 - bnTarget - 1) / (bnTarget+1)) + 1,
-    // or ~bnTarget / (bnTarget+1) + 1.
-    return (~bnTarget / (bnTarget + 1)) + 1;
+    const Consensus::Params& consensusParams(Params().GetConsensus());
+    double difficulty(mpz_get_d(GetDifficulty(block.nBits).get_mpz_t())),
+           constellationSize(consensusParams.GetPowAcceptedConstellationsAtHeight(block.nHeight)[0].size());
+    double proof(std::pow(difficulty, constellationSize + 2.3));
+    arith_uint256 proofAU256;
+    proofAU256.SetHex(mpz_class(proof).get_str(16));
+    return proofAU256;
 }
 
 int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params& params)

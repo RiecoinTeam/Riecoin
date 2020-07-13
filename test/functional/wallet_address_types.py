@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test that the wallet can send and receive using all combinations of address types.
@@ -107,7 +108,7 @@ class AddressTypeTest(BitcoinTestFramework):
     # Quick test of python bech32 implementation
     def test_python_bech32(self, addr):
         hrp = addr[:4]
-        assert_equal(hrp, "bcrt")
+        assert_equal(hrp, "rric")
         (witver, witprog) = decode(hrp, addr)
         assert_equal(encode(hrp, witver, witprog), addr)
 

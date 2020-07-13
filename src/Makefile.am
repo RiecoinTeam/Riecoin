@@ -568,7 +568,7 @@ riecoind_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-riecoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+riecoind_LDADD += $(BOOST_LIBS) $(GMP_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # riecoin-cli binary #
 riecoin_cli_SOURCES = bitcoin-cli.cpp
@@ -586,7 +586,7 @@ riecoin_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-riecoin_cli_LDADD += $(BOOST_LIBS) $(EVENT_LIBS)
+riecoin_cli_LDADD += $(BOOST_LIBS) $(GMP_LIBS) $(EVENT_LIBS)
 #
 
 # riecoin-tx binary #

@@ -1,4 +1,5 @@
 // Copyright (c) 2014-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -120,7 +121,7 @@ BOOST_AUTO_TEST_CASE(findearliestatleast_test)
         }
     }
     // Check that we set nTimeMax up correctly.
-    unsigned int curTimeMax = 0;
+    int64_t curTimeMax(0);
     for (unsigned int i=0; i<vBlocksMain.size(); ++i) {
         curTimeMax = std::max(curTimeMax, vBlocksMain[i].nTime);
         BOOST_CHECK(curTimeMax == vBlocksMain[i].nTimeMax);

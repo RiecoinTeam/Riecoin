@@ -1,4 +1,5 @@
 // Copyright (c) 2018-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -100,8 +101,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
 
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
-    while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-        ++(pblock->nNonce);
+    while (!CheckProofOfWork(pblock->GetHashForPoW(), pblock->nBits, ArithToUint256(pblock->nOffset), Params().GetConsensus())) {
+        ++(pblock->nOffset);
     }
 
     return pblock;
@@ -190,7 +191,6 @@ BOOST_AUTO_TEST_CASE(processnewblock_signals_ordering)
                 auto block = blocks[insecure.randrange(blocks.size() - 1)];
                 ProcessNewBlock(Params(), block, true, &ignored);
             }
-
             // to make sure that eventually we process the full chain - do it here
             for (auto block : blocks) {
                 if (block->vtx.size() == 1) {

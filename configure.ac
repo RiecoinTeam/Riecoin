@@ -1256,6 +1256,10 @@ CPPFLAGS="$TEMP_CPPFLAGS"
 
 fi
 
+dnl Check for libgmp
+AC_CHECK_HEADERS([gmp.h gmpxx.h], , AC_MSG_ERROR(gmp headers missing), )
+AC_CHECK_LIB([gmp], [main], GMP_LIBS=-lgmp, AC_MSG_ERROR(gmp missing))
+
 if test x$use_pkgconfig = xyes; then
   : dnl
   m4_ifdef(
@@ -1583,6 +1587,7 @@ AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
 AC_SUBST(BOOST_LIBS)
+AC_SUBST(GMP_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)

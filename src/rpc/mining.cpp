@@ -39,11 +39,13 @@
 #include <stdint.h>
 
 /**
- * Return average network hashes per second based on the last 'lookup' blocks,
- * or from the last difficulty change if 'lookup' is nonpositive.
- * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
+ * Return estimated mining power based on the last 'lookup' blocks at the time when a given block was found.
+ * The mining power is standardized such that 1 corresponds to finding a minimum difficulty block every 150 s.
+ * Note that the metric cannot be used across different Constellation Lengths (mining power at any length would be standardized to 1 at Min Difficulty but obviously a longer tuple would be much harder to find)
+ * It is assumed to be proportional to Difficulty^(Constellation Length + 2.3), corresponding to observations using the current miner implementation.
+ * The metric may be improved at any time.
  */
-static UniValue GetNetworkHashPS(int lookup, int height) {
+static UniValue GetNetworkMiningPower(int lookup, int height) {
     CBlockIndex *pb = ::ChainActive().Tip();
 
     if (height >= 0 && height < ::ChainActive().Height())
@@ -52,9 +54,8 @@ static UniValue GetNetworkHashPS(int lookup, int height) {
     if (pb == nullptr || !pb->nHeight)
         return 0;
 
-    // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
-        lookup = pb->nHeight % Params().GetConsensus().DifficultyAdjustmentInterval() + 1;
+        lookup = 1;
 
     // If lookup is larger than chain, then set it to chain length.
     if (lookup > pb->nHeight)
@@ -63,7 +64,13 @@ static UniValue GetNetworkHashPS(int lookup, int height) {
     CBlockIndex *pb0 = pb;
     int64_t minTime = pb0->GetBlockTime();
     int64_t maxTime = minTime;
+    const Consensus::Params& consensusParams(Params().GetConsensus());
+    double miningPower(0.), expectedDuration(consensusParams.nPowTargetSpacing*lookup);
     for (int i = 0; i < lookup; i++) {
+        double difficulty(mpz_get_d(GetDifficulty(pb0->nBits).get_mpz_t())),
+               referenceDifficulty(UintToArith256(consensusParams.powLimit).GetLow64()),
+               constellationSize(consensusParams.GetPowAcceptedConstellationsAtHeight(pb0->nHeight)[0].size());
+        miningPower += std::pow(difficulty/referenceDifficulty, constellationSize + 2.3);
         pb0 = pb0->pprev;
         int64_t time = pb0->GetBlockTime();
         minTime = std::min(time, minTime);
@@ -74,32 +81,30 @@ static UniValue GetNetworkHashPS(int lookup, int height) {
     if (minTime == maxTime)
         return 0;
 
-    arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
-    int64_t timeDiff = maxTime - minTime;
-
-    return workDiff.getdouble() / timeDiff;
+    return (expectedDuration/(maxTime - minTime))*(miningPower/lookup);
 }
 
-static UniValue getnetworkhashps(const JSONRPCRequest& request)
+static UniValue getnetworkminingpower(const JSONRPCRequest& request)
 {
-            RPCHelpMan{"getnetworkhashps",
-                "\nReturns the estimated network hashes per second based on the last n blocks.\n"
-                "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
-                "Pass in [height] to estimate the network speed at the time when a certain block was found.\n",
+            RPCHelpMan{"getnetworkminingpower",
+                "\nReturns the estimated network mining power based on the last n blocks.\n"
+                "\nThe mining power is standardized such that 1 corresponds to finding a minimum difficulty block every 150 s.\n"
+                "Pass in [blocks] to override # of blocks.\n"
+                "Pass in [height] to estimate the network speed at the time when a certain block was found (-1 is the current block).\n",
                 {
-                    {"nblocks", RPCArg::Type::NUM, /* default */ "120", "The number of blocks, or -1 for blocks since last difficulty change."},
+                    {"nblocks", RPCArg::Type::NUM, /* default */ "120", "The number of blocks."},
                     {"height", RPCArg::Type::NUM, /* default */ "-1", "To estimate at the time of the given height."},
                 },
                 RPCResult{
                     RPCResult::Type::NUM, "", "Hashes per second estimated"},
                 RPCExamples{
-                    HelpExampleCli("getnetworkhashps", "")
-            + HelpExampleRpc("getnetworkhashps", "")
+                    HelpExampleCli("getnetworkminingpower", "")
+            + HelpExampleRpc("getnetworkminingpower", "")
                 },
             }.Check(request);
 
     LOCK(cs_main);
-    return GetNetworkHashPS(!request.params[0].isNull() ? request.params[0].get_int() : 120, !request.params[1].isNull() ? request.params[1].get_int() : -1);
+    return GetNetworkMiningPower(!request.params[0].isNull() ? request.params[0].get_int() : 120, !request.params[1].isNull() ? request.params[1].get_int() : -1);
 }
 
 static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
@@ -124,14 +129,14 @@ static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbas
             LOCK(cs_main);
             IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
-            ++pblock->nNonce;
+        while (nMaxTries > 0 && pblock->nOffset < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHashForPoW(), pblock->nBits, ArithToUint256(pblock->nOffset), Params().GetConsensus()) && !ShutdownRequested()) {
+            ++pblock->nOffset;
             --nMaxTries;
         }
         if (nMaxTries == 0 || ShutdownRequested()) {
             break;
         }
-        if (pblock->nNonce == std::numeric_limits<uint32_t>::max()) {
+        if (pblock->nOffset == std::numeric_limits<uint32_t>::max()) {
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
@@ -260,8 +265,8 @@ static UniValue getmininginfo(const JSONRPCRequest& request)
     obj.pushKV("blocks",           (int)::ChainActive().Height());
     if (BlockAssembler::m_last_block_weight) obj.pushKV("currentblockweight", *BlockAssembler::m_last_block_weight);
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
-    obj.pushKV("difficulty",       (double)GetDifficulty(::ChainActive().Tip()));
-    obj.pushKV("networkhashps",    getnetworkhashps(request));
+    obj.pushKV("difficulty",       GetDifficulty(::ChainActive().Tip()->nBits).get_str());
+    obj.pushKV("networkminingpower", getnetworkminingpower(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain",            Params().NetworkIDString());
     obj.pushKV("warnings",         GetWarnings(false));
@@ -399,19 +404,24 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
                         {
                             {RPCResult::Type::ELISION, "", ""},
                         }},
-                        {RPCResult::Type::STR, "target", "The hash target"},
                         {RPCResult::Type::NUM_TIME, "mintime", "The minimum timestamp appropriate for the next block time, expressed in " + UNIX_EPOCH_TIME},
                         {RPCResult::Type::ARR, "mutable", "list of ways the block template may be changed",
                             {
                                 {RPCResult::Type::STR, "value", "A way the block template may be changed, e.g. 'time', 'transactions', 'prevblock'"},
                             }},
-                        {RPCResult::Type::STR_HEX, "noncerange", "A range of valid nonces"},
                         {RPCResult::Type::NUM, "sigoplimit", "limit of sigops in blocks"},
                         {RPCResult::Type::NUM, "sizelimit", "limit of block size"},
                         {RPCResult::Type::NUM, "weightlimit", "limit of block weight"},
                         {RPCResult::Type::NUM_TIME, "curtime", "current timestamp in " + UNIX_EPOCH_TIME},
-                        {RPCResult::Type::STR, "bits", "compressed target of next block"},
+                        {RPCResult::Type::STR, "bits", "compressed difficulty of next block"},
                         {RPCResult::Type::NUM, "height", "The height of the next block"},
+                        {RPCResult::Type::ARR, "constellations", "The accepted constellations",
+                            {
+                                {RPCResult::Type::ARR, "", "constellation",
+                                    {
+                                        {RPCResult::Type::NUM, "", "offset"},
+                                    }},
+                            }},
                     }},
                 RPCExamples{
                     HelpExampleCli("getblocktemplate", "'{\"rules\": [\"segwit\"]}'")
@@ -580,7 +590,7 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
 
     // Update nTime
     UpdateTime(pblock, consensusParams, pindexPrev);
-    pblock->nNonce = 0;
+    pblock->nOffset = 0;
 
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
     const bool fPreSegWit = (pindexPrev->nHeight + 1 < consensusParams.SegwitHeight);
@@ -626,8 +636,6 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     }
 
     UniValue aux(UniValue::VOBJ);
-
-    arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
     UniValue aMutable(UniValue::VARR);
     aMutable.push_back("time");
@@ -699,10 +707,8 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("coinbaseaux", aux);
     result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue);
     result.pushKV("longpollid", ::ChainActive().Tip()->GetBlockHash().GetHex() + ToString(nTransactionsUpdatedLast));
-    result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);
     result.pushKV("mutable", aMutable);
-    result.pushKV("noncerange", "00000000ffffffff");
     int64_t nSigOpLimit = MAX_BLOCK_SIGOPS_COST;
     int64_t nSizeLimit = MAX_BLOCK_SERIALIZED_SIZE;
     if (fPreSegWit) {
@@ -719,6 +725,16 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
+    UniValue constellationsUV(UniValue::VARR);
+    std::vector<std::vector<int32_t>> constellations(consensusParams.GetPowAcceptedConstellationsAtHeight(pindexPrev->nHeight + 1));
+    for (const auto &constellation : constellations)
+    {
+        UniValue constellationUV(UniValue::VARR);
+        for (const auto &offset : constellation)
+            constellationUV.push_back(offset);
+        constellationsUV.push_back(constellationUV);
+    }
+    result.pushKV("constellations", constellationsUV);
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment.begin(), pblocktemplate->vchCoinbaseCommitment.end()));
@@ -1031,7 +1047,7 @@ void RegisterMiningRPCCommands(CRPCTable &t)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
   //  --------------------- ------------------------  -----------------------  ----------
-    { "mining",             "getnetworkhashps",       &getnetworkhashps,       {"nblocks","height"} },
+    { "mining",             "getnetworkminingpower",  &getnetworkminingpower,  {"nblocks","height"} },
     { "mining",             "getmininginfo",          &getmininginfo,          {} },
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  {"txid","dummy","fee_delta"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       {"template_request"} },

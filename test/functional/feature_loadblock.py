@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test loadblock option
@@ -29,6 +30,8 @@ class LoadblockTest(BitcoinTestFramework):
         self.supports_cli = False
 
     def run_test(self):
+        self.log.info("Test Skipped, needs to be adapted for Riecoin.")
+        return
         self.nodes[1].setnetworkactive(state=False)
         self.nodes[0].generate(100)
 

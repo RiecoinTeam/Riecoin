@@ -104,7 +104,7 @@ class ZMQTest (BitcoinTestFramework):
 
             # Should receive the generated raw block.
             block = rawblock.receive()
-            assert_equal(genhashes[x], hash256_reversed(block[:80]).hex())
+            assert_equal(genhashes[x], hash256_reversed(block[0:68] + block[76:80] + block[68:76] + block[80:112]).hex())
 
         if self.is_wallet_compiled():
             self.log.info("Wait for tx from second node")

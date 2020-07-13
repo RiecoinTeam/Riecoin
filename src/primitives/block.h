@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2018 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,6 +10,7 @@
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <uint256.h>
+#include <arith_uint256.h>
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -24,9 +26,9 @@ public:
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
-    uint32_t nTime;
+    int64_t nTime;
     uint32_t nBits;
-    uint32_t nNonce;
+    arith_uint256 nOffset;
 
     CBlockHeader()
     {
@@ -42,7 +44,7 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
+        READWRITE(nOffset);
     }
 
     void SetNull()
@@ -52,7 +54,7 @@ public:
         hashMerkleRoot.SetNull();
         nTime = 0;
         nBits = 0;
-        nNonce = 0;
+        nOffset = 0;
     }
 
     bool IsNull() const
@@ -61,10 +63,10 @@ public:
     }
 
     uint256 GetHash() const;
-
+    uint256 GetHashForPoW() const;
     int64_t GetBlockTime() const
     {
-        return (int64_t)nTime;
+        return nTime;
     }
 };
 
@@ -112,7 +114,7 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        block.nNonce         = nNonce;
+        block.nOffset        = nOffset;
         return block;
     }
 

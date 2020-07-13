@@ -35,6 +35,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
+#include <pow.h>
 
 #include <stdint.h>
 
@@ -63,30 +64,6 @@ CTxMemPool& EnsureMemPool()
     return *g_rpc_node->mempool;
 }
 
-/* Calculate the difficulty for a given block index.
- */
-double GetDifficulty(const CBlockIndex* blockindex)
-{
-    CHECK_NONFATAL(blockindex);
-
-    int nShift = (blockindex->nBits >> 24) & 0xff;
-    double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
-
-    while (nShift < 29)
-    {
-        dDiff *= 256.0;
-        nShift++;
-    }
-    while (nShift > 29)
-    {
-        dDiff /= 256.0;
-        nShift--;
-    }
-
-    return dDiff;
-}
-
 static int ComputeNextBlockAndDepth(const CBlockIndex* tip, const CBlockIndex* blockindex, const CBlockIndex*& next)
 {
     next = tip->GetAncestor(blockindex->nHeight + 1);
@@ -113,9 +90,9 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("merkleroot", blockindex->hashMerkleRoot.GetHex());
     result.pushKV("time", (int64_t)blockindex->nTime);
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
-    result.pushKV("nonce", (uint64_t)blockindex->nNonce);
+    result.pushKV("offset", blockindex->nOffset.GetHex());
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex));
+    result.pushKV("difficulty", GetDifficulty(blockindex->nBits).get_str());
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -158,9 +135,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     result.pushKV("tx", txs);
     result.pushKV("time", block.GetBlockTime());
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
-    result.pushKV("nonce", (uint64_t)block.nNonce);
+    result.pushKV("offset", block.nOffset.GetHex());
     result.pushKV("bits", strprintf("%08x", block.nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex));
+    result.pushKV("difficulty", GetDifficulty(blockindex->nBits).get_str());
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -360,10 +337,10 @@ static UniValue syncwithvalidationinterfacequeue(const JSONRPCRequest& request)
 static UniValue getdifficulty(const JSONRPCRequest& request)
 {
             RPCHelpMan{"getdifficulty",
-                "\nReturns the proof-of-work difficulty as a multiple of the minimum difficulty.\n",
+                "\nReturns the proof-of-work difficulty as the length of the prime numbers in base 2.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::NUM, "", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
+                    RPCResult::Type::NUM, "", "the proof-of-work difficulty as the length of the prime numbers in base 2."},
                 RPCExamples{
                     HelpExampleCli("getdifficulty", "")
             + HelpExampleRpc("getdifficulty", "")
@@ -371,7 +348,7 @@ static UniValue getdifficulty(const JSONRPCRequest& request)
             }.Check(request);
 
     LOCK(cs_main);
-    return GetDifficulty(::ChainActive().Tip());
+    return GetDifficulty(::ChainActive().Tip()->nBits).get_str();
 }
 
 static std::vector<RPCResult> MempoolEntryDescription() { return {
@@ -726,9 +703,9 @@ static UniValue getblockheader(const JSONRPCRequest& request)
                             {RPCResult::Type::STR_HEX, "merkleroot", "The merkle root"},
                             {RPCResult::Type::NUM_TIME, "time", "The block time expressed in " + UNIX_EPOCH_TIME},
                             {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
-                            {RPCResult::Type::NUM, "nonce", "The nonce"},
+                            {RPCResult::Type::STR, "offset", "The offset"},
                             {RPCResult::Type::STR_HEX, "bits", "The bits"},
-                            {RPCResult::Type::NUM, "difficulty", "The difficulty"},
+                            {RPCResult::Type::STR, "difficulty", "The difficulty"},
                             {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
                             {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
                             {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
@@ -834,7 +811,7 @@ static UniValue getblock(const JSONRPCRequest& request)
                         {{RPCResult::Type::STR_HEX, "", "The transaction id"}}},
                     {RPCResult::Type::NUM_TIME, "time",       "The block time expressed in " + UNIX_EPOCH_TIME},
                     {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
-                    {RPCResult::Type::NUM, "nonce", "The nonce"},
+                    {RPCResult::Type::STR, "offset", "The offset"},
                     {RPCResult::Type::STR_HEX, "bits", "The bits"},
                     {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                     {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the chain up to this block (in hex)"},
@@ -1101,6 +1078,43 @@ static UniValue verifychain(const JSONRPCRequest& request)
     return CVerifyDB().VerifyDB(Params(), &::ChainstateActive().CoinsTip(), check_level, check_depth);
 }
 
+UniValue getresult(const JSONRPCRequest& request)
+{
+            RPCHelpMan{"getresult",
+                "\nReturns the PoW result of the provided block.\n",
+                {
+                    {"hash", RPCArg::Type::STR, RPCArg::Optional::NO, "The block hash."},
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "", "The PoW result in an human readable format"},
+                RPCExamples{
+                    "\nGet the base prime of the block 1323777\n"
+                    + HelpExampleCli("getresult", "3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f") +
+                    "\nAs a JSON-RPC call\n"
+                    + HelpExampleRpc("getresult", "\"3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f\"")
+                },
+            }.Check(request);
+
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+    CBlock block;
+    const CBlockIndex* pblockindex;
+    {
+        LOCK(cs_main);
+        pblockindex = LookupBlockIndex(hash);
+        if (!pblockindex) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        block = GetBlockChecked(pblockindex);
+    }
+
+    mpz_class result, offset;
+    GenerateTarget(result, block.GetHashForPoW(), block.nBits);
+    uint256 u256Offset = ArithToUint256(block.nOffset);
+    mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, u256Offset.begin());
+    result += offset;
+    return result.get_str();
+}
+
 static void BuriedForkDescPushBack(UniValue& softforks, const std::string &name, int height) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     // For buried deployments.
@@ -1230,7 +1244,7 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     obj.pushKV("blocks",                (int)::ChainActive().Height());
     obj.pushKV("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1);
     obj.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
-    obj.pushKV("difficulty",            (double)GetDifficulty(tip));
+    obj.pushKV("difficulty",            GetDifficulty(tip->nBits).get_str());
     obj.pushKV("mediantime",            (int64_t)tip->GetMedianTimePast());
     obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));
     obj.pushKV("initialblockdownload",  ::ChainstateActive().IsInitialBlockDownload());
@@ -2369,6 +2383,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "savemempool",            &savemempool,            {} },
     { "blockchain",         "verifychain",            &verifychain,            {"checklevel","nblocks"} },
 
+    { "blockchain",         "getresult",              &getresult,              {"hash"} },
     { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
     { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },

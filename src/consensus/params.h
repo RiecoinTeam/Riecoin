@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,11 +10,14 @@
 #include <uint256.h>
 #include <limits>
 
+const int ZEROS_BEFORE_HASH = 8;
+
 namespace Consensus {
 
 enum DeploymentPos
 {
     DEPLOYMENT_TESTDUMMY,
+    LOWER_THRESHOLD, // Bit 5 was used for the SegWit SoftFork, avoid "New Unknown Rules" messages
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -44,12 +48,12 @@ struct BIP9Deployment {
  */
 struct Params {
     uint256 hashGenesisBlock;
+    uint256 hashGenesisBlockForPoW;
+    /** First blocks in MainNet had no or less rewards than other blocks */
+    bool hasFairLaunch;
     int nSubsidyHalvingInterval;
-    /* Block hash that is excepted from BIP16 enforcement */
-    uint256 BIP16Exception;
-    /** Block height and hash at which BIP34 becomes active */
+    /** Block height at which BIP34 becomes active */
     int BIP34Height;
-    uint256 BIP34Hash;
     /** Block height at which BIP65 becomes active */
     int BIP65Height;
     /** Block height at which BIP66 becomes active */
@@ -63,6 +67,8 @@ struct Params {
     /** Don't warn about unknown BIP 9 activations below this height.
      * This prevents us from warning about the CSV and segwit activations. */
     int MinBIP9WarningHeight;
+    int fork1Height;
+    int fork2Height;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.
@@ -72,6 +78,9 @@ struct Params {
     uint32_t nMinerConfirmationWindow;
     BIP9Deployment vDeployments[MAX_VERSION_BITS_DEPLOYMENTS];
     /** Proof of work parameters */
+    std::vector<std::vector<int32_t>> powAcceptedConstellations1;
+    std::vector<std::vector<int32_t>> powAcceptedConstellations2;
+    std::vector<std::vector<int32_t>> GetPowAcceptedConstellationsAtHeight(int height) const {return height >= fork2Height ? powAcceptedConstellations2 : powAcceptedConstellations1;}
     uint256 powLimit;
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;

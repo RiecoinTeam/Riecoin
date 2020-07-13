@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the pruning code.
@@ -23,10 +24,10 @@ from test_framework.util import (
     wait_until,
 )
 
-# Rescans start at the earliest block up to 2 hours before a key timestamp, so
+# Rescans start at the earliest block up to 30 min before a key timestamp, so
 # the manual prune RPC avoids pruning blocks in the same window to be
 # compatible with pruning based on key creation time.
-TIMESTAMP_WINDOW = 2 * 60 * 60
+TIMESTAMP_WINDOW = 30*60
 
 def mine_large_blocks(node, n):
     # Make a large scriptPubKey for the coinbase transaction. This is OP_RETURN
@@ -58,8 +59,8 @@ def mine_large_blocks(node, n):
         block.nVersion = best_block["version"]
         block.hashPrevBlock = previousblockhash
         block.nTime = mine_large_blocks.nTime
-        block.nBits = int('207fffff', 16)
-        block.nNonce = 0
+        block.nBits = int('02013000', 16)
+        block.nOffset = 0
         block.vtx = [coinbase_tx]
         block.hashMerkleRoot = block.calc_merkle_root()
         block.solve()

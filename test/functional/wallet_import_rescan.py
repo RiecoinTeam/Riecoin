@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test wallet import RPCs.
@@ -131,8 +132,8 @@ IMPORT_VARIANTS = [Variant(*variants) for variants in itertools.product(Call, Da
 ImportNode = collections.namedtuple("ImportNode", "prune rescan")
 IMPORT_NODES = [ImportNode(*fields) for fields in itertools.product((False, True), repeat=2)]
 
-# Rescans start at the earliest block up to 2 hours before the key timestamp.
-TIMESTAMP_WINDOW = 2 * 60 * 60
+# Rescans start at the earliest block up to 30 min before the key timestamp.
+TIMESTAMP_WINDOW = 30*60
 
 AMOUNT_DUST = 0.00000546
 

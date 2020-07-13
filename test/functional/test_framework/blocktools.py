@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Utilities for manipulating blocks and transactions."""
@@ -41,10 +42,10 @@ from .script import (
 from .util import assert_equal
 from io import BytesIO
 
-MAX_BLOCK_SIGOPS = 20000
+MAX_BLOCK_SIGOPS = 80000
 
 # Genesis block time (regtest)
-TIME_GENESIS_BLOCK = 1296688602
+TIME_GENESIS_BLOCK = 1577836800
 
 # From BIP141
 WITNESS_COMMITMENT_HEADER = b"\xaa\x21\xa9\xed"
@@ -56,11 +57,11 @@ def create_block(hashprev, coinbase, ntime=None, *, version=1):
     block.nVersion = version
     if ntime is None:
         import time
-        block.nTime = int(time.time() + 600)
+        block.nTime = int(time.time() + 150)
     else:
         block.nTime = ntime
     block.hashPrevBlock = hashprev
-    block.nBits = 0x207fffff  # difficulty retargeting is disabled in REGTEST chainparams
+    block.nBits = 0x02013000  # difficulty retargeting is disabled in REGTEST chainparams
     block.vtx.append(coinbase)
     block.hashMerkleRoot = block.calc_merkle_root()
     block.calc_sha256()

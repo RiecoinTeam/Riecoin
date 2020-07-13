@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test block processing."""
@@ -23,7 +24,6 @@ from test_framework.messages import (
     CTxIn,
     CTxOut,
     MAX_BLOCK_BASE_SIZE,
-    uint256_from_compact,
     uint256_from_str,
 )
 from test_framework.mininode import P2PDataStore
@@ -465,7 +465,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.move_tip(35)
         b39 = self.next_block(39)
         b39_outputs = 0
-        b39_sigops_per_output = 6
+        # b39_sigops_per_output = 6
 
         # Build the redeem script, hash it, use hash to create the p2sh script
         redeem_script = CScript([self.coinbase_pubkey] + [OP_2DUP, OP_CHECKSIGVERIFY] * 5 + [OP_CHECKSIG])
@@ -511,11 +511,14 @@ class FullBlockTest(BitcoinTestFramework):
 
         # Test sigops in P2SH redeem scripts
         #
-        # b40 creates 3333 tx's spending the 6-sigop P2SH outputs from b39 for a total of 19998 sigops.
+        # b40 creates 13333 tx's spending the 6-sigop P2SH outputs from b39 for a total of 79998 sigops.
         # The first tx has one sigop and then at the end we add 2 more to put us just over the max.
         #
         # b41 does the same, less one, so it has the maximum sigops permitted.
         #
+        """Not working because these blocks are too big and cause bad-blk-length rather than bad-blk-sigops or nothing
+        (compared to Bitcoin, the limits are 2x for Block Size and 4x for SigOps...)
+        TODO: rewrite these tests for Riecoin.
         self.log.info("Reject a block with too many P2SH sigops")
         self.move_tip(39)
         b40 = self.next_block(40, spend=out[12])
@@ -561,7 +564,7 @@ class FullBlockTest(BitcoinTestFramework):
         tx.vout.append(CTxOut(1, CScript([OP_CHECKSIG] * b41_sigops_to_fill)))
         tx.rehash()
         self.update_block(41, [tx])
-        self.send_blocks([b41], True)
+        self.send_blocks([b41], True)"""
 
         # Fork off of b39 to create a constant base again
         #
@@ -589,7 +592,7 @@ class FullBlockTest(BitcoinTestFramework):
         b44 = CBlock()
         b44.nTime = self.tip.nTime + 1
         b44.hashPrevBlock = self.tip.sha256
-        b44.nBits = 0x207fffff
+        b44.nBits = 0x02013000
         b44.vtx.append(coinbase)
         b44.hashMerkleRoot = b44.calc_merkle_root()
         b44.solve()
@@ -603,7 +606,7 @@ class FullBlockTest(BitcoinTestFramework):
         b45 = CBlock()
         b45.nTime = self.tip.nTime + 1
         b45.hashPrevBlock = self.tip.sha256
-        b45.nBits = 0x207fffff
+        b45.nBits = 0x02013000
         b45.vtx.append(non_coinbase)
         b45.hashMerkleRoot = b45.calc_merkle_root()
         b45.calc_sha256()
@@ -618,7 +621,7 @@ class FullBlockTest(BitcoinTestFramework):
         b46 = CBlock()
         b46.nTime = b44.nTime + 1
         b46.hashPrevBlock = b44.sha256
-        b46.nBits = 0x207fffff
+        b46.nBits = 0x02013000
         b46.vtx = []
         b46.hashMerkleRoot = 0
         b46.solve()
@@ -631,12 +634,11 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block with invalid work")
         self.move_tip(44)
         b47 = self.next_block(47)
-        target = uint256_from_compact(b47.nBits)
-        while b47.sha256 <= target:
-            # Rehash nonces until an invalid too-high-hash block is found.
-            b47.nNonce += 1
+        b47.nBits = 0x02013000
+        while b47.has_valid_pow():
+            b47.nOffset += 1
             b47.rehash()
-        self.send_blocks([b47], False, force_send=True, reject_reason='high-hash', reconnect=True)
+        self.send_blocks([b47], False, force_send=True, reject_reason='short-constellation', reconnect=True)
 
         self.log.info("Reject a block with a timestamp >2 hours in the future")
         self.move_tip(44)
@@ -656,7 +658,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block with incorrect POW limit")
         self.move_tip(44)
         b50 = self.next_block(50)
-        b50.nBits = b50.nBits - 1
+        b50.nBits = 0x02013100
         b50.solve()
         self.send_blocks([b50], False, force_send=True, reject_reason='bad-diffbits', reconnect=True)
 
@@ -1244,10 +1246,10 @@ class FullBlockTest(BitcoinTestFramework):
         b89a = self.update_block("89a", [tx])
         self.send_blocks([b89a], success=False, reject_reason='bad-txns-inputs-missingorspent', reconnect=True)
 
-        self.log.info("Test a re-org of one week's worth of blocks (1088 blocks)")
+        self.log.info("Test a re-org of 500 blocks")
 
         self.move_tip(88)
-        LARGE_REORG_SIZE = 1088
+        LARGE_REORG_SIZE = 500
         blocks = []
         spend = out[32]
         for i in range(89, LARGE_REORG_SIZE + 89):
