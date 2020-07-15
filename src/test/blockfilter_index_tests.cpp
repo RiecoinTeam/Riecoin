@@ -77,7 +77,8 @@ CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, prev, extraNonce);
 
-    while (!CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nOffset), chainparams.GetConsensus())) ++block.nOffset;
+    block.nOffset = 1;
+    while (!CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nOffset), chainparams.GetConsensus())) block.nOffset += 2;
 
     return block;
 }

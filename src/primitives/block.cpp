@@ -11,29 +11,47 @@
 
 uint256 CBlockHeader::GetHash() const
 {
-    // The hash is done after swapping nTime and nBits
-    uint8_t blockData[112];
-    memcpy(&blockData[0], &nVersion, 4);
-    memcpy(&blockData[4], hashPrevBlock.begin(), 32);
-    memcpy(&blockData[36], hashMerkleRoot.begin(), 32);
-    memcpy(&blockData[68], &nBits, 4);
-    memcpy(&blockData[72], &nTime, 8);
-    memcpy(&blockData[80], ArithToUint256(nOffset).begin(), 32);
-    // Hash the whole Block Header
-    return Hash(blockData, &blockData[112]);
+    if ((nOffset & 1) == 1 || (nOffset & 65535) == 0) { // "Legacy" PoW: the hash is done after swapping nTime and nBits; the Genesis Block has all the offset bits to 0
+        uint8_t blockData[112];
+        memcpy(&blockData[0], &nVersion, 4);
+        memcpy(&blockData[4], hashPrevBlock.begin(), 32);
+        memcpy(&blockData[36], hashMerkleRoot.begin(), 32);
+        memcpy(&blockData[68], &nBits, 4);
+        memcpy(&blockData[72], &nTime, 8);
+        memcpy(&blockData[80], ArithToUint256(nOffset).begin(), 32);
+        // Hash the whole Block Header
+        return Hash(blockData, &blockData[112]);
+    }
+    else
+        return SerializeHash(*this);
 }
 
 uint256 CBlockHeader::GetHashForPoW() const
 {
-    // The hash is done after swapping nTime and nBits
     uint8_t blockData[80];
     memcpy(&blockData[0], &nVersion, 4);
     memcpy(&blockData[4], hashPrevBlock.begin(), 32);
     memcpy(&blockData[36], hashMerkleRoot.begin(), 32);
-    memcpy(&blockData[68], &nBits, 4);
-    memcpy(&blockData[72], &nTime, 8);
+    if ((nOffset & 1) == 1 || (nOffset & 65535) == 0) { // "Legacy" PoW: the hash is done after swapping nTime and nBits; the Genesis Block has all the offset bits to 0
+        memcpy(&blockData[68], &nBits, 4);
+        memcpy(&blockData[72], &nTime, 8);
+    }
+    else {
+        memcpy(&blockData[68], &nTime, 8);
+        memcpy(&blockData[76], &nBits, 4);
+    }
     // Hash the Block Header without nOffset
     return Hash(blockData, &blockData[80]);
+}
+
+int32_t CBlockHeader::GetPoWVersion() const
+{
+    if ((nOffset & 1) == 1) // "Legacy" PoW
+        return -1;
+    else if ((nOffset & 65535) == 2) // PoW after second fork
+        return 1;
+    else // Invalid PoW
+        return 0;
 }
 
 std::string CBlock::ToString() const

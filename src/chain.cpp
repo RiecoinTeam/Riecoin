@@ -123,7 +123,7 @@ void CBlockIndex::BuildSkip()
 }
 
 /* We define the proof as function of the Difficulty d and l the constellation length, by
-	d^(l + 2.3)
+    d^(l + 2.3)
 The power to l is inspired from the prime number theorem and the k-tuple conjecture, and the 2.3
 approximately takes in account the fact that it is harder to test longer numbers, in accordance to
 empirical data with the current miner. Note that formerly, and in the original Difficulty Adjustment
@@ -131,8 +131,8 @@ Algorithm, 3 was used instead. */
 arith_uint256 GetBlockProof(const CBlockIndex& block)
 {
     const Consensus::Params& consensusParams(Params().GetConsensus());
-    double difficulty(mpz_get_d(GetDifficulty(block.nBits).get_mpz_t())),
-           constellationSize(consensusParams.GetPowAcceptedConstellationsAtHeight(block.nHeight)[0].size());
+    double difficulty(GetDifficulty(block.nBits, consensusParams.GetPoWVersionAtHeight(block.nHeight))),
+           constellationSize(consensusParams.GetPowAcceptedPatternsAtHeight(block.nHeight)[0].size());
     double proof(std::pow(difficulty, constellationSize + 2.3));
     arith_uint256 proofAU256;
     proofAU256.SetHex(mpz_class(proof).get_str(16));

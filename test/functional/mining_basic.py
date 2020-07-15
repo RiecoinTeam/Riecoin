@@ -74,7 +74,7 @@ class MiningTest(BitcoinTestFramework):
         assert_equal(mining_info['chain'], self.chain)
         assert 'currentblocktx' not in mining_info
         assert 'currentblockweight' not in mining_info
-        assert_equal(mining_info['difficulty'], "304")
+        assert_equal(mining_info['difficulty'], 304)
         assert_equal(mining_info['networkminingpower'], Decimal('1.'))
         assert_equal(mining_info['pooledtx'], 0)
 
@@ -103,7 +103,7 @@ class MiningTest(BitcoinTestFramework):
         block.hashPrevBlock = int(tmpl["previousblockhash"], 16)
         block.nTime = tmpl["curtime"]
         block.nBits = int(tmpl["bits"], 16)
-        block.nOffset = 0
+        block.nOffset = 1
         block.vtx = [coinbase_tx]
 
         self.log.info("getblocktemplate: segwit rule must be set")

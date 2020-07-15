@@ -67,9 +67,9 @@ static UniValue GetNetworkMiningPower(int lookup, int height) {
     const Consensus::Params& consensusParams(Params().GetConsensus());
     double miningPower(0.), expectedDuration(consensusParams.nPowTargetSpacing*lookup);
     for (int i = 0; i < lookup; i++) {
-        double difficulty(mpz_get_d(GetDifficulty(pb0->nBits).get_mpz_t())),
+        double difficulty(GetDifficulty(pb0->nBits, consensusParams.GetPoWVersionAtHeight(pb0->nHeight))),
                referenceDifficulty(UintToArith256(consensusParams.powLimit).GetLow64()),
-               constellationSize(consensusParams.GetPowAcceptedConstellationsAtHeight(pb0->nHeight)[0].size());
+               constellationSize(consensusParams.GetPowAcceptedPatternsAtHeight(pb0->nHeight)[0].size());
         miningPower += std::pow(difficulty/referenceDifficulty, constellationSize + 2.3);
         pb0 = pb0->pprev;
         int64_t time = pb0->GetBlockTime();
@@ -129,8 +129,9 @@ static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbas
             LOCK(cs_main);
             IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
         }
+        pblock->nOffset = 1;
         while (nMaxTries > 0 && pblock->nOffset < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHashForPoW(), pblock->nBits, ArithToUint256(pblock->nOffset), Params().GetConsensus()) && !ShutdownRequested()) {
-            ++pblock->nOffset;
+            pblock->nOffset += 2;
             --nMaxTries;
         }
         if (nMaxTries == 0 || ShutdownRequested()) {
@@ -265,7 +266,7 @@ static UniValue getmininginfo(const JSONRPCRequest& request)
     obj.pushKV("blocks",           (int)::ChainActive().Height());
     if (BlockAssembler::m_last_block_weight) obj.pushKV("currentblockweight", *BlockAssembler::m_last_block_weight);
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
-    obj.pushKV("difficulty",       GetDifficulty(::ChainActive().Tip()->nBits).get_str());
+    obj.pushKV("difficulty",       GetDifficulty(::ChainActive().Tip()->nBits, Params().GetConsensus().GetPoWVersionAtHeight(::ChainActive().Height())));
     obj.pushKV("networkminingpower", getnetworkminingpower(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain",            Params().NetworkIDString());
@@ -415,9 +416,10 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
                         {RPCResult::Type::NUM_TIME, "curtime", "current timestamp in " + UNIX_EPOCH_TIME},
                         {RPCResult::Type::STR, "bits", "compressed difficulty of next block"},
                         {RPCResult::Type::NUM, "height", "The height of the next block"},
-                        {RPCResult::Type::ARR, "constellations", "The accepted constellations",
+                        {RPCResult::Type::NUM, "powversion", "The PoW version"},
+                        {RPCResult::Type::ARR, "patterns", "The accepted constellation patterns",
                             {
-                                {RPCResult::Type::ARR, "", "constellation",
+                                {RPCResult::Type::ARR, "", "pattern",
                                     {
                                         {RPCResult::Type::NUM, "", "offset"},
                                     }},
@@ -725,16 +727,17 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
-    UniValue constellationsUV(UniValue::VARR);
-    std::vector<std::vector<int32_t>> constellations(consensusParams.GetPowAcceptedConstellationsAtHeight(pindexPrev->nHeight + 1));
-    for (const auto &constellation : constellations)
+    result.pushKV("powversion", consensusParams.GetPoWVersionAtHeight(pindexPrev->nHeight + 1));
+    UniValue patternsUV(UniValue::VARR);
+    std::vector<std::vector<int32_t>> patterns(consensusParams.GetPowAcceptedPatternsAtHeight(pindexPrev->nHeight + 1));
+    for (const auto &pattern : patterns)
     {
-        UniValue constellationUV(UniValue::VARR);
-        for (const auto &offset : constellation)
-            constellationUV.push_back(offset);
-        constellationsUV.push_back(constellationUV);
+        UniValue patternUV(UniValue::VARR);
+        for (const auto &offset : pattern)
+            patternUV.push_back(offset);
+        patternsUV.push_back(patternUV);
     }
-    result.pushKV("constellations", constellationsUV);
+    result.pushKV("patterns", patternsUV);
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment.begin(), pblocktemplate->vchCoinbaseCommitment.end()));
@@ -787,6 +790,9 @@ static UniValue submitblock(const JSONRPCRequest& request)
     if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
     }
+
+    if (block.GetPoWVersion() != Params().GetConsensus().GetPoWVersionAtHeight(::ChainActive().Height() + 1))
+        return "bad-pow-version";
 
     uint256 hash = block.GetHash();
     {

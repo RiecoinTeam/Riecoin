@@ -438,6 +438,6 @@ public:
     CBlockIndex* FindEarliestAtLeast(int64_t nTime, int height) const;
 };
 
-mpz_class GetDifficulty(uint32_t);
+double GetDifficulty(uint32_t, const int32_t);
 
 #endif // BITCOIN_CHAIN_H

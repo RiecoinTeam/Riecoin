@@ -68,6 +68,8 @@ public:
     {
         return nTime;
     }
+
+    int32_t GetPoWVersion() const;
 };
 
 

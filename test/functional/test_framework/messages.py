@@ -690,9 +690,12 @@ class CBlock(CBlockHeader):
 
     def solve(self):
         self.rehash()
-        while not self.has_valid_pow():
-            self.nOffset += 1
+        self.nOffset = 1
+        while True:
             self.rehash()
+            if self.has_valid_pow():
+                break
+            self.nOffset += 2
 
     def __repr__(self):
         return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nOffset=%s vtx=%s)" \

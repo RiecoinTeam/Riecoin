@@ -101,8 +101,9 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
 
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
+    pblock->nOffset = 1;
     while (!CheckProofOfWork(pblock->GetHashForPoW(), pblock->nBits, ArithToUint256(pblock->nOffset), Params().GetConsensus())) {
-        ++(pblock->nOffset);
+        pblock->nOffset += 2;
     }
 
     return pblock;

@@ -10,8 +10,6 @@
 #include <uint256.h>
 #include <limits>
 
-const int ZEROS_BEFORE_HASH = 8;
-
 namespace Consensus {
 
 enum DeploymentPos
@@ -78,10 +76,12 @@ struct Params {
     uint32_t nMinerConfirmationWindow;
     BIP9Deployment vDeployments[MAX_VERSION_BITS_DEPLOYMENTS];
     /** Proof of work parameters */
-    std::vector<std::vector<int32_t>> powAcceptedConstellations1;
-    std::vector<std::vector<int32_t>> powAcceptedConstellations2;
-    std::vector<std::vector<int32_t>> GetPowAcceptedConstellationsAtHeight(int height) const {return height >= fork2Height ? powAcceptedConstellations2 : powAcceptedConstellations1;}
+    int32_t GetPoWVersionAtHeight(int32_t height) const {return height < fork2Height ? -1 : 1;}
+    std::vector<std::vector<int32_t>> powAcceptedPatterns1;
+    std::vector<std::vector<int32_t>> powAcceptedPatterns2;
+    std::vector<std::vector<int32_t>> GetPowAcceptedPatternsAtHeight(int height) const {return height >= fork2Height ? powAcceptedPatterns2 : powAcceptedPatterns1;}
     uint256 powLimit;
+    uint32_t powLimit2;
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;

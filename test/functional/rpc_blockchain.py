@@ -271,11 +271,11 @@ class BlockchainTest(BitcoinTestFramework):
         assert isinstance(header['offset'], str)
         assert isinstance(header['version'], int)
         assert isinstance(int(header['versionHex'], 16), int)
-        assert isinstance(header['difficulty'], str)
+        assert isinstance(header['difficulty'], int)
 
     def _test_getdifficulty(self):
         difficulty = self.nodes[0].getdifficulty()
-        assert difficulty == "304"
+        assert difficulty == 304
 
     def _test_getnetworkminingpower(self):
         mining_power = self.nodes[0].getnetworkminingpower()

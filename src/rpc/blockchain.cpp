@@ -92,7 +92,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("offset", blockindex->nOffset.GetHex());
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex->nBits).get_str());
+    result.pushKV("difficulty", GetDifficulty(blockindex->nBits, Params().GetConsensus().GetPoWVersionAtHeight(blockindex->nHeight)));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -137,7 +137,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("offset", block.nOffset.GetHex());
     result.pushKV("bits", strprintf("%08x", block.nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex->nBits).get_str());
+    result.pushKV("difficulty", GetDifficulty(blockindex->nBits, Params().GetConsensus().GetPoWVersionAtHeight(blockindex->nHeight)));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -348,7 +348,7 @@ static UniValue getdifficulty(const JSONRPCRequest& request)
             }.Check(request);
 
     LOCK(cs_main);
-    return GetDifficulty(::ChainActive().Tip()->nBits).get_str();
+    return GetDifficulty(::ChainActive().Tip()->nBits, Params().GetConsensus().GetPoWVersionAtHeight(::ChainActive().Tip()->nHeight));
 }
 
 static std::vector<RPCResult> MempoolEntryDescription() { return {
@@ -1107,11 +1107,31 @@ UniValue getresult(const JSONRPCRequest& request)
         block = GetBlockChecked(pblockindex);
     }
 
-    mpz_class result, offset;
-    GenerateTarget(result, block.GetHashForPoW(), block.nBits);
-    uint256 u256Offset = ArithToUint256(block.nOffset);
-    mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, u256Offset.begin());
-    result += offset;
+    uint256 nOffset = ArithToUint256(block.nOffset);
+    int32_t powVersion;
+    if ((nOffset.GetUint64(0) & 1) == 1)
+        powVersion = -1;
+    else if ((nOffset.GetUint64(0) & 65535) == 2)
+        powVersion = 1;
+    else
+        return "0";
+
+    mpz_class target, offset;
+    GenerateTarget(target, block.GetHashForPoW(), block.nBits, powVersion);
+    if (powVersion == -1)
+        mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, nOffset.begin()); // [31-0 Offset]
+    else if (powVersion == 1)
+    {
+        const uint8_t* rawOffset(nOffset.begin()); // [31-30 Primorial Number|29-14 Primorial Factor|13-2 Primorial Offset|1-0 Reserved/Version]
+        const uint16_t primorialNumber(reinterpret_cast<const uint16_t*>(&rawOffset[30])[0]);
+        mpz_class primorial(1), primorialFactor, primorialOffset;
+        for (uint16_t i(0) ; i < primorialNumber ; i++)
+            mpz_mul_ui(primorial.get_mpz_t(), primorial.get_mpz_t(), primeTable[i]);
+        mpz_import(primorialFactor.get_mpz_t(), 16, -1, sizeof(uint8_t), 0, 0, &rawOffset[14]);
+        mpz_import(primorialOffset.get_mpz_t(), 12, -1, sizeof(uint8_t), 0, 0, &rawOffset[2]);
+        offset = primorial - (target % primorial) + primorialFactor*primorial + primorialOffset;
+    }
+    const mpz_class result(target + offset);
     return result.get_str();
 }
 
@@ -1244,7 +1264,7 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     obj.pushKV("blocks",                (int)::ChainActive().Height());
     obj.pushKV("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1);
     obj.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
-    obj.pushKV("difficulty",            GetDifficulty(tip->nBits).get_str());
+    obj.pushKV("difficulty",            GetDifficulty(tip->nBits, Params().GetConsensus().GetPoWVersionAtHeight(tip->nHeight)));
     obj.pushKV("mediantime",            (int64_t)tip->GetMedianTimePast());
     obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));
     obj.pushKV("initialblockdownload",  ::ChainstateActive().IsInitialBlockDownload());

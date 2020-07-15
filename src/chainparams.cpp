@@ -68,9 +68,10 @@ public:
         consensus.fork1Height = 157248;
         consensus.fork2Height = 2147483647; // TODO: set second Hard Fork height
         consensus.MinBIP9WarningHeight = 1100736; // SegwitHeight + miner confirmation window
-        consensus.powAcceptedConstellations1 = {{0, 4, 2, 4, 2, 4}}; // Prime sextuplets, before fork2Height
-        consensus.powAcceptedConstellations2 = {{0, 2, 4, 2, 4, 6, 2}, {0, 2, 6, 4, 2, 4, 2}}; // Prime septuplets, starting from fork2Height
-        consensus.powLimit = ArithToUint256(304); // Primes of size 1 + 8 (ZEROS_BEFORE_HASH) + 256 (hash) + 39 = 304 bits
+        consensus.powAcceptedPatterns1 = {{0, 4, 2, 4, 2, 4}}; // Prime sextuplets, before fork2Height
+        consensus.powAcceptedPatterns2 = {{0, 2, 4, 2, 4, 6, 2}, {0, 2, 6, 4, 2, 4, 2}}; // Prime septuplets, starting from fork2Height
+        consensus.powLimit = ArithToUint256(304); // Primes of size 1 + 8 + 256 (hash) + 39 = 304 bits, before fork2Height
+        consensus.powLimit2 = 600*256; // nBits value for Difficulty 600, starting from fork2Height
         consensus.nPowTargetTimespan = 12*3600; // 12 h
         consensus.nPowTargetSpacing = 150; // 2.5 min
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -174,9 +175,10 @@ public:
         consensus.fork1Height = 4032;
         consensus.fork2Height = 2147483647; // TODO: set second Hard Fork height
         consensus.MinBIP9WarningHeight = 0;
-        consensus.powAcceptedConstellations1 = {{0, 2, 4, 2}}; // Prime quadruplets, before fork2Height
-        consensus.powAcceptedConstellations2 = {{0, 4, 2, 4, 2}, {0, 2, 4, 2, 4}}; // Prime quintuplets, starting from fork2Height
-        consensus.powLimit = ArithToUint256(600);
+        consensus.powAcceptedPatterns1 = {{0, 2, 4, 2}}; // Prime quadruplets, before fork2Height
+        consensus.powAcceptedPatterns2 = {{0, 4, 2, 4, 2}, {0, 2, 4, 2, 4}}; // Prime quintuplets, starting from fork2Height
+        consensus.powLimit = ArithToUint256(600); // Before fork2Height
+        consensus.powLimit2 = 600*256; // nBits value for Difficulty 600, starting from fork2Height
         consensus.nPowTargetTimespan = 12*3600; // 12 h
         consensus.nPowTargetSpacing = 150; // 2.5 min
         consensus.fPowAllowMinDifficultyBlocks = true;
@@ -259,11 +261,12 @@ public:
         consensus.CSVHeight = 432; // CSV activated on regtest (Used in rpc activation tests)
         consensus.SegwitHeight = 0; // SEGWIT is always activated on regtest unless overridden
         consensus.fork1Height  = 2147483647; // No SuperBlocks
-        consensus.fork2Height  = 2147483647; // Fork 2 will not affect RegTest anyway
+        consensus.fork2Height  = 2147483647; // Use original PoW/consensus, though it would be nice to rewrite the tests for the current ones in future versions
         consensus.MinBIP9WarningHeight = 0;
-        consensus.powAcceptedConstellations1 = {{0}}; // Just prime numbers for RegTest
-        consensus.powAcceptedConstellations2 = {{0}};
+        consensus.powAcceptedPatterns1 = {{0}}; // Just prime numbers for RegTest
+        consensus.powAcceptedPatterns2 = {{0}};
         consensus.powLimit = ArithToUint256(304);
+        consensus.powLimit2 = 304*256;
         consensus.nPowTargetTimespan = 12*3600; // 12 h
         consensus.nPowTargetSpacing = 150; // 2.5 min
         consensus.fPowAllowMinDifficultyBlocks = true;

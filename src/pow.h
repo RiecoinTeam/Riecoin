@@ -21,10 +21,11 @@ bool isInSuperblockInterval(int nHeight, const Consensus::Params& params);
 bool isSuperblock(int nHeight, const Consensus::Params& params);
 
 void operator<<=(mpz_class&, mpz_class);
-mpz_class GenerateTarget(mpz_class &gmpTarget, uint256 hash, uint32_t compactBits);
+mpz_class GenerateTarget(mpz_class &gmpTarget, uint256 hash, uint32_t compactBits, const int32_t powVersion);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
 
+extern const std::vector<uint64_t> primeTable;
 /** Check whether an offset satisfies the proof-of-work requirement */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256 nOffset, const Consensus::Params&);
 

@@ -35,7 +35,7 @@ static void RejectDifficultyMismatch(mpz_class difficulty, mpz_class expected_di
 static void TestDifficulty(uint32_t nbits, mpz_class expected_difficulty)
 {
     CBlockIndex* block_index = CreateBlockIndexWithNbits(nbits);
-    mpz_class difficulty = GetDifficulty(block_index->nBits);
+    mpz_class difficulty = GetDifficulty(block_index->nBits, -1);
     delete block_index;
 
     RejectDifficultyMismatch(difficulty, expected_difficulty);
