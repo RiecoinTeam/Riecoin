@@ -48,8 +48,8 @@ std::string GetWarnings(bool verbose)
 
     // Pre-release build warning
     if (!CLIENT_VERSION_IS_RELEASE) {
-        warnings_concise = "This is a pre-release test build - use at your own risk - do not use for mining or merchant applications";
-        warnings_verbose = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications").translated;
+        warnings_concise = "This is a 0.20.0 prerelease, be sure to follow the latest Riecoin news!";
+        warnings_verbose = "This is a 0.20.0 prerelease, be sure to follow the latest Riecoin news!";
     }
 
     // Misc warnings like out of disk space and clock is wrong

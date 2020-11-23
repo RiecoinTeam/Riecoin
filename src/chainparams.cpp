@@ -173,7 +173,7 @@ public:
         consensus.CSVHeight = 0; // Always active in TestNet
         consensus.SegwitHeight = 0;  // Always active in TestNet
         consensus.fork1Height = 4032;
-        consensus.fork2Height = 2147483647; // TODO: set second Hard Fork height
+        consensus.fork2Height = 79056;
         consensus.MinBIP9WarningHeight = 0;
         consensus.powAcceptedPatterns1 = {{0, 2, 4, 2}}; // Prime quadruplets, before fork2Height
         consensus.powAcceptedPatterns2 = {{0, 4, 2, 4, 2}, {0, 2, 4, 2, 4}}; // Prime quintuplets, starting from fork2Height
