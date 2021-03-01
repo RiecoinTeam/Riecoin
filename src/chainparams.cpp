@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2019 The Bitcoin Core developers
-// Copyright (c) 2013-2020 The Riecoin developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -66,7 +66,7 @@ public:
         consensus.CSVHeight = 1096704;
         consensus.SegwitHeight = 1096704; // Activated with CSV
         consensus.fork1Height = 157248;
-        consensus.fork2Height = 2147483647; // TODO: set second Hard Fork height
+        consensus.fork2Height = 1482768;
         consensus.MinBIP9WarningHeight = 1100736; // SegwitHeight + miner confirmation window
         consensus.powAcceptedPatterns1 = {{0, 4, 2, 4, 2, 4}}; // Prime sextuplets, before fork2Height
         consensus.powAcceptedPatterns2 = {{0, 2, 4, 2, 4, 6, 2}, {0, 2, 6, 4, 2, 4, 2}}; // Prime septuplets, starting from fork2Height
@@ -105,8 +105,8 @@ public:
         pchMessageStart[3] = 0xdb;
         nDefaultPort = 28333;
         nPruneAfterHeight = 100000;
-        m_assumed_blockchain_size = 320;
-        m_assumed_chain_state_size = 4;
+        m_assumed_blockchain_size = 2;
+        m_assumed_chain_state_size = 1;
 
         genesis = CreateGenesisBlock(1392079741, 0, UintToArith256(consensus.powLimit).GetCompact(), 1, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
@@ -201,8 +201,8 @@ public:
         pchMessageStart[3] = 0x05;
         nDefaultPort = 38333;
         nPruneAfterHeight = 1000;
-        m_assumed_blockchain_size = 40;
-        m_assumed_chain_state_size = 2;
+        m_assumed_blockchain_size = 1;
+        m_assumed_chain_state_size = 1;
 
         genesis = CreateGenesisBlock(1593561600, 0, UintToArith256(consensus.powLimit).GetCompact(), 1, 50*COIN);
         consensus.hashGenesisBlock = genesis.GetHash();

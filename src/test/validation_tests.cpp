@@ -91,15 +91,23 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
         BOOST_CHECK(MoneyRange(nSum));
     }
     BOOST_CHECK_EQUAL(nSum, CAmount{4195677499983520}); // 4194717499983520 + 192*50*COIN at Block 839999
-    // Add Subsidies of Blocks 840000-1678655
-    for (int nHeight(840000) ; nHeight < 1678656 ; nHeight += 4032) { // Go until second halving (stopping at 839808 after 208 cycles)
+    // Add Subsidies of Blocks 840000-1481088
+    for (int nHeight(840000) ; nHeight < 1481088 ; nHeight += 4032) { // Go until second fork (stopping at 1481088 after 159 cycles), fork is at 1482768
         CAmount nSubsidyNormal(GetBlockSubsidy(nHeight + 2400, chainParams->GetConsensus())), nSubsidySuperBlock(GetBlockSubsidy(nHeight + 2256, chainParams->GetConsensus())), nSubsidySuperBlockCompensation(GetBlockSubsidy(nHeight + 2112, chainParams->GetConsensus()));
         nSum += nSubsidySuperBlock + 287*nSubsidySuperBlockCompensation + 3744*nSubsidyNormal;
         BOOST_CHECK(MoneyRange(nSum));
         BOOST_CHECK_EQUAL(nSum, CAmount{4195677499983520 + (nHeight - 840000 + 4032)/4032*10079999999808});
     }
-    BOOST_CHECK_EQUAL(nSum, CAmount{6292317499943584}); // 4195677499983520 + 208(694.66666666 + 287*22.66666666 + 3744*25)*COIN at Block 1678655
-    // Todo: handle SuperBlock removal and blocks beyond 2nd halving
+    BOOST_CHECK_EQUAL(nSum, CAmount{5798397499952992}); // 4195677499983520 + 159(694.66666666 + 287*22.66666666 + 3744*25)*COIN at Block 1481087
+    nSum += 198911*GetBlockSubsidy(1679999, chainParams->GetConsensus());
+    BOOST_CHECK_EQUAL(nSum, CAmount{6295674999952992}); // 5798397499952992 + 198911*25*COIN at Block 1679999
+    for (int nHeight(1680000) ; nHeight < 6*840000 ; nHeight += 1000) { // Test several Halvings
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
+        BOOST_CHECK(nSubsidy <= 50*COIN);
+        nSum += nSubsidy*1000;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    BOOST_CHECK_EQUAL(nSum, CAmount{8264424999952992}); // 6295674999952992 + 840000*(12.5 + 6.25 + 3.125 + 1.5625)*COIN at Block 5039999 (around 2038)
 }
 
 static bool ReturnFalse() { return false; }

@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
-// Copyright (c) 2013-2020 The Riecoin developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -590,6 +590,7 @@ std::string LicenseInfo()
            strprintf(_("The source code is available from %s.").translated,
                URL_SOURCE_CODE) +
            "\n\n Discord: <https://discord.gg/2sJEayC>" +
+           "\n Riecoin Forum: <https://forum.riecoin.dev/>" +
            "\n Twitter: <https://twitter.com/Riecoin>" +
            "\n Reddit: <https://www.reddit.com/r/Riecoin/>\n\n" +
            _("This is experimental software.").translated + "\n" +

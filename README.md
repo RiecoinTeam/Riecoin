@@ -46,9 +46,58 @@ The Riecoin-Qt binary is located in `src/qt`. You can run `strip riecoin-qt` to 
 
 #### Gitian Build
 
-Riecoin can be built using Gitian. The process is more complicated, but also deterministic: everyone building this way should obtain the exact same binaries. Official binaries are produced this way, so anyone can ensure that they were not created with an altered source code by building themselves using Gitian.
+Riecoin can be built using Gitian. The process is more complicated, but also deterministic: everyone building this way should obtain the exact same binaries. Official binaries are produced this way, so anyone can ensure that they were not created with an altered source code by building themselves using Gitian. If needed, see the [instructions](https://github.com/bitcoin-core/docs/blob/master/gitian-building.md) for Bitcoin, though many things there are outdated or even broken. Below is a proposed way to build with Gitian.
 
-See the [instructions](https://github.com/bitcoin-core/docs/blob/master/gitian-building.md) for Bitcoin, that should also work for Riecoin.
+First, install a fresh Ubuntu 20.04 in a Virtual Machine or actual hardware, using `gitianuser` as username (or adapting commands below). The disk/partition size should be at least 40 GB, and 8 GB or more of RAM is recommended.
+
+Once done, boot the system and open a terminal. Get root privileges with `sudo su` or by logging in as root. Then, get the dependencies:
+
+```bash
+apt install git ruby apt-cacher-ng qemu-utils debootstrap lxc python-cheetah parted kpartx bridge-utils make curl firewalld
+```
+
+Still as root, apply some workarounds:
+
+```bash
+echo "%sudo ALL=NOPASSWD: /usr/bin/lxc-start" > /etc/sudoers.d/gitian-lxc
+echo "%sudo ALL=NOPASSWD: /usr/bin/lxc-execute" >> /etc/sudoers.d/gitian-lxc
+echo '#!/bin/sh -e' > /etc/rc.local
+echo 'brctl addbr br0' >> /etc/rc.local
+echo 'ip addr add 10.0.3.1/24 broadcast 10.0.3.255 dev br0' >> /etc/rc.local
+echo 'ip link set br0 up' >> /etc/rc.local
+echo 'firewall-cmd --zone=trusted --add-interface=br0' >> /etc/rc.local
+echo 'exit 0' >> /etc/rc.local
+chmod +x /etc/rc.local
+echo 'export USE_LXC=1' >> /home/gitianuser/.profile
+echo 'export GITIAN_HOST_IP=10.0.3.1' >> /home/gitianuser/.profile
+echo 'export LXC_GUEST_IP=10.0.3.5' >> /home/gitianuser/.profile
+```
+
+Reboot.
+
+Now, get the Gitian tools and the Riecoin Core source code.
+
+```bash
+git clone https://github.com/devrandom/gitian-builder.git
+git clone https://github.com/riecointeam/riecoin.git
+```
+
+Prepare Gitian. This will ask for your password to get temporary root privileges.
+
+```bash
+cp riecoin/contrib/gitian-build.py .
+./gitian-build.py --setup
+```
+
+You can now do the Gitian Build.
+
+```bash
+export NAME=riemann
+export VERSION=0.20.0
+./gitian-build.py --detach-sign --no-commit -b $NAME $VERSION
+```
+
+It will be very long, do not be surprised if it takes hours. You can check the progress in the log files in `gitian-builder/var` (ignore the possible "failed to create directory" errors in the terminal). Windows and Linux binaries for several architectures will be generated in the `riecoin-binaries` folder.
 
 ### Other OSes
 
