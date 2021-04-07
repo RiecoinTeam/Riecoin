@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -45,25 +46,27 @@ struct BIP9Deployment {
  */
 struct Params {
     uint256 hashGenesisBlock;
+    uint256 hashGenesisBlockForPoW;
+    /** First blocks in MainNet had no or less rewards than other blocks */
+    bool hasFairLaunch;
     int nSubsidyHalvingInterval;
-    /* Block hash that is excepted from BIP16 enforcement */
-    uint256 BIP16Exception;
-    /** Block height and hash at which BIP34 becomes active */
+    /** Block height at which BIP34 becomes active */
     int BIP34Height;
-    uint256 BIP34Hash;
     /** Block height at which BIP65 becomes active */
     int BIP65Height;
     /** Block height at which BIP66 becomes active */
     int BIP66Height;
     /** Block height at which CSV (BIP68, BIP112 and BIP113) becomes active */
     int CSVHeight;
-    /** Block height at which Segwit (BIP141, BIP143 and BIP147) becomes active.
-     * Note that segwit v0 script rules are enforced on all blocks except the
-     * BIP 16 exception blocks. */
+    /** Block height at which Segwit (BIP141, BIP143 and BIP147) becomes active. */
     int SegwitHeight;
+    /** Block height at which Taproot (BIP340-342) becomes active in case BIP9 activation fails. */
+    int TaprootHeight;
     /** Don't warn about unknown BIP 9 activations below this height.
      * This prevents us from warning about the CSV and segwit activations. */
     int MinBIP9WarningHeight;
+    int fork1Height;
+    int fork2Height;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.
@@ -73,7 +76,12 @@ struct Params {
     uint32_t nMinerConfirmationWindow;
     BIP9Deployment vDeployments[MAX_VERSION_BITS_DEPLOYMENTS];
     /** Proof of work parameters */
-    uint256 powLimit;
+    int32_t GetPoWVersionAtHeight(int32_t height) const {return height < fork2Height ? -1 : 1;}
+    std::vector<std::vector<int32_t>> powAcceptedPatterns1;
+    std::vector<std::vector<int32_t>> powAcceptedPatterns2;
+    std::vector<std::vector<int32_t>> GetPowAcceptedPatternsAtHeight(int height) const {return height >= fork2Height ? powAcceptedPatterns2 : powAcceptedPatterns1;}
+    uint32_t powLimit;
+    uint32_t powLimit2;
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;

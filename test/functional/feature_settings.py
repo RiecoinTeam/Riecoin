@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test various command line arguments and configuration file parameters."""
@@ -22,7 +23,7 @@ class SettingsTest(BitcoinTestFramework):
     def run_test(self):
         node, = self.nodes
         settings = Path(node.datadir, self.chain, "settings.json")
-        conf = Path(node.datadir, "bitcoin.conf")
+        conf = Path(node.datadir, "riecoin.conf")
 
         # Assert empty settings file was created
         self.stop_node(0)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the pruning code.
@@ -55,8 +56,8 @@ def mine_large_blocks(node, n):
         block.nVersion = best_block["version"]
         block.hashPrevBlock = previousblockhash
         block.nTime = mine_large_blocks.nTime
-        block.nBits = int('207fffff', 16)
-        block.nNonce = 0
+        block.nBits = int('02013000', 16)
+        block.nOffset = 0
         block.vtx = [coinbase_tx]
         block.hashMerkleRoot = block.calc_merkle_root()
         block.solve()

@@ -1,4 +1,5 @@
 // Copyright (c) 2019 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -27,10 +28,9 @@ CTxIn MineBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
 {
     auto block = PrepareBlock(node, coinbase_scriptPubKey);
 
-    while (!CheckProofOfWork(block->GetHash(), block->nBits, Params().GetConsensus())) {
-        ++block->nNonce;
-        assert(block->nNonce);
-    }
+    block->nOffset = 1;
+    while (!CheckProofOfWork(block->GetHashForPoW(), block->nBits, ArithToUint256(block->nOffset), Params().GetConsensus()))
+        block->nOffset += 2;
 
     bool processed{Assert(node.chainman)->ProcessNewBlock(Params(), block, true, nullptr)};
     assert(processed);

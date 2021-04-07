@@ -1,4 +1,5 @@
 // Copyright (c) 2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -74,7 +75,7 @@ void test_one_input(const std::vector<uint8_t>& buffer)
         {
             const std::optional<uint256> hash = ConsumeDeserializable<uint256>(fuzzed_data_provider);
             if (hash) {
-                (void)CheckProofOfWork(*hash, fuzzed_data_provider.ConsumeIntegral<unsigned int>(), consensus_params);
+                (void)CheckProofOfWork(*hash, fuzzed_data_provider.ConsumeIntegral<unsigned int>(), ArithToUint256(current_block.nOffset), consensus_params);
             }
         }
     }

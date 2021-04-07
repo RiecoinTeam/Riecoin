@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2016-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test label RPCs.
@@ -50,7 +51,7 @@ class WalletLabelsTest(BitcoinTestFramework):
             linked_addresses.add(address_group[0][0])
 
         # send 50 from each address to a third address not in this wallet
-        common_address = "msf4WtN1YQKXvNtvdFYt9JBnUD2FB41kjr"
+        common_address = "rJNhM5eBMPRAv9RstsDPUgBSPkrd4K7cMk"
         node.sendmany(
             amounts={common_address: 100},
             subtractfeefrom=[common_address],
@@ -138,13 +139,13 @@ class WalletLabelsTest(BitcoinTestFramework):
         node.createwallet(wallet_name='watch_only', disable_private_keys=True)
         wallet_watch_only = node.get_wallet_rpc('watch_only')
         BECH32_VALID = {
-            '✔️_VER15_PROG40': 'bcrt10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqn2cjv3',
-            '✔️_VER16_PROG03': 'bcrt1sqqqqqjq8pdp',
-            '✔️_VER16_PROB02': 'bcrt1sqqqqqjq8pv',
+            '✔️_VER15_PROG40': 'rric10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6uh8l2',
+            '✔️_VER16_PROG03': 'rric1sqqqqq80fzfw',
+            '✔️_VER16_PROB02': 'rric1sqqqqfydemt',
         }
         BECH32_INVALID = {
-            '❌_VER15_PROG41': 'bcrt10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzc7xyq',
-            '❌_VER16_PROB01': 'bcrt1sqqpl9r5c',
+            '❌_VER15_PROG41': 'rric10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgq24vm',
+            '❌_VER16_PROB01': 'rric1sqq7e3smx',
         }
         for l in BECH32_VALID:
             ad = BECH32_VALID[l]
@@ -156,7 +157,7 @@ class WalletLabelsTest(BitcoinTestFramework):
             ad = BECH32_INVALID[l]
             assert_raises_rpc_error(
                 -5,
-                "Address is not valid" if self.options.descriptors else "Invalid Bitcoin address or script",
+                "Address is not valid" if self.options.descriptors else "Invalid Riecoin address or script",
                 lambda: wallet_watch_only.importaddress(label=l, rescan=False, address=ad),
             )
 

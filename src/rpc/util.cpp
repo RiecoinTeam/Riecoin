@@ -1,4 +1,5 @@
 // Copyright (c) 2017-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,7 +19,7 @@
 #include <boost/algorithm/string/split.hpp>
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
-const std::string EXAMPLE_ADDRESS[2] = {"bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl", "bc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3"};
+const std::string EXAMPLE_ADDRESS[2] = {"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja", "ric1qextnqxxssx7hhm0l5j2xf40hw27587m62dw5hn"};
 
 void RPCTypeCheck(const UniValue& params,
                   const std::list<UniValueType>& typesExpected,
@@ -132,13 +133,13 @@ CoinStatsHashType ParseHashType(const UniValue& param, const CoinStatsHashType d
 
 std::string HelpExampleCli(const std::string& methodname, const std::string& args)
 {
-    return "> bitcoin-cli " + methodname + " " + args + "\n";
+    return "> riecoin-cli " + methodname + " " + args + "\n";
 }
 
 std::string HelpExampleRpc(const std::string& methodname, const std::string& args)
 {
     return "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", "
-        "\"method\": \"" + methodname + "\", \"params\": [" + args + "]}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n";
+        "\"method\": \"" + methodname + "\", \"params\": [" + args + "]}' -H 'content-type: text/plain;' http://127.0.0.1:28332/\n";
 }
 
 // Converts a hex string to a public key if possible

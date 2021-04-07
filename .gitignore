@@ -2,17 +2,17 @@
 
 *.exe
 *.pdb
-src/bitcoin
-src/bitcoind
-src/bitcoin-cli
-src/bitcoin-gui
-src/bitcoin-node
-src/bitcoin-tx
-src/bitcoin-wallet
+src/riecoin
+src/riecoind
+src/riecoin-cli
+src/riecoin-gui
+src/riecoin-node
+src/riecoin-tx
+src/riecoin-wallet
 src/test/fuzz/*
 !src/test/fuzz/*.*
-src/test/test_bitcoin
-src/qt/test/test_bitcoin-qt
+src/test/test_riecoin
+src/qt/test/test_riecoin-qt
 
 # autoreconf
 Makefile.in
@@ -92,8 +92,8 @@ src/qt/bitcoin-qt.includes
 *.qm
 Makefile
 !depends/Makefile
-src/qt/bitcoin-qt
-Bitcoin-Qt.app
+src/qt/riecoin-qt
+riecoin-Qt.app
 background.tiff*
 
 # Qt Creator
@@ -101,7 +101,7 @@ Makefile.am.user
 
 # Unit-tests
 Makefile.test
-bitcoin-qt_test
+riecoin-qt_test
 
 # Resources cpp
 qrc_*.cpp

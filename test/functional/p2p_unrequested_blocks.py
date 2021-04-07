@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test processing of unrequested blocks.
@@ -67,7 +68,7 @@ class AcceptBlockTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
-        self.extra_args = [[], ["-minimumchainwork=0x10"]]
+        self.extra_args = [[], ["-minimumchainwork=0x5d0f5a7a"]] # 304^(1 + 2.3)*10
 
     def setup_network(self):
         self.setup_nodes()

@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1836,7 +1837,7 @@ BOOST_AUTO_TEST_CASE(test_ToUpper)
 BOOST_AUTO_TEST_CASE(test_Capitalize)
 {
     BOOST_CHECK_EQUAL(Capitalize(""), "");
-    BOOST_CHECK_EQUAL(Capitalize("bitcoin"), "Bitcoin");
+    BOOST_CHECK_EQUAL(Capitalize("riecoin"), "Riecoin");
     BOOST_CHECK_EQUAL(Capitalize("\x00\xfe\xff"), "\x00\xfe\xff");
 }
 
@@ -2085,7 +2086,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
 {
     const std::array<unsigned char, 32> privkey_bytes = {
         // just some random data
-        // derived address from this private key: 15CRxFdyRpGZLW9w8HnHvVduizdL5jKNbs
+        // derived address from this private key: RDUd2mXG2e58QWX8bTmR21y7VG5vnH5c2n
         0xD9, 0x7F, 0x51, 0x08, 0xF1, 0x1C, 0xDA, 0x6E,
         0xEE, 0xBA, 0xAA, 0x42, 0x0F, 0xEF, 0x07, 0x26,
         0xB1, 0xF8, 0x98, 0x06, 0x0B, 0x98, 0x48, 0x9F,
@@ -2095,7 +2096,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
     const std::string message = "Trust no one";
 
     const std::string expected_signature =
-        "IPojfrX2dfPnH26UegfbGQQLrdK844DlHq5157/P6h57WyuS/Qsl+h/WSVGDF4MUi4rWSswW38oimDYfNNUBUOk=";
+        "IAwqGTXmrePX+b7bRxwc/Lw6yJcPQeUx1FDS5k3grfpeY3psNdkigJ3SOSFchZKjg5EjwXS7tofhYPpH4GF2aeU=";
 
     CKey privkey;
     std::string generated_signature;
@@ -2128,43 +2129,43 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "3B5fQsEXEaV8v6U3ejYc8XaKXAkyQj2MjV",
+            "TKMrVP7oqQHhz6qF7uXjE3uXHSDa7xbDxx",
             "signature should be irrelevant",
             "message too"),
         MessageVerificationResult::ERR_ADDRESS_NO_KEY);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "1KqbBpLy5FARmTPD4VZnDDpYjkUvkr82Pm",
+            "RU7nGLEFg4xzqTkQXfYuJk9kW1wXPbUBQu",
             "invalid signature, not in base64 encoding",
             "message should be irrelevant"),
         MessageVerificationResult::ERR_MALFORMED_SIGNATURE);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "1KqbBpLy5FARmTPD4VZnDDpYjkUvkr82Pm",
+            "RU7nGLEFg4xzqTkQXfYuJk9kW1wXPbUBQu",
             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             "message should be irrelevant"),
         MessageVerificationResult::ERR_PUBKEY_NOT_RECOVERED);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "15CRxFdyRpGZLW9w8HnHvVduizdL5jKNbs",
-            "IPojfrX2dfPnH26UegfbGQQLrdK844DlHq5157/P6h57WyuS/Qsl+h/WSVGDF4MUi4rWSswW38oimDYfNNUBUOk=",
+            "RDUd2mXG2e58QWX8bTmR21y7VG5vnH5c2n",
+            "IAwqGTXmrePX+b7bRxwc/Lw6yJcPQeUx1FDS5k3grfpeY3psNdkigJ3SOSFchZKjg5EjwXS7tofhYPpH4GF2aeU=",
             "I never signed this"),
         MessageVerificationResult::ERR_NOT_SIGNED);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "15CRxFdyRpGZLW9w8HnHvVduizdL5jKNbs",
-            "IPojfrX2dfPnH26UegfbGQQLrdK844DlHq5157/P6h57WyuS/Qsl+h/WSVGDF4MUi4rWSswW38oimDYfNNUBUOk=",
+            "RDUd2mXG2e58QWX8bTmR21y7VG5vnH5c2n",
+            "IAwqGTXmrePX+b7bRxwc/Lw6yJcPQeUx1FDS5k3grfpeY3psNdkigJ3SOSFchZKjg5EjwXS7tofhYPpH4GF2aeU=",
             "Trust no one"),
         MessageVerificationResult::OK);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "11canuhp9X2NocwCq7xNrQYTmUgZAnLK3",
-            "IIcaIENoYW5jZWxsb3Igb24gYnJpbmsgb2Ygc2Vjb25kIGJhaWxvdXQgZm9yIGJhbmtzIAaHRtbCeDZINyavx14=",
+            "RVffQGsSD5b7X8tSkMNVoR1szkK9Qe1396", // PrivKey 568531539eada35fec620f058e293dc170d1b4726c67eb471502221130ccefaa
+            "H/TAQFCrV8ACDGqBoI1X3eLMY2UiCsxcyrsd+p6LLqNjQhpELGyVL3ZXTbrZbPkkaXf8Zfnq8LSt58qzjeIFEdo=",
             "Trust me"),
         MessageVerificationResult::OK);
 }

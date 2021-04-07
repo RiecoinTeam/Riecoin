@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -186,7 +187,7 @@ CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
     {
         ret = CAddress(addr, nLocalServices);
     }
-    ret.nTime = GetAdjustedTime();
+    ret.nTime = GetTime();
     return ret;
 }
 
@@ -405,7 +406,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     /// debug print
     LogPrint(BCLog::NET, "trying connection %s lastseen=%.1fhrs\n",
         pszDest ? pszDest : addrConnect.ToString(),
-        pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
+        pszDest ? 0.0 : (double)(GetTime() - addrConnect.nTime)/3600.0);
 
     // Resolve
     const int default_port = Params().GetDefaultPort();
@@ -1896,7 +1897,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
         // Note that we only do this if we started with an empty peers.dat,
         // (in which case we will query DNS seeds immediately) *and* the DNS
         // seeds have not returned any results.
-        if (addrman.size() == 0 && (GetTime() - nStart > 60)) {
+        if (addrman.size() == 0 && (GetTime() - nStart > 3)) {
             static bool done = false;
             if (!done) {
                 LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
@@ -1976,7 +1977,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
 
         addrman.ResolveCollisions();
 
-        int64_t nANow = GetAdjustedTime();
+        int64_t nANow = GetTime();
         int nTries = 0;
         while (!interruptNet)
         {

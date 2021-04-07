@@ -1,4 +1,5 @@
 // Copyright (c) 2017-2019 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -25,13 +26,8 @@ class Ref;
 
 static constexpr int NUM_GETBLOCKSTATS_PERCENTILES = 5;
 
-/**
- * Get the difficulty of the net wrt to the given block index.
- *
- * @return A floating point number that is a multiple of the main net minimum
- * difficulty (4295032833 hashes).
- */
-double GetDifficulty(const CBlockIndex* blockindex);
+/** Get the block's difficulty */
+double GetDifficulty(const CBlockIndex* blockindex, const int32_t = 0);
 
 /** Callback for when block tip changed. */
 void RPCNotifyBlockChange(const CBlockIndex*);

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the wallet."""
@@ -230,7 +231,7 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('10'), fee_per_byte, self.get_vsize(self.nodes[2].gettransaction(txid)['hex']))
 
-        self.log.info("Test sendmany with fee_rate param (explicit fee rate in sat/vB)")
+        self.log.info("Test sendmany with fee_rate param (explicit fee rate in rie/vB)")
         fee_rate_sat_vb = 2
         fee_rate_btc_kvb = fee_rate_sat_vb * 1e3 / 1e8
         explicit_fee_rate_btc_kvb = Decimal(fee_rate_btc_kvb) / 1000
@@ -261,11 +262,11 @@ class WalletTest(BitcoinTestFramework):
 
         # Test setting explicit fee rate just below the minimum.
         self.log.info("Test sendmany raises 'fee rate too low' if fee_rate of 0.99999999 is passed")
-        assert_raises_rpc_error(-6, "Fee rate (0.999 sat/vB) is lower than the minimum fee rate setting (1.000 sat/vB)",
+        assert_raises_rpc_error(-6, "Fee rate (0.999 rie/vB) is lower than the minimum fee rate setting (1.000 rie/vB)",
             self.nodes[2].sendmany, amounts={address: 10}, fee_rate=0.99999999)
 
         self.log.info("Test sendmany raises if fee_rate of 0 or -1 is passed")
-        assert_raises_rpc_error(-6, "Fee rate (0.000 sat/vB) is lower than the minimum fee rate setting (1.000 sat/vB)",
+        assert_raises_rpc_error(-6, "Fee rate (0.000 rie/vB) is lower than the minimum fee rate setting (1.000 rie/vB)",
             self.nodes[2].sendmany, amounts={address: 10}, fee_rate=0)
         assert_raises_rpc_error(-3, OUT_OF_RANGE, self.nodes[2].sendmany, amounts={address: 10}, fee_rate=-1)
 
@@ -273,7 +274,7 @@ class WalletTest(BitcoinTestFramework):
         for target, mode in product([-1, 0, 1009], ["economical", "conservative"]):
             assert_raises_rpc_error(-8, "Invalid conf_target, must be between 1 and 1008",  # max value of 1008 per src/policy/fees.h
                 self.nodes[2].sendmany, amounts={address: 1}, conf_target=target, estimate_mode=mode)
-        for target, mode in product([-1, 0], ["btc/kb", "sat/b"]):
+        for target, mode in product([-1, 0], ["RIC/kb", "rie/b"]):
             assert_raises_rpc_error(-8, 'Invalid estimate_mode parameter, must be one of: "unset", "economical", "conservative"',
                 self.nodes[2].sendmany, amounts={address: 1}, conf_target=target, estimate_mode=mode)
 
@@ -389,13 +390,13 @@ class WalletTest(BitcoinTestFramework):
             assert_raises_rpc_error(-3, "Address does not refer to a key", self.nodes[0].dumpprivkey, temp_address)
 
             # This will raise an exception for attempting to get the private key of an invalid Bitcoin address
-            assert_raises_rpc_error(-5, "Invalid Bitcoin address", self.nodes[0].dumpprivkey, "invalid")
+            assert_raises_rpc_error(-5, "Invalid Riecoin address", self.nodes[0].dumpprivkey, "invalid")
 
             # This will raise an exception for attempting to set a label for an invalid Bitcoin address
-            assert_raises_rpc_error(-5, "Invalid Bitcoin address", self.nodes[0].setlabel, "invalid address", "label")
+            assert_raises_rpc_error(-5, "Invalid Riecoin address", self.nodes[0].setlabel, "invalid address", "label")
 
             # This will raise an exception for importing an invalid address
-            assert_raises_rpc_error(-5, "Invalid Bitcoin address or script", self.nodes[0].importaddress, "invalid")
+            assert_raises_rpc_error(-5, "Invalid Riecoin address or script", self.nodes[0].importaddress, "invalid")
 
             # This will raise an exception for attempting to import a pubkey that isn't in hex
             assert_raises_rpc_error(-5, "Pubkey must be a hex string", self.nodes[0].importpubkey, "not hex")
@@ -410,7 +411,7 @@ class WalletTest(BitcoinTestFramework):
             self.nodes[0].generate(1)
             self.sync_all(self.nodes[0:3])
 
-            self.log.info("Test sendtoaddress with fee_rate param (explicit fee rate in sat/vB)")
+            self.log.info("Test sendtoaddress with fee_rate param (explicit fee rate in rie/vB)")
             prebalance = self.nodes[2].getbalance()
             assert prebalance > 2
             address = self.nodes[1].getnewaddress()
@@ -444,11 +445,11 @@ class WalletTest(BitcoinTestFramework):
 
             # Test setting explicit fee rate just below the minimum.
             self.log.info("Test sendtoaddress raises 'fee rate too low' if fee_rate of 0.99999999 is passed")
-            assert_raises_rpc_error(-6, "Fee rate (0.999 sat/vB) is lower than the minimum fee rate setting (1.000 sat/vB)",
+            assert_raises_rpc_error(-6, "Fee rate (0.999 rie/vB) is lower than the minimum fee rate setting (1.000 rie/vB)",
                 self.nodes[2].sendtoaddress, address=address, amount=1, fee_rate=0.99999999)
 
             self.log.info("Test sendtoaddress raises if fee_rate of 0 or -1 is passed")
-            assert_raises_rpc_error(-6, "Fee rate (0.000 sat/vB) is lower than the minimum fee rate setting (1.000 sat/vB)",
+            assert_raises_rpc_error(-6, "Fee rate (0.000 rie/vB) is lower than the minimum fee rate setting (1.000 rie/vB)",
                 self.nodes[2].sendtoaddress, address=address, amount=10, fee_rate=0)
             assert_raises_rpc_error(-3, OUT_OF_RANGE, self.nodes[2].sendtoaddress, address=address, amount=1.0, fee_rate=-1)
 
@@ -456,7 +457,7 @@ class WalletTest(BitcoinTestFramework):
             for target, mode in product([-1, 0, 1009], ["economical", "conservative"]):
                 assert_raises_rpc_error(-8, "Invalid conf_target, must be between 1 and 1008",  # max value of 1008 per src/policy/fees.h
                     self.nodes[2].sendtoaddress, address=address, amount=1, conf_target=target, estimate_mode=mode)
-            for target, mode in product([-1, 0], ["btc/kb", "sat/b"]):
+            for target, mode in product([-1, 0], ["RIC/kb", "rie/b"]):
                 assert_raises_rpc_error(-8, 'Invalid estimate_mode parameter, must be one of: "unset", "economical", "conservative"',
                     self.nodes[2].sendtoaddress, address=address, amount=1, conf_target=target, estimate_mode=mode)
 
@@ -586,9 +587,9 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*", 99999)))
 
         # Test getaddressinfo on external address. Note that these addresses are taken from disablewallet.py
-        assert_raises_rpc_error(-5, "Invalid address", self.nodes[0].getaddressinfo, "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy")
-        address_info = self.nodes[0].getaddressinfo("mneYUmWYsuk7kySiURxCi3AGxrAqZxLgPZ")
-        assert_equal(address_info['address'], "mneYUmWYsuk7kySiURxCi3AGxrAqZxLgPZ")
+        assert_raises_rpc_error(-5, "Invalid address", self.nodes[0].getaddressinfo, "TSRKxXQ6qNucGP8cPtdjxKJvH8FS683fL6")
+        address_info = self.nodes[0].getaddressinfo("rDNBJxnigtqkkjyfk3ci3R9vtQ1DP4DhxL")
+        assert_equal(address_info['address'], "rDNBJxnigtqkkjyfk3ci3R9vtQ1DP4DhxL")
         assert_equal(address_info["scriptPubKey"], "76a9144e3854046c7bd1594ac904e4793b6a45b36dea0988ac")
         assert not address_info["ismine"]
         assert not address_info["iswatchonly"]

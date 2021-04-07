@@ -3,6 +3,7 @@
 # linearize-data.py: Construct a linear, no-fork version of the chain.
 #
 # Copyright (c) 2013-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #
@@ -66,7 +67,7 @@ def calc_hash_str(blk_hdr):
     return hash_str
 
 def get_blk_dt(blk_hdr):
-    members = struct.unpack("<I", blk_hdr[68:68+4])
+    members = struct.unpack("<q", blk_hdr[68:68+8])
     nTime = members[0]
     dt = datetime.datetime.fromtimestamp(nTime)
     dt_ym = datetime.datetime(dt.year, dt.month, 1)
@@ -247,8 +248,8 @@ class BlockDataCopier:
                 continue
             inLenLE = inhdr[4:]
             su = struct.unpack("<I", inLenLE)
-            inLen = su[0] - 80 # length without header
-            blk_hdr = self.inF.read(80)
+            inLen = su[0] - 112 # length without header
+            blk_hdr = self.inF.read(112)
             inExtent = BlockExtent(self.inFn, self.inF.tell(), inhdr, blk_hdr, inLen)
 
             self.hash_str = calc_hash_str(blk_hdr)
@@ -311,9 +312,9 @@ if __name__ == '__main__':
     settings['rev_hash_bytes'] = settings['rev_hash_bytes'].lower()
 
     if 'netmagic' not in settings:
-        settings['netmagic'] = 'f9beb4d9'
+        settings['netmagic'] = 'fcbcb2db'
     if 'genesis' not in settings:
-        settings['genesis'] = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+        settings['genesis'] = 'e1ea18d0676ef9899fbc78ef428d1d26a2416d0f0441d46668d33bcb41275740'
     if 'input' not in settings:
         settings['input'] = 'input'
     if 'hashlist' not in settings:

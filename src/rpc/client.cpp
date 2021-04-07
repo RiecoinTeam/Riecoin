@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -34,8 +35,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "generatetodescriptor", 0, "num_blocks" },
     { "generatetodescriptor", 2, "maxtries" },
     { "generateblock", 1, "transactions" },
-    { "getnetworkhashps", 0, "nblocks" },
-    { "getnetworkhashps", 1, "height" },
+    { "getnetworkminingpower", 0, "nblocks" },
+    { "getnetworkminingpower", 1, "height" },
     { "sendtoaddress", 1, "amount" },
     { "sendtoaddress", 4, "subtractfeefromamount" },
     { "sendtoaddress", 5 , "replaceable" },

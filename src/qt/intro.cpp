@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -134,8 +135,8 @@ Intro::Intro(QWidget *parent, int64_t blockchain_size_gb, int64_t chain_state_si
     ui->lblExplanation1->setText(ui->lblExplanation1->text()
         .arg(PACKAGE_NAME)
         .arg(m_blockchain_size_gb)
-        .arg(2009)
-        .arg(tr("Bitcoin"))
+        .arg(2014)
+        .arg(tr("Riecoin"))
     );
     ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(PACKAGE_NAME));
 
@@ -362,7 +363,7 @@ void Intro::UpdatePruneLabels(bool prune_checked)
     }
     ui->lblExplanation3->setVisible(prune_checked);
     ui->sizeWarningLabel->setText(
-        tr("%1 will download and store a copy of the Bitcoin block chain.").arg(PACKAGE_NAME) + " " +
+        tr("%1 will download and store a copy of the Riecoin block chain.").arg(PACKAGE_NAME) + " " +
         storageRequiresMsg.arg(m_required_space_gb) + " " +
         tr("The wallet will also be stored in this directory.")
     );

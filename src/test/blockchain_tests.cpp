@@ -1,4 +1,5 @@
 // Copyright (c) 2017-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -38,10 +39,10 @@ static void RejectDifficultyMismatch(double difficulty, double expected_difficul
 /* Given a BlockIndex with the provided nbits,
  * verify that the expected difficulty results.
  */
-static void TestDifficulty(uint32_t nbits, double expected_difficulty)
+static void TestDifficulty(uint32_t nbits, double expected_difficulty, int32_t powVersion)
 {
     CBlockIndex* block_index = CreateBlockIndexWithNbits(nbits);
-    double difficulty = GetDifficulty(block_index);
+    double difficulty = GetDifficulty(block_index, powVersion);
     delete block_index;
 
     RejectDifficultyMismatch(difficulty, expected_difficulty);
@@ -51,27 +52,27 @@ BOOST_FIXTURE_TEST_SUITE(blockchain_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(get_difficulty_for_very_low_target)
 {
-    TestDifficulty(0x1f111111, 0.000001);
+    TestDifficulty(0x02019000, 400., -1); // 2^(8*(2 - 2))*400 or 2^(8*(2 - 3))*102400
 }
 
 BOOST_AUTO_TEST_CASE(get_difficulty_for_low_target)
 {
-    TestDifficulty(0x1ef88f6f, 0.000016);
+    TestDifficulty(0x02064000, 1600., -1); // 2^(8*(2 - 2))*1600
 }
 
 BOOST_AUTO_TEST_CASE(get_difficulty_for_mid_target)
 {
-    TestDifficulty(0x1df88f6f, 0.004023);
+    TestDifficulty(316049, 1234.56640625, 1); // 316049/256
 }
 
 BOOST_AUTO_TEST_CASE(get_difficulty_for_high_target)
 {
-    TestDifficulty(0x1cf88f6f, 1.029916);
+    TestDifficulty(0x02064000, 132672, 1); // 33964032/256
 }
 
 BOOST_AUTO_TEST_CASE(get_difficulty_for_very_high_target)
 {
-    TestDifficulty(0x12345678, 5913134931067755359633408.0);
+    TestDifficulty(0xffffffff, 16777215.99609375, 1); // (2^32 - 1)/256
 }
 
 BOOST_AUTO_TEST_SUITE_END()

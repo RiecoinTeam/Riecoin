@@ -1,4 +1,5 @@
 // Copyright (c) 2012-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -21,12 +22,12 @@ static const std::string strSecret1 = "5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHf
 static const std::string strSecret2 = "5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3";
 static const std::string strSecret1C = "Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw";
 static const std::string strSecret2C = "L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g";
-static const std::string addr1 = "1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ";
-static const std::string addr2 = "1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ";
-static const std::string addr1C = "1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs";
-static const std::string addr2C = "1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs";
+static const std::string addr1 = "RYY2usMVfuN47PfRmjshQjCcXzo3oPicoh";
+static const std::string addr2 = "RPNA9jxXxRt84dg5eKgTfzyFoXgYsXYrGu";
+static const std::string addr1C = "RX5VwKmAZCytjCf6mhSBP6xWcnspqFiSfK";
+static const std::string addr2C = "RLhv6ordc2L64HXioasqMsJtSdukCn2Tcg";
 
-static const std::string strAddressBad = "1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF";
+static const std::string strAddressBad = "RRmLR7w9y7NY1jRmDGeJ8fDSXTKaV5ms8X";
 
 
 BOOST_FIXTURE_TEST_SUITE(key_tests, BasicTestingSetup)

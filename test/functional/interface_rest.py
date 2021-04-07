@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the REST API."""
@@ -80,7 +81,7 @@ class RESTTest (BitcoinTestFramework):
         self.log.info("Mine blocks and send Bitcoin to node 1")
 
         # Random address so node1's balance doesn't increase
-        not_related_address = "2MxqoHEdNQTyYeX1mHcbrrpzgojbosTpCvJ"
+        not_related_address = "tCXBLk4VR216DcPnbfcsQBDQNvpisTyewG"
 
         self.nodes[0].generate(1)
         self.sync_all()
@@ -272,7 +273,7 @@ class RESTTest (BitcoinTestFramework):
 
         # Compare with normal RPC block response
         rpc_block_json = self.nodes[0].getblock(bb_hash)
-        for key in ['hash', 'confirmations', 'height', 'version', 'merkleroot', 'time', 'nonce', 'bits', 'difficulty', 'chainwork', 'previousblockhash']:
+        for key in ['hash', 'confirmations', 'height', 'version', 'merkleroot', 'time', 'offset', 'bits', 'difficulty', 'chainwork', 'previousblockhash']:
             assert_equal(json_obj[0][key], rpc_block_json[key])
 
         # See if we can get 5 headers in one response

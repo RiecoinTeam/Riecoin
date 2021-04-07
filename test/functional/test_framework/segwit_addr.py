@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017 Pieter Wuille
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Reference implementation for Bech32 and segwit addresses."""
@@ -110,12 +111,12 @@ class TestFrameworkScript(unittest.TestCase):
     def test_segwit_encode_decode(self):
         def test_python_bech32(addr):
             hrp = addr[:4]
-            self.assertEqual(hrp, "bcrt")
+            self.assertEqual(hrp, "rric")
             (witver, witprog) = decode_segwit_address(hrp, addr)
             self.assertEqual(encode_segwit_address(hrp, witver, witprog), addr)
 
         # P2WPKH
-        test_python_bech32('bcrt1qthmht0k2qnh3wy7336z05lu2km7emzfpm3wg46')
+        test_python_bech32('rric1qthmht0k2qnh3wy7336z05lu2km7emzfptwqx84')
         # P2WSH
-        test_python_bech32('bcrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3xueyj')
-        test_python_bech32('bcrt1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsqseac85')
+        test_python_bech32('rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq46tsvq')
+        test_python_bech32('rric1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsq59230x')

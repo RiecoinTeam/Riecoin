@@ -2,6 +2,7 @@
 # Copyright (c) 2010 ArtForz -- public domain half-a-node
 # Copyright (c) 2012 Jeff Garzik
 # Copyright (c) 2010-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Bitcoin test framework primitive and message structures
@@ -37,12 +38,12 @@ MY_SUBVERSION = b"/python-p2p-tester:0.0.3/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
 MAX_LOCATOR_SZ = 101
-MAX_BLOCK_BASE_SIZE = 1000000
+MAX_BLOCK_BASE_SIZE = 2000000
 MAX_BLOOM_FILTER_SIZE = 36000
 MAX_BLOOM_HASH_FUNCS = 50
 
 COIN = 100000000  # 1 btc in satoshis
-MAX_MONEY = 21000000 * COIN
+MAX_MONEY = 84000000 * COIN
 
 BIP125_SEQUENCE_NUMBER = 0xfffffffd  # Sequence number that is BIP 125 opt-in and BIP 68-opt-out
 
@@ -602,8 +603,8 @@ class CTransaction:
 
 
 class CBlockHeader:
-    __slots__ = ("hash", "hashMerkleRoot", "hashPrevBlock", "nBits", "nNonce",
-                 "nTime", "nVersion", "sha256")
+    __slots__ = ("hash", "hashMerkleRoot", "hashPrevBlock", "nBits", "nOffset",
+                 "nTime", "nVersion", "sha256", "sha256PoW")
 
     def __init__(self, header=None):
         if header is None:
@@ -614,8 +615,9 @@ class CBlockHeader:
             self.hashMerkleRoot = header.hashMerkleRoot
             self.nTime = header.nTime
             self.nBits = header.nBits
-            self.nNonce = header.nNonce
+            self.nOffset = header.nOffset
             self.sha256 = header.sha256
+            self.sha256PoW = header.sha256PoW
             self.hash = header.hash
             self.calc_sha256()
 
@@ -625,17 +627,19 @@ class CBlockHeader:
         self.hashMerkleRoot = 0
         self.nTime = 0
         self.nBits = 0
-        self.nNonce = 0
+        self.nOffset = uint256_from_str(bytearray.fromhex("0000000000000000000000000000000000000000000000000000000000000000"))
         self.sha256 = None
+        self.sha256PoW = None
         self.hash = None
 
     def deserialize(self, f):
         self.nVersion = struct.unpack("<i", f.read(4))[0]
         self.hashPrevBlock = deser_uint256(f)
         self.hashMerkleRoot = deser_uint256(f)
-        self.nTime = struct.unpack("<I", f.read(4))[0]
+        self.nTime = struct.unpack("<q", f.read(8))
+        self.nTime = self.nTime[0] # Discarding the upper 32 bits. <q gives a tuple and there does not seem to be a trivial way to handle 64 bits ints in Python...
         self.nBits = struct.unpack("<I", f.read(4))[0]
-        self.nNonce = struct.unpack("<I", f.read(4))[0]
+        self.nOffset = deser_uint256(f)
         self.sha256 = None
         self.hash = None
 
@@ -644,9 +648,9 @@ class CBlockHeader:
         r += struct.pack("<i", self.nVersion)
         r += ser_uint256(self.hashPrevBlock)
         r += ser_uint256(self.hashMerkleRoot)
-        r += struct.pack("<I", self.nTime)
+        r += struct.pack("<q", self.nTime)
         r += struct.pack("<I", self.nBits)
-        r += struct.pack("<I", self.nNonce)
+        r += ser_uint256(self.nOffset)
         return r
 
     def calc_sha256(self):
@@ -655,24 +659,35 @@ class CBlockHeader:
             r += struct.pack("<i", self.nVersion)
             r += ser_uint256(self.hashPrevBlock)
             r += ser_uint256(self.hashMerkleRoot)
-            r += struct.pack("<I", self.nTime)
-            r += struct.pack("<I", self.nBits)
-            r += struct.pack("<I", self.nNonce)
+            r += struct.pack("<I", self.nBits) # nBits and Time inverted for Hash in Riecoin (RegTest is based on the original PoW)
+            r += struct.pack("<q", self.nTime)
+            self.sha256PoW = uint256_from_str(hash256(r))
+            r += ser_uint256(self.nOffset)
             self.sha256 = uint256_from_str(hash256(r))
             self.hash = encode(hash256(r)[::-1], 'hex_codec').decode('ascii')
 
     def rehash(self):
         self.sha256 = None
+        self.sha256PoW = None
         self.calc_sha256()
         return self.sha256
 
     def __repr__(self):
-        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x)" \
+        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nOffset=%s)" \
             % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
-               time.ctime(self.nTime), self.nBits, self.nNonce)
+               self.nTime, self.nBits, self.nOffset)
 
 BLOCK_HEADER_SIZE = len(CBlockHeader().serialize())
-assert_equal(BLOCK_HEADER_SIZE, 80)
+assert_equal(BLOCK_HEADER_SIZE, 112)
+
+def is_fermat_prime(n):
+    if n == 2:
+        return True
+    if not n & 1:
+        return False
+    if pow(2, n - 1, n) == 1:
+        return True
+    return False
 
 class CBlock(CBlockHeader):
     __slots__ = ("vtx",)
@@ -723,10 +738,24 @@ class CBlock(CBlockHeader):
 
         return self.get_merkle_root(hashes)
 
+    def has_valid_pow(self):
+        difficulty = self.nBits
+        difficulty &= 0x007fffff # Decode Compact
+        difficulty >>= 8
+        target = 1 << 8 # 1 << ZEROS_BEFORE_HASH
+        hash = self.sha256PoW
+        for i in range(256):
+            target <<= 1
+            target += hash & 1
+            hash >>= 1
+        significativeDigits = 265 # 1 + ZEROS_BEFORE_HASH + 256
+        trailingZeros = difficulty - significativeDigits
+        target <<= trailingZeros
+        return is_fermat_prime(target + self.nOffset) # only look for prime numbers in RegTest
+
     def is_valid(self):
         self.calc_sha256()
-        target = uint256_from_compact(self.nBits)
-        if self.sha256 > target:
+        if not self.has_valid_pow():
             return False
         for tx in self.vtx:
             if not tx.is_valid():
@@ -737,15 +766,17 @@ class CBlock(CBlockHeader):
 
     def solve(self):
         self.rehash()
-        target = uint256_from_compact(self.nBits)
-        while self.sha256 > target:
-            self.nNonce += 1
+        self.nOffset = 1
+        while True:
             self.rehash()
+            if self.has_valid_pow():
+                break
+            self.nOffset += 2
 
     def __repr__(self):
-        return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x vtx=%s)" \
+        return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nOffset=%s vtx=%s)" \
             % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
-               time.ctime(self.nTime), self.nBits, self.nNonce, repr(self.vtx))
+               self.nTime, self.nBits, self.nOffset, repr(self.vtx))
 
 
 class PrefilledTransaction:

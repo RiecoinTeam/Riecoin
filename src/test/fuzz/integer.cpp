@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +68,7 @@ void test_one_input(const std::vector<uint8_t>& buffer)
     const bool b = fuzzed_data_provider.ConsumeBool();
 
     const Consensus::Params& consensus_params = Params().GetConsensus();
-    (void)CheckProofOfWork(u256, u32, consensus_params);
+    (void)CheckProofOfWork(u256, u32, u256, consensus_params);
     if (u64 <= MAX_MONEY) {
         const uint64_t compressed_money_amount = CompressAmount(u64);
         assert(u64 == DecompressAmount(compressed_money_amount));

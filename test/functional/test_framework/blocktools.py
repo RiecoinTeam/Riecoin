@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2019 The Bitcoin Core developers
+# Copyright (c) 2013-2020 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Utilities for manipulating blocks and transactions."""
@@ -46,11 +47,11 @@ from .script import (
 from .util import assert_equal
 
 WITNESS_SCALE_FACTOR = 4
-MAX_BLOCK_SIGOPS = 20000
+MAX_BLOCK_SIGOPS = 80000
 MAX_BLOCK_SIGOPS_WEIGHT = MAX_BLOCK_SIGOPS * WITNESS_SCALE_FACTOR
 
 # Genesis block time (regtest)
-TIME_GENESIS_BLOCK = 1296688602
+TIME_GENESIS_BLOCK = 1577836800
 
 # From BIP141
 WITNESS_COMMITMENT_HEADER = b"\xaa\x21\xa9\xed"
@@ -64,12 +65,12 @@ def create_block(hashprev=None, coinbase=None, ntime=None, *, version=None, tmpl
     if tmpl is None:
         tmpl = {}
     block.nVersion = version or tmpl.get('version') or 1
-    block.nTime = ntime or tmpl.get('curtime') or int(time.time() + 600)
+    block.nTime = ntime or tmpl.get('curtime') or int(time.time() + 150)
     block.hashPrevBlock = hashprev or int(tmpl['previousblockhash'], 0x10)
     if tmpl and not tmpl.get('bits') is None:
         block.nBits = struct.unpack('>I', a2b_hex(tmpl['bits']))[0]
     else:
-        block.nBits = 0x207fffff  # difficulty retargeting is disabled in REGTEST chainparams
+        block.nBits = 0x02013000  # difficulty retargeting is disabled in REGTEST chainparams
     if coinbase is None:
         coinbase = create_coinbase(height=tmpl['height'])
     block.vtx.append(coinbase)

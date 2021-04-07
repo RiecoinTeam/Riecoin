@@ -7,7 +7,7 @@
 # 50 minutes [2]. Thus, if we spent too much time in early build stages, fail
 # with an error and save the cache.
 #
-# [0] https://travis-ci.org/bitcoin/bitcoin/caches
+# [0] https://travis-ci.org/riecointeam/riecoin/caches
 # [1] https://docs.travis-ci.com/user/caching/#build-phases
 # [2] https://docs.travis-ci.com/user/customizing-the-build#build-timeouts
 
@@ -42,10 +42,10 @@ before_script:
 script:
   - export CONTINUE=1
   - if [ $SECONDS -gt 1200 ]; then export CONTINUE=0; fi  # Likely the depends build took very long
-  - if [ $TRAVIS_REPO_SLUG = "bitcoin/bitcoin" ]; then export CONTINUE=1; fi  # continue on repos with extended build time (90 minutes)
+  - if [ $TRAVIS_REPO_SLUG = "riecointeam/riecoin" ]; then export CONTINUE=1; fi  # continue on repos with extended build time (90 minutes)
   - if [ $CONTINUE = "1" ]; then set -o errexit; source ./ci/test/06_script_a.sh; else set +o errexit; echo "$CACHE_ERR_MSG"; false; fi
   - if [[ $SECONDS -gt 50*60-$EXPECTED_TESTS_DURATION_IN_SECONDS ]]; then export CONTINUE=0; fi
-  - if [ $TRAVIS_REPO_SLUG = "bitcoin/bitcoin" ]; then export CONTINUE=1; fi  # continue on repos with extended build time (90 minutes)
+  - if [ $TRAVIS_REPO_SLUG = "riecointeam/riecoin" ]; then export CONTINUE=1; fi  # continue on repos with extended build time (90 minutes)
   - if [ $CONTINUE = "1" ]; then set -o errexit; source ./ci/test/06_script_b.sh; else set +o errexit; echo "$CACHE_ERR_MSG"; false; fi
 after_script:
   - echo $TRAVIS_COMMIT_RANGE

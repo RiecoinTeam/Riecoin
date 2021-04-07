@@ -1,4 +1,5 @@
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2020 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -97,9 +98,9 @@ static int AppInitRawTx(int argc, char* argv[])
 
     if (argc < 2 || HelpRequested(gArgs)) {
         // First part of help message is specific to this utility
-        std::string strUsage = PACKAGE_NAME " bitcoin-tx utility version " + FormatFullVersion() + "\n\n" +
-            "Usage:  bitcoin-tx [options] <hex-tx> [commands]  Update hex-encoded bitcoin transaction\n" +
-            "or:     bitcoin-tx [options] -create [commands]   Create hex-encoded bitcoin transaction\n" +
+        std::string strUsage = PACKAGE_NAME " riecoin-tx utility version " + FormatFullVersion() + "\n\n" +
+            "Usage:  riecoin-tx [options] <hex-tx> [commands]  Update hex-encoded Riecoin transaction\n" +
+            "or:     riecoin-tx [options] -create [commands]   Create hex-encoded Riecoin transaction\n" +
             "\n";
         strUsage += gArgs.GetHelpMessage();
 

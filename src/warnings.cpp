@@ -1,4 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2013-2020 The Riecoin developers
 // Copyright (c) 2009-2019 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -50,7 +51,7 @@ bilingual_str GetWarnings(bool verbose)
 
     // Pre-release build warning
     if (!CLIENT_VERSION_IS_RELEASE) {
-        warnings_concise = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
+        warnings_concise = _("This is a 0.21 prerelease, be sure to follow the latest Riecoin news!");
         warnings_verbose.emplace_back(warnings_concise);
     }
 
