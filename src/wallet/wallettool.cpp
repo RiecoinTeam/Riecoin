@@ -1,4 +1,5 @@
 // Copyright (c) 2016-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -126,10 +127,8 @@ bool ExecuteWalletToolFunc(const ArgsManager& args, const std::string& command)
     if (command == "create") {
         DatabaseOptions options;
         options.require_create = true;
-        if (args.GetBoolArg("-descriptors", false)) {
-            options.create_flags |= WALLET_FLAG_DESCRIPTORS;
-            options.require_format = DatabaseFormat::SQLITE;
-        }
+        options.create_flags |= WALLET_FLAG_DESCRIPTORS;
+        options.require_format = DatabaseFormat::SQLITE;
 
         std::shared_ptr<CWallet> wallet_instance = MakeWallet(name, path, options);
         if (wallet_instance) {

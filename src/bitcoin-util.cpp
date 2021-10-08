@@ -1,4 +1,5 @@
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -52,10 +53,10 @@ static int AppInitUtil(ArgsManager& args, int argc, char* argv[])
 
     if (HelpRequested(args) || args.IsArgSet("-version")) {
         // First part of help message is specific to this utility
-        std::string strUsage = PACKAGE_NAME " bitcoin-util utility version " + FormatFullVersion() + "\n";
+        std::string strUsage = PACKAGE_NAME " riecoin-util utility version " + FormatFullVersion() + "\n";
         if (!args.IsArgSet("-version")) {
             strUsage += "\n"
-                "Usage:  bitcoin-util [options] [commands]  Do stuff\n";
+                "Usage:  riecoin-util [options] [commands]  Do stuff\n";
             strUsage += "\n" + args.GetHelpMessage();
         }
 
@@ -81,7 +82,8 @@ static int AppInitUtil(ArgsManager& args, int argc, char* argv[])
 
 static void grind_task(uint32_t nBits, CBlockHeader& header_orig, uint32_t offset, uint32_t step, std::atomic<bool>& found)
 {
-    arith_uint256 target;
+    return; // Unimplemented
+    /*arith_uint256 target;
     bool neg, over;
     target.SetCompact(nBits, &neg, &over);
     if (target == 0 || neg || over) return;
@@ -102,7 +104,7 @@ static void grind_task(uint32_t nBits, CBlockHeader& header_orig, uint32_t offse
             }
             header.nNonce += step;
         } while(header.nNonce != next);
-    }
+    }*/
 }
 
 static int Grind(const std::vector<std::string>& args, std::string& strPrint)

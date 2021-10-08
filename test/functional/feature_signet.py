@@ -48,7 +48,7 @@ class SignetBasicTest(BitcoinTestFramework):
         assert_equal(mining_info['chain'], 'signet')
         assert 'currentblocktx' not in mining_info
         assert 'currentblockweight' not in mining_info
-        assert_equal(mining_info['networkhashps'], Decimal('0'))
+        assert_equal(mining_info['networkminingpower'], Decimal('0'))
         assert_equal(mining_info['pooledtx'], 0)
 
         self.nodes[0].generate(1)

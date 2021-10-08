@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2021 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test generation and spending of P2TR addresses."""
@@ -167,7 +168,7 @@ def compute_taproot_address(pubkey, scripts):
     tap = taproot_construct(pubkey, scripts)
     assert tap.scriptPubKey[0] == 0x51
     assert tap.scriptPubKey[1] == 0x20
-    return encode_segwit_address("bcrt", 1, tap.scriptPubKey[2:])
+    return encode_segwit_address("rric", 1, tap.scriptPubKey[2:])
 
 class WalletTaprootTest(BitcoinTestFramework):
     """Test generation and spending of P2TR address outputs."""
@@ -175,7 +176,7 @@ class WalletTaprootTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 3
         self.setup_clean_chain = True
-        self.extra_args = [['-keypool=100'], ['-keypool=100'], ["-vbparams=taproot:1:1"]]
+        self.extra_args = [['-keypool=100'], ['-keypool=100'], []]
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -236,21 +237,6 @@ class WalletTaprootTest(BitcoinTestFramework):
             rederive = self.nodes[1].deriveaddresses(desc_a)
             assert_equal(len(rederive), 1)
             assert_equal(rederive[0], addr_g)
-
-        # tr descriptors cannot be imported when Taproot is not active
-        result = self.privs_tr_enabled.importdescriptors([{"desc": desc, "timestamp": "now"}])
-        assert(result[0]["success"])
-        result = self.pubs_tr_enabled.importdescriptors([{"desc": desc_pub, "timestamp": "now"}])
-        assert(result[0]["success"])
-        if desc.startswith("tr"):
-            result = self.privs_tr_disabled.importdescriptors([{"desc": desc, "timestamp": "now"}])
-            assert(not result[0]["success"])
-            assert_equal(result[0]["error"]["code"], -4)
-            assert_equal(result[0]["error"]["message"], "Cannot import tr() descriptor when Taproot is not active")
-            result = self.pubs_tr_disabled.importdescriptors([{"desc": desc_pub, "timestamp": "now"}])
-            assert(not result[0]["success"])
-            assert_equal(result[0]["error"]["code"], -4)
-            assert_equal(result[0]["error"]["message"], "Cannot import tr() descriptor when Taproot is not active")
 
     def do_test_sendtoaddress(self, comment, pattern, privmap, treefn, keys_pay, keys_change):
         self.log.info("Testing %s through sendtoaddress" % comment)

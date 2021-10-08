@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -92,9 +93,8 @@ CreateWalletDialog::CreateWalletDialog(QWidget* parent) :
         ui->descriptor_checkbox->setChecked(false);
         ui->external_signer_checkbox->setEnabled(false);
         ui->external_signer_checkbox->setChecked(false);
-#endif
-
-#ifndef USE_BDB
+#else
+        ui->descriptor_checkbox->setToolTip(tr("Can only create Descriptor Wallets. If needed, please move all your funds from Legacy Wallets (Riecoin <= 0.21) to a Descriptor Wallet as the Legacy Wallet support will eventually be removed."));
         ui->descriptor_checkbox->setEnabled(false);
         ui->descriptor_checkbox->setChecked(true);
 #endif

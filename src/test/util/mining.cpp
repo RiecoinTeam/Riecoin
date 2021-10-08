@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -46,11 +47,10 @@ std::vector<std::shared_ptr<CBlock>> CreateBlockChain(size_t total_height, const
         block.hashMerkleRoot = BlockMerkleRoot(block);
         block.nTime = ++time;
         block.nBits = params.GenesisBlock().nBits;
-        block.nNonce = 0;
+        block.nNonce = 1;
 
-        while (!CheckProofOfWork(block.GetHash(), block.nBits, params.GetConsensus())) {
-            ++block.nNonce;
-            assert(block.nNonce);
+        while (!CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nNonce), params.GetConsensus())) {
+            block.nNonce += 2;
         }
     }
     return ret;
@@ -60,9 +60,9 @@ CTxIn MineBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
 {
     auto block = PrepareBlock(node, coinbase_scriptPubKey);
 
-    while (!CheckProofOfWork(block->GetHash(), block->nBits, Params().GetConsensus())) {
-        ++block->nNonce;
-        assert(block->nNonce);
+    block->nNonce = 1;
+    while (!CheckProofOfWork(block->GetHashForPoW(), block->nBits, ArithToUint256(block->nNonce), Params().GetConsensus())) {
+        block->nNonce += 2;
     }
 
     bool processed{Assert(node.chainman)->ProcessNewBlock(Params(), block, true, nullptr)};

@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -42,6 +43,7 @@
 #include <validationinterface.h>
 #include <versionbits.h>
 #include <warnings.h>
+#include <pow.h>
 
 #include <stdint.h>
 
@@ -109,28 +111,20 @@ CBlockPolicyEstimator& EnsureAnyFeeEstimator(const std::any& context)
     return EnsureFeeEstimator(EnsureAnyNodeContext(context));
 }
 
-/* Calculate the difficulty for a given block index.
- */
-double GetDifficulty(const CBlockIndex* blockindex)
+/* Calculate the difficulty for a given block index. */
+double GetDifficulty(const CBlockIndex* blockindex, const int32_t powVersionOverride)
 {
     CHECK_NONFATAL(blockindex);
-
-    int nShift = (blockindex->nBits >> 24) & 0xff;
-    double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
-
-    while (nShift < 29)
-    {
-        dDiff *= 256.0;
-        nShift++;
-    }
-    while (nShift > 29)
-    {
-        dDiff /= 256.0;
-        nShift--;
-    }
-
-    return dDiff;
+    const uint32_t nBits(blockindex->nBits);
+    int32_t powVersion(Params().GetConsensus().GetPoWVersionAtHeight(blockindex->nHeight));
+    if (powVersionOverride != 0) // For blockchain_tests
+        powVersion = powVersionOverride;
+    if (powVersion == -1)
+        return (nBits & 0x007FFFFFU) >> 8U; // The original PoW used the Bitcoin Compact format. This formula is equivalent for any block before Fork 2.
+    else if (powVersion == 1)
+        return static_cast<double>(nBits)/256.;
+    else
+        return 0.;
 }
 
 static int ComputeNextBlockAndDepth(const CBlockIndex* tip, const CBlockIndex* blockindex, const CBlockIndex*& next)
@@ -186,7 +180,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("merkleroot", blockindex->hashMerkleRoot.GetHex());
     result.pushKV("time", (int64_t)blockindex->nTime);
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
-    result.pushKV("nonce", (uint64_t)blockindex->nNonce);
+    result.pushKV("nonce", blockindex->nNonce.GetHex());
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
@@ -434,10 +428,10 @@ static RPCHelpMan syncwithvalidationinterfacequeue()
 static RPCHelpMan getdifficulty()
 {
     return RPCHelpMan{"getdifficulty",
-                "\nReturns the proof-of-work difficulty as a multiple of the minimum difficulty.\n",
+                "\nReturns the proof-of-work difficulty (logarithm in base 2 of the prime numbers).\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::NUM, "", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
+                    RPCResult::Type::NUM, "", "the proof-of-work difficulty (logarithm in base 2 of the prime numbers)."},
                 RPCExamples{
                     HelpExampleCli("getdifficulty", "")
             + HelpExampleRpc("getdifficulty", "")
@@ -857,8 +851,8 @@ static RPCHelpMan getblockheader()
                         RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
                 },
                 RPCExamples{
-                    HelpExampleCli("getblockheader", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-            + HelpExampleRpc("getblockheader", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                    HelpExampleCli("getblockheader", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\"")
+            + HelpExampleRpc("getblockheader", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -977,8 +971,8 @@ static RPCHelpMan getblock()
                 }},
         },
                 RPCExamples{
-                    HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-            + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                    HelpExampleCli("getblock", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\"")
+            + HelpExampleRpc("getblock", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -1250,11 +1244,8 @@ static RPCHelpMan gettxout()
                 {RPCResult::Type::OBJ, "scriptPubKey", "", {
                     {RPCResult::Type::STR, "asm", ""},
                     {RPCResult::Type::STR_HEX, "hex", ""},
-                    {RPCResult::Type::NUM, "reqSigs", /* optional */ true, "(DEPRECATED, returned only if config option -deprecatedrpc=addresses is passed) Number of required signatures"},
                     {RPCResult::Type::STR, "type", "The type, eg pubkeyhash"},
-                    {RPCResult::Type::STR, "address", /* optional */ true, "bitcoin address (only if a well-defined address exists)"},
-                    {RPCResult::Type::ARR, "addresses", /* optional */ true, "(DEPRECATED, returned only if config option -deprecatedrpc=addresses is passed) Array of bitcoin addresses",
-                        {{RPCResult::Type::STR, "address", "bitcoin address"}}},
+                    {RPCResult::Type::STR, "address", /* optional */ true, "riecoin address (only if a well-defined address exists)"},
                 }},
                 {RPCResult::Type::BOOL, "coinbase", "Coinbase or not"},
             }},
@@ -1343,6 +1334,66 @@ static RPCHelpMan verifychain()
     CChainState& active_chainstate = chainman.ActiveChainstate();
     return CVerifyDB().VerifyDB(
         active_chainstate, Params(), active_chainstate.CoinsTip(), check_level, check_depth);
+},
+    };
+}
+
+static RPCHelpMan getresult()
+{
+    return RPCHelpMan{"getresult",
+                "\nReturns the PoW result of the provided block.\n",
+                {
+                    {"hash", RPCArg::Type::STR, RPCArg::Optional::NO, "The block hash."},
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "", "The PoW result in an human readable format"},
+                RPCExamples{
+                    "\nGet the base prime of the block 1323777\n"
+                    + HelpExampleCli("getresult", "3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f") +
+                    "\nAs a JSON-RPC call\n"
+                    + HelpExampleRpc("getresult", "\"3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+    CBlock block;
+    const CBlockIndex* pblockindex;
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    {
+        LOCK(cs_main);
+        pblockindex = chainman.m_blockman.LookupBlockIndex(hash);
+        if (!pblockindex) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        block = GetBlockChecked(pblockindex);
+    }
+
+    uint256 nNonce = ArithToUint256(block.nNonce);
+    int32_t powVersion;
+    if ((nNonce.GetUint64(0) & 1) == 1)
+        powVersion = -1;
+    else if ((nNonce.GetUint64(0) & 65535) == 2)
+        powVersion = 1;
+    else
+        return "0";
+
+    mpz_class target, offset;
+    GenerateTarget(target, block.GetHashForPoW(), block.nBits, powVersion);
+    if (powVersion == -1)
+        mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, nNonce.begin()); // [31-0 Offset]
+    else if (powVersion == 1)
+    {
+        const uint8_t* rawOffset(nNonce.begin()); // [31-30 Primorial Number|29-14 Primorial Factor|13-2 Primorial Offset|1-0 Reserved/Version]
+        const uint16_t primorialNumber(reinterpret_cast<const uint16_t*>(&rawOffset[30])[0]);
+        mpz_class primorial(1), primorialFactor, primorialOffset;
+        for (uint16_t i(0) ; i < primorialNumber ; i++)
+            mpz_mul_ui(primorial.get_mpz_t(), primorial.get_mpz_t(), primeTable[i]);
+        mpz_import(primorialFactor.get_mpz_t(), 16, -1, sizeof(uint8_t), 0, 0, &rawOffset[14]);
+        mpz_import(primorialOffset.get_mpz_t(), 12, -1, sizeof(uint8_t), 0, 0, &rawOffset[2]);
+        offset = primorial - (target % primorial) + primorialFactor*primorial + primorialOffset;
+    }
+    const mpz_class result(target + offset);
+    return result.get_str();
 },
     };
 }
@@ -1926,12 +1977,12 @@ void CalculatePercentilesByWeight(CAmount result[NUM_GETBLOCKSTATS_PERCENTILES],
 
 void ScriptPubKeyToUniv(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex)
 {
-    ScriptPubKeyToUniv(scriptPubKey, out, fIncludeHex, IsDeprecatedRPCEnabled("addresses"));
+    ScriptPubKeyToUniv(scriptPubKey, out, fIncludeHex, false);
 }
 
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const CTxUndo* txundo)
 {
-    TxToUniv(tx, hashBlock, IsDeprecatedRPCEnabled("addresses"), entry, include_hex, serialize_flags, txundo);
+    TxToUniv(tx, hashBlock, false, entry, include_hex, serialize_flags, txundo);
 }
 
 template<typename T>
@@ -2000,9 +2051,9 @@ static RPCHelpMan getblockstats()
                 {RPCResult::Type::NUM, "utxo_size_inc", "The increase/decrease in size for the utxo index (not discounting op_return and similar)"},
             }},
                 RPCExamples{
-                    HelpExampleCli("getblockstats", R"('"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"' '["minfeerate","avgfeerate"]')") +
+                    HelpExampleCli("getblockstats", R"('"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38"' '["minfeerate","avgfeerate"]')") +
                     HelpExampleCli("getblockstats", R"(1000 '["minfeerate","avgfeerate"]')") +
-                    HelpExampleRpc("getblockstats", R"("00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09", ["minfeerate","avgfeerate"])") +
+                    HelpExampleRpc("getblockstats", R"("90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38", ["minfeerate","avgfeerate"])") +
                     HelpExampleRpc("getblockstats", R"(1000, ["minfeerate","avgfeerate"])")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
@@ -2446,8 +2497,8 @@ static RPCHelpMan getblockfilter()
                         {RPCResult::Type::STR_HEX, "header", "the hex-encoded filter header"},
                     }},
                 RPCExamples{
-                    HelpExampleCli("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"") +
-                    HelpExampleRpc("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\", \"basic\"")
+                    HelpExampleCli("getblockfilter", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\" \"basic\"") +
+                    HelpExampleRpc("getblockfilter", "\"90a3bdf9193561ec7c97e6b17a15dec1a4de4ba874feebcbd3dfcd3a3cac7d38\", \"basic\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -2653,6 +2704,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         &savemempool,                        },
     { "blockchain",         &verifychain,                        },
 
+    { "blockchain",         &getresult,                          },
     { "blockchain",         &preciousblock,                      },
     { "blockchain",         &scantxoutset,                       },
     { "blockchain",         &getblockfilter,                     },

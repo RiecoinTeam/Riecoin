@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPCs related to blockchainstate.
@@ -64,7 +65,7 @@ class BlockchainTest(BitcoinTestFramework):
         self._test_gettxoutsetinfo()
         self._test_getblockheader()
         self._test_getdifficulty()
-        self._test_getnetworkhashps()
+        self._test_getnetworkminingpower()
         self._test_stopatheight()
         self._test_waitforblockheight()
         self._test_getblock()
@@ -72,8 +73,8 @@ class BlockchainTest(BitcoinTestFramework):
 
     def mine_chain(self):
         self.log.info('Create some old blocks')
-        for t in range(TIME_GENESIS_BLOCK, TIME_GENESIS_BLOCK + 200 * 600, 600):
-            # ten-minute steps from genesis block time
+        for t in range(TIME_GENESIS_BLOCK, TIME_GENESIS_BLOCK + 200 * 150, 150):
+            # 2.5-minute steps from genesis block time
             self.nodes[0].setmocktime(t)
             self.nodes[0].generatetoaddress(1, ADDRESS_BCRT1_P2WSH_OP_TRUE)
         assert_equal(self.nodes[0].getblockchaininfo()['blocks'], 200)
@@ -134,6 +135,7 @@ class BlockchainTest(BitcoinTestFramework):
             'bip65': {'type': 'buried', 'active': False, 'height': 1351},
             'csv': {'type': 'buried', 'active': False, 'height': 432},
             'segwit': {'type': 'buried', 'active': True, 'height': 0},
+            'taproot': {'type': 'buried', 'active': True, 'height': 0},
             'testdummy': {
                 'type': 'bip9',
                 'bip9': {
@@ -152,18 +154,6 @@ class BlockchainTest(BitcoinTestFramework):
                     'min_activation_height': 0,
                 },
                 'active': False
-            },
-            'taproot': {
-                'type': 'bip9',
-                'bip9': {
-                    'status': 'active',
-                    'start_time': -1,
-                    'timeout': 9223372036854775807,
-                    'since': 0,
-                    'min_activation_height': 0,
-                },
-                'height': 0,
-                'active': True
             }
         })
 
@@ -191,9 +181,9 @@ class BlockchainTest(BitcoinTestFramework):
         chaintxstats = self.nodes[0].getchaintxstats(nblocks=1)
         # 200 txs plus genesis tx
         assert_equal(chaintxstats['txcount'], 201)
-        # tx rate should be 1 per 10 minutes, or 1/600
+        # tx rate should be 1 per 10 minutes, or 1/150
         # we have to round because of binary math
-        assert_equal(round(chaintxstats['txrate'] * 600, 10), Decimal(1))
+        assert_equal(round(chaintxstats['txrate'] * 150, 10), Decimal(1))
 
         b1_hash = self.nodes[0].getblockhash(1)
         b1 = self.nodes[0].getblock(b1_hash)
@@ -305,10 +295,10 @@ class BlockchainTest(BitcoinTestFramework):
         assert_is_hash_string(header['bits'], length=None)
         assert isinstance(header['time'], int)
         assert isinstance(header['mediantime'], int)
-        assert isinstance(header['nonce'], int)
+        assert isinstance(header['nonce'], str)
         assert isinstance(header['version'], int)
         assert isinstance(int(header['versionHex'], 16), int)
-        assert isinstance(header['difficulty'], Decimal)
+        assert isinstance(header['difficulty'], int)
 
         # Test with verbose=False, which should return the header as hex.
         header_hex = node.getblockheader(blockhash=besthash, verbose=False)
@@ -323,14 +313,18 @@ class BlockchainTest(BitcoinTestFramework):
 
     def _test_getdifficulty(self):
         difficulty = self.nodes[0].getdifficulty()
-        # 1 hash in 2 should be valid, so difficulty should be 1/2**31
-        # binary => decimal => binary math is why we do this check
-        assert abs(difficulty * 2**31 - 1) < 0.0001
+        assert difficulty == 304
 
-    def _test_getnetworkhashps(self):
-        hashes_per_second = self.nodes[0].getnetworkhashps()
-        # This should be 2 hashes every 10 minutes or 1/300
-        assert abs(hashes_per_second * 300 - 1) < 0.0001
+    def _test_getnetworkminingpower(self):
+        mining_power = self.nodes[0].getnetworkminingpower()
+        # Mining 1 block every 150 s at Difficulty 304, by definition, corresponds to a Mining Power of 1
+        assert abs(mining_power - 1.) < 0.0001
+
+    def _test_getresult(self):
+        result = self.nodes[0].getresult(self.nodes[0].getblockhash(100))
+        # Just test that the result is in the allowed range for Difficulty 304 (2^303 to ~(2^303 + 2^295)) and is prime
+        assert int(result) - 2**303 < 2**295
+        assert is_fermat_prime(int(result))
 
     def _test_stopatheight(self):
         assert_equal(self.nodes[0].getblockcount(), 200)

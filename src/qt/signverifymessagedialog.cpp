@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2021 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -91,7 +92,7 @@ void SignVerifyMessageDialog::on_addressBookButton_SM_clicked()
 {
     if (model && model->getAddressTableModel())
     {
-        model->refresh(/* pk_hash_only */ true);
+        model->refresh(/* pk_hash_only */ false);
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
@@ -120,11 +121,11 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
         ui->statusLabel_SM->setText(tr("The entered address is invalid.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    const PKHash* pkhash = std::get_if<PKHash>(&destination);
-    if (!pkhash) {
+    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&destination);
+    if (!w0pkhash) {
         ui->addressIn_SM->setValid(false);
         ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
-        ui->statusLabel_SM->setText(tr("The entered address does not refer to a key.") + QString(" ") + tr("Please check the address and try again."));
+        ui->statusLabel_SM->setText(tr("The entered address does not refer to a key or is not a Bech32 one.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
 
@@ -138,7 +139,7 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
 
     const std::string& message = ui->messageIn_SM->document()->toPlainText().toStdString();
     std::string signature;
-    SigningResult res = model->wallet().signMessage(message, *pkhash, signature);
+    SigningResult res = model->wallet().signMessage(message, *w0pkhash, signature);
 
     QString error;
     switch (res) {
@@ -223,7 +224,7 @@ void SignVerifyMessageDialog::on_verifyMessageButton_VM_clicked()
     case MessageVerificationResult::ERR_ADDRESS_NO_KEY:
         ui->addressIn_VM->setValid(false);
         ui->statusLabel_VM->setText(
-            tr("The entered address does not refer to a key.") + QString(" ") +
+            tr("The entered address does not refer to a key or is not a Bech32 one.") + QString(" ") +
             tr("Please check the address and try again.")
         );
         return;

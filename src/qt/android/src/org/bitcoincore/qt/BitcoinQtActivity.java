@@ -1,4 +1,4 @@
-package org.bitcoincore.qt;
+package dev.riecoin.qt;
 
 import android.os.Bundle;
 import android.system.ErrnoException;
@@ -13,7 +13,7 @@ public class BitcoinQtActivity extends QtActivity
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
-        final File bitcoinDir = new File(getFilesDir().getAbsolutePath() + "/.bitcoin");
+        final File bitcoinDir = new File(getFilesDir().getAbsolutePath() + "/.riecoin");
         if (!bitcoinDir.exists()) {
             bitcoinDir.mkdir();
         }

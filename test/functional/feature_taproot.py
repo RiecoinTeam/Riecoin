@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2019-2020 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 # Test Taproot softfork (BIPs 340-342)
@@ -1121,36 +1122,6 @@ def spenders_taproot_active():
 
     return spenders
 
-def spenders_taproot_inactive():
-    """Spenders for testing that pre-activation Taproot rules don't apply."""
-
-    spenders = []
-
-    sec = generate_privkey()
-    pub, _ = compute_xonly_pubkey(sec)
-    scripts = [
-        ("pk", CScript([pub, OP_CHECKSIG])),
-        ("future_leaf", CScript([pub, OP_CHECKSIG]), 0xc2),
-        ("op_success", CScript([pub, OP_CHECKSIG, OP_0, OP_IF, CScriptOp(0x50), OP_ENDIF])),
-    ]
-    tap = taproot_construct(pub, scripts)
-
-    # Test that keypath spending is valid & non-standard, regardless of validity.
-    add_spender(spenders, "inactive/keypath_valid", key=sec, tap=tap, standard=False)
-    add_spender(spenders, "inactive/keypath_invalidsig", key=sec, tap=tap, standard=False, sighash=bitflipper(default_sighash))
-    add_spender(spenders, "inactive/keypath_empty", key=sec, tap=tap, standard=False, witness=[])
-
-    # Same for scriptpath spending (and features like annex, leaf versions, or OP_SUCCESS don't change this)
-    add_spender(spenders, "inactive/scriptpath_valid", key=sec, tap=tap, leaf="pk", standard=False, inputs=[getter("sign")])
-    add_spender(spenders, "inactive/scriptpath_invalidsig", key=sec, tap=tap, leaf="pk", standard=False, inputs=[getter("sign")], sighash=bitflipper(default_sighash))
-    add_spender(spenders, "inactive/scriptpath_invalidcb", key=sec, tap=tap, leaf="pk", standard=False, inputs=[getter("sign")], controlblock=bitflipper(default_controlblock))
-    add_spender(spenders, "inactive/scriptpath_valid_unkleaf", key=sec, tap=tap, leaf="future_leaf", standard=False, inputs=[getter("sign")])
-    add_spender(spenders, "inactive/scriptpath_invalid_unkleaf", key=sec, tap=tap, leaf="future_leaf", standard=False, inputs=[getter("sign")], sighash=bitflipper(default_sighash))
-    add_spender(spenders, "inactive/scriptpath_valid_opsuccess", key=sec, tap=tap, leaf="op_success", standard=False, inputs=[getter("sign")])
-    add_spender(spenders, "inactive/scriptpath_valid_opsuccess", key=sec, tap=tap, leaf="op_success", standard=False, inputs=[getter("sign")], sighash=bitflipper(default_sighash))
-
-    return spenders
-
 # Consensus validation flags to use in dumps for tests with "legacy/" or "inactive/" prefix.
 LEGACY_FLAGS = "P2SH,DERSIG,CHECKLOCKTIMEVERIFY,CHECKSEQUENCEVERIFY,WITNESS,NULLDUMMY"
 # Consensus validation flags to use in dumps for all other tests.
@@ -1213,8 +1184,6 @@ class TaprootTest(BitcoinTestFramework):
         self.extra_args = [["-par=1"], ["-par=1"]]
         if self.options.previous_release:
             self.wallet_names = [None, self.default_wallet_name]
-        else:
-            self.extra_args[0].append("-vbparams=taproot:1:1")
 
     def setup_nodes(self):
         self.add_nodes(self.num_nodes, self.extra_args, versions=[
@@ -1491,15 +1460,6 @@ class TaprootTest(BitcoinTestFramework):
         block.solve()
         assert_equal(None, self.nodes[1].submitblock(block.serialize().hex()))
         self.sync_blocks()
-
-        # Pre-taproot activation tests.
-        self.log.info("Pre-activation tests...")
-        # Run each test twice; once in isolation, and once combined with others. Testing in isolation
-        # means that the standardness is verified in every test (as combined transactions are only standard
-        # when all their inputs are standard).
-        self.test_spenders(self.nodes[0], spenders_taproot_inactive(), input_counts=[1])
-        self.test_spenders(self.nodes[0], spenders_taproot_inactive(), input_counts=[2, 3])
-
 
 if __name__ == '__main__':
     TaprootTest().main()

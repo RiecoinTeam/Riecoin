@@ -1,4 +1,4 @@
-packages:=boost libevent
+packages:=boost gmp libevent
 
 qrencode_packages = qrencode
 
