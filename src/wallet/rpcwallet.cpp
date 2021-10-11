@@ -596,6 +596,63 @@ static RPCHelpMan listaddressgroupings()
     };
 }
 
+static RPCHelpMan generatecode()
+{
+    return RPCHelpMan{"generatecode",
+                "\nGenerate a code using an address" +
+        HELP_REQUIRING_PASSPHRASE,
+                {
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to use for the private key."},
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "code", "The code"
+                },
+                RPCExamples{
+            "\nUnlock the wallet for 30 seconds\n"
+            + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+            "\nCreate the signature\n"
+            + HelpExampleCli("generatecode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\"") +
+            "\nVerify the signature\n"
+            + HelpExampleCli("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\" \"code\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("generatecode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return NullUniValue;
+
+    LOCK(pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(*pwallet);
+
+    std::string strAddress = request.params[0].get_str();
+
+    CTxDestination dest = DecodeDestination(strAddress);
+    if (!IsValidDestination(dest)) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+    }
+
+    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&dest);
+    if (!w0pkhash) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key or is not a Bech32 one");
+    }
+
+    const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+    const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
+    std::string code;
+    SigningResult err = pwallet->SignMessage(timestampStr, *w0pkhash, code);
+    if (err == SigningResult::SIGNING_FAILED) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, SigningResultString(err));
+    } else if (err != SigningResult::OK){
+        throw JSONRPCError(RPC_WALLET_ERROR, SigningResultString(err));
+    }
+
+    return code;
+},
+    };
+}
+
 static RPCHelpMan signmessage()
 {
     return RPCHelpMan{"signmessage",
@@ -4680,6 +4737,7 @@ static const CRPCCommand commands[] =
     { "wallet",             &setlabel,                       },
     { "wallet",             &settxfee,                       },
     { "wallet",             &setwalletflag,                  },
+    { "wallet",             &generatecode,                   },
     { "wallet",             &signmessage,                    },
     { "wallet",             &signrawtransactionwithwallet,   },
     { "wallet",             &unloadwallet,                   },

@@ -321,6 +321,7 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(tr("&Change Passphrase…"), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
+    generateCodeAction = new QAction(tr("&Generate Code..."), this);
     signMessageAction = new QAction(tr("Sign &message…"), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Riecoin addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message…"), this);
@@ -384,6 +385,7 @@ void BitcoinGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
+        connect(generateCodeAction, &QAction::triggered, walletFrame, &WalletFrame::generateCode);
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(m_load_psbt_action, &QAction::triggered, [this]{ gotoLoadPSBT(); });
@@ -463,6 +465,7 @@ void BitcoinGUI::createMenuBar()
         file->addSeparator();
         file->addAction(openAction);
         file->addAction(backupWalletAction);
+        file->addAction(generateCodeAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
         file->addAction(m_load_psbt_action);
@@ -759,6 +762,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    generateCodeAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -807,6 +811,7 @@ void BitcoinGUI::createTrayIconMenu()
         trayIconMenu->addAction(sendCoinsMenuAction);
         trayIconMenu->addAction(receiveCoinsMenuAction);
         trayIconMenu->addSeparator();
+        trayIconMenu->addAction(generateCodeAction);
         trayIconMenu->addAction(signMessageAction);
         trayIconMenu->addAction(verifyMessageAction);
         trayIconMenu->addSeparator();

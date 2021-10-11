@@ -280,6 +280,55 @@ static RPCHelpMan deriveaddresses()
     };
 }
 
+static RPCHelpMan verifycode()
+{
+    return RPCHelpMan{"verifycode",
+                "\nVerify a code\n",
+                {
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to use for the code."},
+                    {"code", RPCArg::Type::STR, RPCArg::Optional::NO, "The provided code (see signmessage)."},
+                },
+                RPCResult{
+                    RPCResult::Type::BOOL, "", "Whether the code is valid or not. Note that a code expires the next minute."
+                },
+                RPCExamples{
+            "\nUnlock the wallet for 30 seconds\n"
+            + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+            "\nCreate the code\n"
+            + HelpExampleCli("generatecode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\"") +
+            "\nVerify the code\n"
+            + HelpExampleCli("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\" \"code\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\", \"code\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    LOCK(cs_main);
+
+    std::string strAddress  = request.params[0].get_str();
+    std::string strSign     = request.params[1].get_str();
+    const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+    const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
+
+    switch (MessageVerify(strAddress, strSign, timestampStr)) {
+    case MessageVerificationResult::ERR_INVALID_ADDRESS:
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+    case MessageVerificationResult::ERR_ADDRESS_NO_KEY:
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
+    case MessageVerificationResult::ERR_MALFORMED_SIGNATURE:
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
+    case MessageVerificationResult::ERR_PUBKEY_NOT_RECOVERED:
+    case MessageVerificationResult::ERR_NOT_SIGNED:
+        return false;
+    case MessageVerificationResult::OK:
+        return true;
+    }
+
+    return false;
+},
+    };
+}
+
 static RPCHelpMan verifymessage()
 {
     return RPCHelpMan{"verifymessage",
@@ -759,6 +808,7 @@ static const CRPCCommand commands[] =
     { "util",               &createmultisig,          },
     { "util",               &deriveaddresses,         },
     { "util",               &getdescriptorinfo,       },
+    { "util",               &verifycode,              },
     { "util",               &verifymessage,           },
     { "util",               &signmessagewithprivkey,  },
     { "util",               &getindexinfo,            },
