@@ -14,7 +14,6 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
-from test_framework.wallet_util import bytes_to_wif
 
 from decimal import Decimal
 
@@ -188,7 +187,7 @@ class ListSinceBlockTest(BitcoinTestFramework):
         # share utxo between nodes[1] and nodes[2]
         eckey = ECKey()
         eckey.generate()
-        privkey = bytes_to_wif(eckey.get_bytes())
+        privkey = eckey.get_bytes().hex()
         address = key_to_p2wpkh(eckey.get_pubkey().get_bytes())
         self.nodes[2].sendtoaddress(address, 10)
         self.nodes[2].generate(6)

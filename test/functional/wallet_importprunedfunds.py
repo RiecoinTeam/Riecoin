@@ -13,7 +13,6 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
-from test_framework.wallet_util import bytes_to_wif
 
 class ImportPrunedFundsTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -36,7 +35,7 @@ class ImportPrunedFundsTest(BitcoinTestFramework):
         # privkey
         eckey = ECKey()
         eckey.generate()
-        address3_privkey = bytes_to_wif(eckey.get_bytes())
+        address3_privkey = eckey.get_bytes().hex()
         address3 = key_to_p2wpkh(eckey.get_pubkey().get_bytes())
         self.nodes[0].importprivkey(address3_privkey)
 

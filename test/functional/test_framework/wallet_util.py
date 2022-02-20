@@ -71,7 +71,7 @@ def get_generate_key():
     Returns a named tuple of privkey, pubkey and all address and scripts."""
     eckey = ECKey()
     eckey.generate()
-    privkey = bytes_to_wif(eckey.get_bytes())
+    privkey = eckey.get_bytes().hex()
     pubkey = eckey.get_pubkey().get_bytes().hex()
     return Key(privkey=privkey,
                pubkey=pubkey,
@@ -115,13 +115,8 @@ def test_address(node, address, **kwargs):
         elif addr_info[key] != value:
             raise AssertionError("key {} value {} did not match expected value {}".format(key, addr_info[key], value))
 
-def bytes_to_wif(b, compressed=True):
-    if compressed:
-        b += b'\x01'
-    return byte_to_base58(b, 239)
-
-def generate_wif_key():
+def generate_key():
     # Makes a WIF privkey for imports
     k = ECKey()
     k.generate()
-    return bytes_to_wif(k.get_bytes(), k.is_compressed)
+    return k.get_bytes().hex()

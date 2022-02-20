@@ -19,7 +19,6 @@ from test_framework.util import (
     assert_raises_rpc_error,
     assert_equal,
 )
-from test_framework.wallet_util import bytes_to_wif
 
 class RpcCreateMultiSigTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -38,7 +37,7 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
             k = ECKey()
             k.generate()
             self.pub.append(k.get_pubkey().get_bytes().hex())
-            self.priv.append(bytes_to_wif(k.get_bytes(), k.is_compressed))
+            self.priv.append(k.get_bytes().hex())
         self.final = node2.getnewaddress()
 
     def run_test(self):

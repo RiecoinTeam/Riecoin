@@ -35,7 +35,6 @@ from test_framework.script_util import (
     script_to_p2sh_p2wsh_script,
     script_to_p2wsh_script,
 )
-from test_framework.wallet_util import bytes_to_wif
 
 from decimal import (
     Decimal,
@@ -58,7 +57,7 @@ class SignRawTransactionsTest(BitcoinTestFramework):
         1) The transaction has a complete set of signatures
         2) No script verification error occurred"""
         self.log.info("Test valid raw transaction with one input")
-        privKeys = ['cUeKHd5orzT3mz8P9pxyREHfsWtVfgsfDjiZZBcjUBAaGk1BTj7N', 'cVKpPfVKSJxKqVpE9awvXNWuLHCa5j5tiE7K6zbUSptFpTEtiFrA']
+        privKeys = ['d2b8a0116d641fe7d3036f8464628fb595b480414c13a301b3d4038c811c28b0', 'e70adb8829abccd27c1427a60bc7f8af6529abd53748bb5cafbab6484c0a1c86']
 
         inputs = [
             # Valid pay-to-pubkey scripts
@@ -97,7 +96,7 @@ class SignRawTransactionsTest(BitcoinTestFramework):
         5) Script verification errors have certain properties ("txid", "vout", "scriptSig", "sequence", "error")
         6) The verification errors refer to the invalid (vin 1) and missing input (vin 2)"""
         self.log.info("Test script verification errors")
-        privKeys = ['cUeKHd5orzT3mz8P9pxyREHfsWtVfgsfDjiZZBcjUBAaGk1BTj7N']
+        privKeys = ['d2b8a0116d641fe7d3036f8464628fb595b480414c13a301b3d4038c811c28b0']
 
         inputs = [
             # Valid pay-to-pubkey script
@@ -196,7 +195,7 @@ class SignRawTransactionsTest(BitcoinTestFramework):
         # Create a new P2SH-P2WSH 1-of-1 multisig address:
         eckey = ECKey()
         eckey.generate()
-        embedded_privkey = bytes_to_wif(eckey.get_bytes())
+        embedded_privkey = eckey.get_bytes().hex()
         embedded_pubkey = eckey.get_pubkey().get_bytes().hex()
         p2sh_p2wsh_address = self.nodes[1].createmultisig(1, [embedded_pubkey], "p2sh-segwit")
         # send transaction to P2SH-P2WSH 1-of-1 multisig address
@@ -225,7 +224,7 @@ class SignRawTransactionsTest(BitcoinTestFramework):
         self.log.info("Test with a {} script as the witnessScript".format(tx_type))
         eckey = ECKey()
         eckey.generate()
-        embedded_privkey = bytes_to_wif(eckey.get_bytes())
+        embedded_privkey = eckey.get_bytes().hex()
         embedded_pubkey = eckey.get_pubkey().get_bytes().hex()
         witness_script = {
             'P2PKH': key_to_p2pkh_script(embedded_pubkey).hex(),

@@ -14,7 +14,7 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
-from test_framework.wallet_util import bytes_to_wif, generate_wif_key
+from test_framework.wallet_util import generate_key
 
 class CreateWalletTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -41,7 +41,7 @@ class CreateWalletTest(BitcoinTestFramework):
         self.log.info('Test that private keys cannot be imported')
         eckey = ECKey()
         eckey.generate()
-        privkey = bytes_to_wif(eckey.get_bytes())
+        privkey = eckey.get_bytes().hex()
         assert_raises_rpc_error(-4, 'Cannot import private keys to a wallet with private keys disabled', w1.importprivkey, privkey)
         if self.options.descriptors:
             result = w1.importdescriptors([{'desc': descsum_create('wpkh(' + privkey + ')'), 'timestamp': 'now'}])
@@ -66,7 +66,7 @@ class CreateWalletTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getnewaddress)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getrawchangeaddress)
         # Import private key
-        w3.importprivkey(generate_wif_key())
+        w3.importprivkey(generate_key())
         # Imported private keys are currently ignored by the keypool
         assert_equal(w3.getwalletinfo()['keypoolsize'], 0)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getnewaddress)

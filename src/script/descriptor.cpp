@@ -932,7 +932,7 @@ std::unique_ptr<PubkeyProvider> ParsePubkeyInner(uint32_t key_exp_index, const S
         return nullptr;
     }
     if (split.size() == 1) {
-        if (IsHex(str)) {
+        if (IsHex(str) && (str.size() != 64 || ctx == ParseScriptContext::P2TR)) {
             std::vector<unsigned char> data = ParseHex(str);
             CPubKey pubkey(data);
             if (pubkey.IsFullyValid()) {
