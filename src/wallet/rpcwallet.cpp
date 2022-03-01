@@ -633,15 +633,10 @@ static RPCHelpMan generatecode()
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
     }
 
-    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&dest);
-    if (!w0pkhash) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key or is not a Bech32 one");
-    }
-
     const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
     std::string code;
-    SigningResult err = pwallet->SignMessage(timestampStr, *w0pkhash, code);
+    SigningResult err = pwallet->SignMessage(MessageSignatureFormat::SIMPLE, timestampStr, dest, code);
     if (err == SigningResult::SIGNING_FAILED) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, SigningResultString(err));
     } else if (err != SigningResult::OK){
@@ -692,13 +687,8 @@ static RPCHelpMan signmessage()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
-    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&dest);
-    if (!w0pkhash) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key or is not a Bech32 one");
-    }
-
     std::string signature;
-    SigningResult err = pwallet->SignMessage(strMessage, *w0pkhash, signature);
+    SigningResult err = pwallet->SignMessage(MessageSignatureFormat::SIMPLE, strMessage, dest, signature);
     if (err == SigningResult::SIGNING_FAILED) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, SigningResultString(err));
     } else if (err != SigningResult::OK){

@@ -142,9 +142,9 @@ public:
         }
         return false;
     }
-    SigningResult signMessage(const std::string& message, const WitnessV0KeyHash& w0pkhash, std::string& str_sig) override
+    SigningResult signMessage(const MessageSignatureFormat format, const std::string& message, const CTxDestination& address, std::string& str_sig) override
     {
-        return m_wallet->SignMessage(message, w0pkhash, str_sig);
+        return m_wallet->SignMessage(format, message, address, str_sig);
     }
     bool isSpendable(const CTxDestination& dest) override
     {

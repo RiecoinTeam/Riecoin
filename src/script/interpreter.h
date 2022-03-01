@@ -272,6 +272,7 @@ private:
     unsigned int nIn;
     const CAmount amount;
     const PrecomputedTransactionData* txdata;
+    bool m_require_sighash_all{false};
 
 protected:
     virtual bool VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const;
@@ -284,6 +285,7 @@ public:
     bool CheckSchnorrSignature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, SigVersion sigversion, const ScriptExecutionData& execdata, ScriptError* serror = nullptr) const override;
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;
+    void RequireSighashAll() { m_require_sighash_all = true; }
 };
 
 using TransactionSignatureChecker = GenericTransactionSignatureChecker<CTransaction>;

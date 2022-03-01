@@ -1893,13 +1893,13 @@ TransactionError CWallet::FillPSBT(PartiallySignedTransaction& psbtx, bool& comp
     return TransactionError::OK;
 }
 
-SigningResult CWallet::SignMessage(const std::string& message, const WitnessV0KeyHash& w0pkhash, std::string& str_sig) const
+SigningResult CWallet::SignMessage(const MessageSignatureFormat format, const std::string& message, const CTxDestination& address, std::string& str_sig) const
 {
     SignatureData sigdata;
-    CScript script_pub_key = GetScriptForDestination(w0pkhash);
+    CScript script_pub_key = GetScriptForDestination(address);
     for (const auto& spk_man_pair : m_spk_managers) {
         if (spk_man_pair.second->CanProvide(script_pub_key, sigdata)) {
-            return spk_man_pair.second->SignMessage(message, w0pkhash, str_sig);
+            return spk_man_pair.second->SignMessage(format, message, address, str_sig);
         }
     }
     return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;

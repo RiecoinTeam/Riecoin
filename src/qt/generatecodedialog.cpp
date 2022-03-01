@@ -77,13 +77,6 @@ void GenerateCodeDialog::refresh()
         ui->code->setText(QString::fromStdString("-"));
         return;
     }
-    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&destination);
-    if (!w0pkhash) {
-        ui->addressIn->setValid(false);
-        ui->statusLabel->setText(tr("The entered address does not refer to a key or is not a Bech32 one. Please check it and try again."));
-        ui->code->setText(QString::fromStdString("-"));
-        return;
-    }
 
     WalletModel::UnlockContext ctx(model->requestUnlock());
     if (!ctx.isValid()) {
@@ -94,7 +87,7 @@ void GenerateCodeDialog::refresh()
     const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     const std::string& timestampStr(std::to_string(timestamp - (timestamp % codeRefreshInterval)));
     std::string signature;
-    SigningResult res = model->wallet().signMessage(timestampStr, *w0pkhash, signature);
+    SigningResult res = model->wallet().signMessage(MessageSignatureFormat::SIMPLE, timestampStr, destination, signature);
 
     QString error;
     switch (res) {
