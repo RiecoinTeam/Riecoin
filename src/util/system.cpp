@@ -1344,8 +1344,8 @@ int GetNumCores()
 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
-    std::string strCopyrightHolders = strPrefix + " 2009-2021 The Bitcoin Core developers";
-    strCopyrightHolders += "\n" + strPrefix + " 2013-2021 The Riecoin developers";
+    std::string strCopyrightHolders = strPrefix + " 2009-2022 The Bitcoin Core developers";
+    strCopyrightHolders += "\n" + strPrefix + " 2013-2022 The Riecoin developers";
     return strCopyrightHolders;
 }
 
