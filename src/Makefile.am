@@ -1,4 +1,5 @@
 # Copyright (c) 2013-2016 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -103,10 +104,6 @@ if ENABLE_WALLET
 if BUILD_BITCOIN_WALLET
   bin_PROGRAMS += bitcoin-wallet
 endif
-endif
-
-if BUILD_BITCOIN_UTIL
-  bin_PROGRAMS += bitcoin-util
 endif
 
 if BUILD_BITCOIN_CHAINSTATE
@@ -246,7 +243,6 @@ BITCOIN_CORE_H = \
   script/signingprovider.h \
   script/standard.h \
   shutdown.h \
-  signet.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -418,7 +414,6 @@ libbitcoin_node_a_SOURCES = \
   rpc/txoutproof.cpp \
   script/sigcache.cpp \
   shutdown.cpp \
-  signet.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -812,25 +807,6 @@ bitcoin_wallet_SOURCES += bitcoin-wallet-res.rc
 endif
 #
 
-# bitcoin-util binary #
-bitcoin_util_SOURCES = bitcoin-util.cpp
-bitcoin_util_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_util_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_util_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
-
-if TARGET_WINDOWS
-bitcoin_util_SOURCES += bitcoin-util-res.rc
-endif
-
-bitcoin_util_LDADD = \
-  $(LIBBITCOIN_COMMON) \
-  $(LIBBITCOIN_UTIL) \
-  $(LIBUNIVALUE) \
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
-  $(LIBSECP256K1)
-#
-
 # bitcoin-chainstate binary #
 bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
 bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
@@ -919,7 +895,6 @@ libbitcoinkernel_la_SOURCES = \
   script/sigcache.cpp \
   script/standard.cpp \
   shutdown.cpp \
-  signet.cpp \
   support/cleanse.cpp \
   support/lockedpool.cpp \
   sync.cpp \

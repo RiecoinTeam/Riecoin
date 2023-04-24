@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test addrman functionality"""
@@ -101,7 +102,7 @@ class AddrmanTest(BitcoinTestFramework):
 
         self.log.info("Check that corrupt addrman cannot be read (magic)")
         self.stop_node(0)
-        write_addrman(peers_dat, net_magic="signet")
+        write_addrman(peers_dat, net_magic="mainnet")
         self.nodes[0].assert_start_raises_init_error(
             expected_msg=init_error("Invalid network magic number"),
             match=ErrorMatch.FULL_REGEX,

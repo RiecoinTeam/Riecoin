@@ -10,7 +10,7 @@ This directory contains the following sets of tests:
 - [functional](/test/functional) which test the functionality of
 bitcoind and bitcoin-qt by interacting with them through the RPC and P2P
 interfaces.
-- [util](/test/util) which tests the utilities (bitcoin-util, bitcoin-tx, ...).
+- [util](/test/util) which tests the utilities (bitcoin-tx, ...).
 - [lint](/test/lint/) which perform various static analysis checks.
 
 The util tests are run as part of `make check` target. The fuzz tests, functional

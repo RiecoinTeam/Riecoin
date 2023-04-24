@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -119,13 +120,6 @@ struct Params {
     uint256 nMinimumChainWork;
     /** By default assume that the signatures in ancestors of this block are valid */
     uint256 defaultAssumeValid;
-
-    /**
-     * If true, witness commitments contain a payload equal to a Bitcoin Script solution
-     * to the signet challenge. See BIP325.
-     */
-    bool signet_blocks{false};
-    std::vector<uint8_t> signet_challenge;
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

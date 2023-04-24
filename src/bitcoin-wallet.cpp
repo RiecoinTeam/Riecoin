@@ -1,4 +1,5 @@
 // Copyright (c) 2016-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +68,7 @@ static bool WalletAppInit(ArgsManager& args, int argc, char* argv[])
             strUsage += "\n"
                         "bitcoin-wallet is an offline tool for creating and interacting with " PACKAGE_NAME " wallet files.\n"
                         "By default bitcoin-wallet will act on wallets in the default mainnet wallet directory in the datadir.\n"
-                        "To change the target wallet, use the -datadir, -wallet and -regtest/-signet/-testnet arguments.\n\n"
+                        "To change the target wallet, use the -datadir, -wallet and -regtest/-testnet arguments.\n\n"
                         "Usage:\n"
                         "  bitcoin-wallet [options] <command>\n";
             strUsage += "\n" + args.GetHelpMessage();
