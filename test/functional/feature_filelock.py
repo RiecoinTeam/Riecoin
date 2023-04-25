@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2018-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Check that it's not possible to start a second bitcoind instance using the same datadir or wallet."""
@@ -29,21 +30,16 @@ class FilelockTest(BitcoinTestFramework):
         self.nodes[1].assert_start_raises_init_error(extra_args=[f'-datadir={self.nodes[0].datadir}', '-noserver'], expected_msg=expected_msg)
 
         if self.is_wallet_compiled():
-            def check_wallet_filelock(descriptors):
+            def check_wallet_filelock():
                 wallet_name = ''.join([random.choice(string.ascii_lowercase) for _ in range(6)])
-                self.nodes[0].createwallet(wallet_name=wallet_name, descriptors=descriptors)
+                self.nodes[0].createwallet(wallet_name=wallet_name)
                 wallet_dir = os.path.join(datadir, 'wallets')
                 self.log.info("Check that we can't start a second bitcoind instance using the same wallet")
-                if descriptors:
-                    expected_msg = f"Error: SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['PACKAGE_NAME']}?"
-                else:
-                    expected_msg = "Error: Error initializing wallet database environment"
+                expected_msg = f"Error: SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['PACKAGE_NAME']}?"
                 self.nodes[1].assert_start_raises_init_error(extra_args=[f'-walletdir={wallet_dir}', f'-wallet={wallet_name}', '-noserver'], expected_msg=expected_msg, match=ErrorMatch.PARTIAL_REGEX)
 
-            if self.is_bdb_compiled():
-                check_wallet_filelock(False)
             if self.is_sqlite_compiled():
-                check_wallet_filelock(True)
+                check_wallet_filelock()
 
 if __name__ == '__main__':
     FilelockTest().main()

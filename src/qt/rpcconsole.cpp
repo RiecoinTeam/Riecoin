@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -69,9 +70,6 @@ namespace {
 
 // don't add private key handling cmd's to the history
 const QStringList historyFilter = QStringList()
-    << "importprivkey"
-    << "importmulti"
-    << "sethdseed"
     << "signmessagewithprivkey"
     << "signrawtransactionwithkey"
     << "walletpassphrase"

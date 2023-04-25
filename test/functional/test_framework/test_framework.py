@@ -11,7 +11,6 @@ import argparse
 import logging
 import os
 import platform
-import pdb
 import random
 import re
 import shutil
@@ -104,7 +103,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.bind_to_localhost_only = True
         self.parse_args()
         self.disable_syscall_sandbox = self.options.nosandbox or self.options.valgrind
-        self.default_wallet_name = "default_wallet" if self.options.descriptors else ""
+        self.default_wallet_name = "default_wallet"
         self.wallet_data_filename = "wallet.dat"
         # Optional list of wallet names that can be set in set_test_params to
         # create and import keys to. If unset, default is len(nodes) *
@@ -195,12 +194,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                             help="set a random seed for deterministically reproducing a previous test run")
         parser.add_argument('--timeout-factor', dest="timeout_factor", type=float, default=1.0, help='adjust test timeouts by a factor. Setting it to 0 disables all timeouts')
 
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument("--descriptors", action='store_const', const=True,
-                            help="Run test using a descriptor wallet", dest='descriptors')
-        group.add_argument("--legacy-wallet", action='store_const', const=False,
-                            help="Run test using legacy wallets", dest='descriptors')
-
         self.add_options(parser)
         # Running TestShell in a Jupyter notebook causes an additional -f argument
         # To keep TestShell from failing with an "unrecognized argument" error, we add a dummy "-f" argument
@@ -213,16 +206,12 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         config.read_file(open(self.options.configfile))
         self.config = config
 
-        if self.options.descriptors is None:
-            # Prefer BDB unless it isn't available
-            if self.is_bdb_compiled():
-                self.options.descriptors = False
-            elif self.is_sqlite_compiled():
-                self.options.descriptors = True
-            else:
-                # If neither are compiled, tests requiring a wallet will be skipped and the value of self.options.descriptors won't matter
-                # It still needs to exist and be None in order for tests to work however.
-                self.options.descriptors = None
+        if self.is_sqlite_compiled():
+            self.options.descriptors = True
+        else:
+            # Tests requiring a wallet will be skipped and the value of self.options.descriptors won't matter
+            # It still needs to exist and be None in order for tests to work however.
+            self.options.descriptors = None
 
         PortSeed.n = self.options.port_seed
 
@@ -432,7 +421,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if wallet_name is not False:
             n = self.nodes[node]
             if wallet_name is not None:
-                n.createwallet(wallet_name=wallet_name, descriptors=self.options.descriptors, load_on_startup=True)
+                n.createwallet(wallet_name=wallet_name, load_on_startup=True)
             n.importprivkey(privkey=n.get_deterministic_priv_key().key, label='coinbase', rescan=True)
 
     def run_test(self):
@@ -866,18 +855,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             raise SkipTest("wallet has not been compiled.")
         if self.options.descriptors:
             self.skip_if_no_sqlite()
-        else:
-            self.skip_if_no_bdb()
 
     def skip_if_no_sqlite(self):
         """Skip the running test if sqlite has not been compiled."""
         if not self.is_sqlite_compiled():
             raise SkipTest("sqlite has not been compiled.")
-
-    def skip_if_no_bdb(self):
-        """Skip the running test if BDB has not been compiled."""
-        if not self.is_bdb_compiled():
-            raise SkipTest("BDB has not been compiled.")
 
     def skip_if_no_wallet_tool(self):
         """Skip the running test if bitcoin-wallet has not been compiled."""
@@ -920,12 +902,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         return self.config["components"].getboolean("ENABLE_WALLET")
 
     def is_specified_wallet_compiled(self):
-        """Checks whether wallet support for the specified type
-           (legacy or descriptor wallet) was compiled."""
+        """Checks whether wallet support for descriptors was compiled."""
         if self.options.descriptors:
             return self.is_sqlite_compiled()
-        else:
-            return self.is_bdb_compiled()
 
     def is_wallet_tool_compiled(self):
         """Checks whether bitcoin-wallet was compiled."""
@@ -942,10 +921,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def is_sqlite_compiled(self):
         """Checks whether the wallet module was compiled with Sqlite support."""
         return self.config["components"].getboolean("USE_SQLITE")
-
-    def is_bdb_compiled(self):
-        """Checks whether the wallet module was compiled with BDB support."""
-        return self.config["components"].getboolean("USE_BDB")
 
     def is_syscall_sandbox_compiled(self):
         """Checks whether the syscall sandbox was compiled."""

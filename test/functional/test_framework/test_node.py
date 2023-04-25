@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Class for bitcoind node under test"""
@@ -748,10 +749,8 @@ class RPCOverloadWrapper():
     def createwallet_passthrough(self, *args, **kwargs):
         return self.__getattr__("createwallet")(*args, **kwargs)
 
-    def createwallet(self, wallet_name, disable_private_keys=None, blank=None, passphrase='', avoid_reuse=None, descriptors=None, load_on_startup=None, external_signer=None):
-        if descriptors is None:
-            descriptors = self.descriptors
-        return self.__getattr__('createwallet')(wallet_name, disable_private_keys, blank, passphrase, avoid_reuse, descriptors, load_on_startup, external_signer)
+    def createwallet(self, wallet_name, disable_private_keys=None, blank=None, passphrase='', avoid_reuse=None, load_on_startup=None, external_signer=None):
+        return self.__getattr__('createwallet')(wallet_name, disable_private_keys, blank, passphrase, avoid_reuse, load_on_startup, external_signer)
 
     def importprivkey(self, privkey, label=None, rescan=None):
         wallet_info = self.getwalletinfo()

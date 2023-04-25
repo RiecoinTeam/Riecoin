@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2018-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test bitcoin-wallet."""
@@ -84,20 +85,6 @@ class ToolWalletTest(BitcoinTestFramework):
                 Transactions: %d
                 Address Book: %d
             ''' % (wallet_name, keypool * output_types, transactions, imported_privs * 3 + address))
-        else:
-            output_types = 3  # p2pkh, p2sh, segwit. Legacy wallets do not support bech32m.
-            return textwrap.dedent('''\
-                Wallet info
-                ===========
-                Name: %s
-                Format: bdb
-                Descriptors: no
-                Encrypted: no
-                HD (hd seed available): yes
-                Keypool Size: %d
-                Transactions: %d
-                Address Book: %d
-            ''' % (wallet_name, keypool, transactions, (address + imported_privs) * output_types))
 
     def read_dump(self, filename):
         dump = OrderedDict()
@@ -112,12 +99,6 @@ class ToolWalletTest(BitcoinTestFramework):
         with open(filename, 'rb') as f:
             file_magic = f.read(16)
             assert file_magic == b'SQLite format 3\x00'
-
-    def assert_is_bdb(self, filename):
-        with open(filename, 'rb') as f:
-            f.seek(12, 0)
-            file_magic = f.read(4)
-            assert file_magic == b'\x00\x05\x31\x62' or file_magic == b'\x62\x31\x05\x00'
 
     def write_dump(self, dump, filename, magic=None, skip_checksum=False):
         if magic is None:
@@ -137,19 +118,6 @@ class ToolWalletTest(BitcoinTestFramework):
     def assert_dump(self, expected, received):
         e = expected.copy()
         r = received.copy()
-
-        # BDB will add a "version" record that is not present in sqlite
-        # In that case, we should ignore this record in both
-        # But because this also effects the checksum, we also need to drop that.
-        v_key = "0776657273696f6e" # Version key
-        if v_key in e and v_key not in r:
-            del e[v_key]
-            del e["checksum"]
-            del r["checksum"]
-        if v_key not in e and v_key in r:
-            del r[v_key]
-            del e["checksum"]
-            del r["checksum"]
 
         assert_equal(len(e), len(r))
         for k, v in e.items():
@@ -177,10 +145,7 @@ class ToolWalletTest(BitcoinTestFramework):
 
         rt_dump_data = self.read_dump(rt_dumppath)
         wallet_dat = os.path.join(self.nodes[0].datadir, "regtest/wallets/", wallet_name, "wallet.dat")
-        if rt_dump_data["format"] == "bdb":
-            self.assert_is_bdb(wallet_dat)
-        else:
-            self.assert_is_sqlite(wallet_dat)
+        self.assert_is_sqlite(wallet_dat)
 
     def test_invalid_tool_commands_and_args(self):
         self.log.info('Testing that various invalid commands raise with specific error messages')
@@ -343,16 +308,12 @@ class ToolWalletTest(BitcoinTestFramework):
         self.log.info('Checking createfromdump arguments')
         self.assert_raises_tool_error('No dump file provided. To use createfromdump, -dumpfile=<filename> must be provided.', '-wallet=todump', 'createfromdump')
         non_exist_dump = os.path.join(self.nodes[0].datadir, "wallet.nodump")
-        self.assert_raises_tool_error('Unknown wallet file format "notaformat" provided. Please provide one of "bdb" or "sqlite".', '-wallet=todump', '-format=notaformat', '-dumpfile={}'.format(wallet_dump), 'createfromdump')
         self.assert_raises_tool_error('Dump file {} does not exist.'.format(non_exist_dump), '-wallet=todump', '-dumpfile={}'.format(non_exist_dump), 'createfromdump')
         wallet_path = os.path.join(self.nodes[0].datadir, 'regtest', 'wallets', 'todump2')
         self.assert_raises_tool_error('Failed to create database path \'{}\'. Database already exists.'.format(wallet_path), '-wallet=todump2', '-dumpfile={}'.format(wallet_dump), 'createfromdump')
-        self.assert_raises_tool_error("The -descriptors option can only be used with the 'create' command.", '-descriptors', '-wallet=todump2', '-dumpfile={}'.format(wallet_dump), 'createfromdump')
 
         self.log.info('Checking createfromdump')
         self.do_tool_createfromdump("load", "wallet.dump")
-        if self.is_bdb_compiled():
-            self.do_tool_createfromdump("load-bdb", "wallet.dump", "bdb")
         if self.is_sqlite_compiled():
             self.do_tool_createfromdump("load-sqlite", "wallet.dump", "sqlite")
 

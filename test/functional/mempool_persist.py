@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test mempool persistence.
@@ -60,7 +61,6 @@ class MempoolPersistTest(BitcoinTestFramework):
         if self.is_sqlite_compiled():
             self.nodes[2].createwallet(
                 wallet_name="watch",
-                descriptors=True,
                 disable_private_keys=True,
                 load_on_startup=False,
             )

@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -114,9 +115,6 @@ public:
 
     /** Status: can change with block chain update */
     TransactionStatus status;
-
-    /** Whether the transaction was sent/received with a watch-only address */
-    bool involvesWatchAddress;
 
     /** Return the unique identifier for this transaction (part) */
     QString getTxHash() const;

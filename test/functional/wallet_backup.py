@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the wallet backup features.
@@ -165,11 +166,6 @@ class WalletBackupTest(BitcoinTestFramework):
         self.nodes[1].backupwallet(os.path.join(self.nodes[1].datadir, 'wallet.bak'))
         self.nodes[2].backupwallet(os.path.join(self.nodes[2].datadir, 'wallet.bak'))
 
-        if not self.options.descriptors:
-            self.nodes[0].dumpwallet(os.path.join(self.nodes[0].datadir, 'wallet.dump'))
-            self.nodes[1].dumpwallet(os.path.join(self.nodes[1].datadir, 'wallet.dump'))
-            self.nodes[2].dumpwallet(os.path.join(self.nodes[2].datadir, 'wallet.dump'))
-
         self.log.info("More transactions")
         for _ in range(5):
             self.do_one_round()
@@ -216,32 +212,6 @@ class WalletBackupTest(BitcoinTestFramework):
         assert_equal(res2_rpc.getbalance(), balance2)
 
         self.restore_wallet_existent_name()
-
-        if not self.options.descriptors:
-            self.log.info("Restoring using dumped wallet")
-            self.stop_three()
-            self.erase_three()
-
-            #start node2 with no chain
-            shutil.rmtree(os.path.join(self.nodes[2].datadir, self.chain, 'blocks'))
-            shutil.rmtree(os.path.join(self.nodes[2].datadir, self.chain, 'chainstate'))
-
-            self.start_three(["-nowallet"])
-            self.init_three()
-
-            assert_equal(self.nodes[0].getbalance(), 0)
-            assert_equal(self.nodes[1].getbalance(), 0)
-            assert_equal(self.nodes[2].getbalance(), 0)
-
-            self.nodes[0].importwallet(os.path.join(self.nodes[0].datadir, 'wallet.dump'))
-            self.nodes[1].importwallet(os.path.join(self.nodes[1].datadir, 'wallet.dump'))
-            self.nodes[2].importwallet(os.path.join(self.nodes[2].datadir, 'wallet.dump'))
-
-            self.sync_blocks()
-
-            assert_equal(self.nodes[0].getbalance(), balance0)
-            assert_equal(self.nodes[1].getbalance(), balance1)
-            assert_equal(self.nodes[2].getbalance(), balance2)
 
         # Backup to source wallet file must fail
         sourcePaths = [

@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -132,16 +133,8 @@ protected:
      * calls are saved because they are all intentionally used to receive
      * payments.
      *
-     * The FillableSigningProvider::mapScripts script map should not be confused
-     * with LegacyScriptPubKeyMan::setWatchOnly script set. The two collections
-     * can hold the same scripts, but they serve different purposes. The
-     * setWatchOnly script set is intended to expand the set of outputs the
-     * wallet considers payments. Every output with a script it contains is
-     * considered to belong to the wallet, regardless of whether the script is
-     * solvable or signable. By contrast, the scripts in mapScripts are only
-     * used for solving, and to restrict which outputs are considered payments
-     * by the wallet. An output with a script in mapScripts, unlike
-     * setWatchOnly, is not automatically considered to belong to the wallet if
+     * The scripts in mapScripts are only used for solving, and to restrict which outputs are considered payments
+     * by the wallet. An output with a script in mapScripts, is not automatically considered to belong to the wallet if
      * it can't be solved and signed for.
      */
     ScriptMap mapScripts GUARDED_BY(cs_KeyStore);

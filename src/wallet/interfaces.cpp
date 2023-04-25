@@ -1,4 +1,5 @@
 // Copyright (c) 2018-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -71,8 +72,8 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
                                                       wallet.IsMine(result.txout_address.back()) :
                                                       ISMINE_NO);
     }
-    result.credit = CachedTxGetCredit(wallet, wtx, ISMINE_ALL);
-    result.debit = CachedTxGetDebit(wallet, wtx, ISMINE_ALL);
+    result.credit = CachedTxGetCredit(wallet, wtx, ISMINE_SPENDABLE);
+    result.debit = CachedTxGetDebit(wallet, wtx, ISMINE_SPENDABLE);
     result.change = CachedTxGetChange(wallet, wtx);
     result.time = wtx.GetTxTime();
     result.value_map = wtx.mapValue;
@@ -170,14 +171,6 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->IsMine(dest) & ISMINE_SPENDABLE;
     }
-    bool haveWatchOnly() override
-    {
-        auto spk_man = m_wallet->GetLegacyScriptPubKeyMan();
-        if (spk_man) {
-            return spk_man->HaveWatchOnly();
-        }
-        return false;
-    };
     bool setAddressBook(const CTxDestination& dest, const std::string& name, const std::string& purpose) override
     {
         return m_wallet->SetAddressBook(dest, name, purpose);
@@ -381,12 +374,6 @@ public:
         result.balance = bal.m_mine_trusted;
         result.unconfirmed_balance = bal.m_mine_untrusted_pending;
         result.immature_balance = bal.m_mine_immature;
-        result.have_watch_only = haveWatchOnly();
-        if (result.have_watch_only) {
-            result.watch_only_balance = bal.m_watchonly_trusted;
-            result.unconfirmed_watch_only_balance = bal.m_watchonly_untrusted_pending;
-            result.immature_watch_only_balance = bal.m_watchonly_immature;
-        }
         return result;
     }
     bool tryGetBalances(WalletBalances& balances, uint256& block_hash) override
@@ -473,7 +460,6 @@ public:
     bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }
     bool privateKeysDisabled() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS); }
     bool taprootEnabled() override {
-        if (m_wallet->IsLegacy()) return false;
         auto spk_man = m_wallet->GetScriptPubKeyMan(OutputType::BECH32M, /*internal=*/false);
         return spk_man != nullptr;
     }
@@ -483,7 +469,6 @@ public:
     {
         RemoveWallet(m_context, m_wallet, false /* load_on_start */);
     }
-    bool isLegacy() override { return m_wallet->IsLegacy(); }
     std::unique_ptr<Handler> handleUnload(UnloadFn fn) override
     {
         return MakeHandler(m_wallet->NotifyUnload.connect(fn));
@@ -506,10 +491,6 @@ public:
     {
         return MakeHandler(m_wallet->NotifyTransactionChanged.connect(
             [fn](const uint256& txid, ChangeType status) { fn(txid, status); }));
-    }
-    std::unique_ptr<Handler> handleWatchOnlyChanged(WatchOnlyChangedFn fn) override
-    {
-        return MakeHandler(m_wallet->NotifyWatchonlyChanged.connect(fn));
     }
     std::unique_ptr<Handler> handleCanGetAddressesChanged(CanGetAddressesChangedFn fn) override
     {

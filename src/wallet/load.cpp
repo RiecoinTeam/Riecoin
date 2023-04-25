@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -84,6 +85,7 @@ bool VerifyWallets(WalletContext& context)
         }
 
         DatabaseOptions options;
+        options.create_flags |= WALLET_FLAG_DESCRIPTORS;
         DatabaseStatus status;
         ReadDatabaseArgs(args, options);
         options.require_existing = true;
@@ -113,6 +115,7 @@ bool LoadWallets(WalletContext& context)
                 continue;
             }
             DatabaseOptions options;
+            options.create_flags |= WALLET_FLAG_DESCRIPTORS;
             DatabaseStatus status;
             ReadDatabaseArgs(*context.args, options);
             options.require_existing = true;

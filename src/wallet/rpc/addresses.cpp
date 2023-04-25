@@ -50,11 +50,8 @@ RPCHelpMan getnewaddress()
     OutputType output_type = pwallet->m_default_address_type;
     if (!request.params[1].isNull()) {
         std::optional<OutputType> parsed = ParseOutputType(request.params[1].get_str());
-        if (!parsed) {
+        if (!parsed)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[1].get_str()));
-        } else if (parsed.value() == OutputType::BECH32M && pwallet->GetLegacyScriptPubKeyMan()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Legacy wallets cannot provide bech32m addresses");
-        }
         output_type = parsed.value();
     }
 
@@ -97,11 +94,8 @@ RPCHelpMan getrawchangeaddress()
     OutputType output_type = pwallet->m_default_change_type.value_or(pwallet->m_default_address_type);
     if (!request.params[0].isNull()) {
         std::optional<OutputType> parsed = ParseOutputType(request.params[0].get_str());
-        if (!parsed) {
+        if (!parsed)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[0].get_str()));
-        } else if (parsed.value() == OutputType::BECH32M && pwallet->GetLegacyScriptPubKeyMan()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Legacy wallets cannot provide bech32m addresses");
-        }
         output_type = parsed.value();
     }
 
@@ -213,104 +207,6 @@ RPCHelpMan listaddressgroupings()
     };
 }
 
-RPCHelpMan addmultisigaddress()
-{
-    return RPCHelpMan{"addmultisigaddress",
-                "\nAdd an nrequired-to-sign multisignature address to the wallet. Requires a new wallet backup.\n"
-                "Each key is a Bitcoin address or hex-encoded public key.\n"
-                "This functionality is only intended for use with non-watchonly addresses.\n"
-                "See `importaddress` for watchonly p2sh address support.\n"
-                "If 'label' is specified, assign address to that label.\n",
-                {
-                    {"nrequired", RPCArg::Type::NUM, RPCArg::Optional::NO, "The number of required signatures out of the n keys or addresses."},
-                    {"keys", RPCArg::Type::ARR, RPCArg::Optional::NO, "The bitcoin addresses or hex-encoded public keys",
-                        {
-                            {"key", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "bitcoin address or hex-encoded public key"},
-                        },
-                        },
-                    {"label", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A label to assign the addresses to."},
-                    {"address_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -addresstype"}, "The address type to use. Options are \"legacy\", \"p2sh-segwit\", and \"bech32\"."},
-                },
-                RPCResult{
-                    RPCResult::Type::OBJ, "", "",
-                    {
-                        {RPCResult::Type::STR, "address", "The value of the new multisig address"},
-                        {RPCResult::Type::STR_HEX, "redeemScript", "The string value of the hex-encoded redemption script"},
-                        {RPCResult::Type::STR, "descriptor", "The descriptor for this multisig"},
-                        {RPCResult::Type::ARR, "warnings", /*optional=*/true, "Any warnings resulting from the creation of this multisig",
-                        {
-                            {RPCResult::Type::STR, "", ""},
-                        }},
-                    }
-                },
-                RPCExamples{
-            "\nAdd a multisig address from 2 addresses\n"
-            + HelpExampleCli("addmultisigaddress", "2 \"[\\\"" + EXAMPLE_ADDRESS[0] + "\\\",\\\"" + EXAMPLE_ADDRESS[1] + "\\\"]\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("addmultisigaddress", "2, \"[\\\"" + EXAMPLE_ADDRESS[0] + "\\\",\\\"" + EXAMPLE_ADDRESS[1] + "\\\"]\"")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return UniValue::VNULL;
-
-    LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(*pwallet);
-
-    LOCK2(pwallet->cs_wallet, spk_man.cs_KeyStore);
-
-    std::string label;
-    if (!request.params[2].isNull())
-        label = LabelFromValue(request.params[2]);
-
-    int required = request.params[0].getInt<int>();
-
-    // Get the public keys
-    const UniValue& keys_or_addrs = request.params[1].get_array();
-    std::vector<CPubKey> pubkeys;
-    for (unsigned int i = 0; i < keys_or_addrs.size(); ++i) {
-        if (IsHex(keys_or_addrs[i].get_str()) && (keys_or_addrs[i].get_str().length() == 66 || keys_or_addrs[i].get_str().length() == 130)) {
-            pubkeys.push_back(HexToPubKey(keys_or_addrs[i].get_str()));
-        } else {
-            pubkeys.push_back(AddrToPubKey(spk_man, keys_or_addrs[i].get_str()));
-        }
-    }
-
-    OutputType output_type = pwallet->m_default_address_type;
-    if (!request.params[3].isNull()) {
-        std::optional<OutputType> parsed = ParseOutputType(request.params[3].get_str());
-        if (!parsed) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[3].get_str()));
-        } else if (parsed.value() == OutputType::BECH32M) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Bech32m multisig addresses cannot be created with legacy wallets");
-        }
-        output_type = parsed.value();
-    }
-
-    // Construct using pay-to-script-hash:
-    CScript inner;
-    CTxDestination dest = AddAndGetMultisigDestination(required, pubkeys, output_type, spk_man, inner);
-    pwallet->SetAddressBook(dest, label, "send");
-
-    // Make the descriptor
-    std::unique_ptr<Descriptor> descriptor = InferDescriptor(GetScriptForDestination(dest), spk_man);
-
-    UniValue result(UniValue::VOBJ);
-    result.pushKV("address", EncodeDestination(dest));
-    result.pushKV("redeemScript", HexStr(inner));
-    result.pushKV("descriptor", descriptor->ToString());
-
-    UniValue warnings(UniValue::VARR);
-    if (descriptor->GetOutputType() != output_type) {
-        // Only warns if the user has explicitly chosen an address type we cannot generate
-        warnings.push_back("Unable to make chosen address type, please ensure no uncompressed public keys are present.");
-    }
-    if (!warnings.empty()) result.pushKV("warnings", warnings);
-
-    return result;
-},
-    };
-}
-
 RPCHelpMan keypoolrefill()
 {
     return RPCHelpMan{"keypoolrefill",
@@ -328,10 +224,6 @@ RPCHelpMan keypoolrefill()
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) return UniValue::VNULL;
-
-    if (pwallet->IsLegacy() && pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Private keys are disabled for this wallet");
-    }
 
     LOCK(pwallet->cs_wallet);
 
@@ -354,38 +246,6 @@ RPCHelpMan keypoolrefill()
 },
     };
 }
-
-RPCHelpMan newkeypool()
-{
-    return RPCHelpMan{"newkeypool",
-                "\nEntirely clears and refills the keypool.\n"
-                "WARNING: On non-HD wallets, this will require a new backup immediately, to include the new keys.\n"
-                "When restoring a backup of an HD wallet created before the newkeypool command is run, funds received to\n"
-                "new addresses may not appear automatically. They have not been lost, but the wallet may not find them.\n"
-                "This can be fixed by running the newkeypool command on the backup and then rescanning, so the wallet\n"
-                "re-generates the required keys." +
-            HELP_REQUIRING_PASSPHRASE,
-                {},
-                RPCResult{RPCResult::Type::NONE, "", ""},
-                RPCExamples{
-            HelpExampleCli("newkeypool", "")
-            + HelpExampleRpc("newkeypool", "")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return UniValue::VNULL;
-
-    LOCK(pwallet->cs_wallet);
-
-    LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(*pwallet, true);
-    spk_man.NewKeyPool();
-
-    return UniValue::VNULL;
-},
-    };
-}
-
 
 class DescribeWalletAddressVisitor
 {
@@ -505,7 +365,6 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::STR, "address", "The bitcoin address validated."},
                         {RPCResult::Type::STR_HEX, "scriptPubKey", "The hex-encoded scriptPubKey generated by the address."},
                         {RPCResult::Type::BOOL, "ismine", "If the address is yours."},
-                        {RPCResult::Type::BOOL, "iswatchonly", "If the address is watchonly."},
                         {RPCResult::Type::BOOL, "solvable", "If we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
                         {RPCResult::Type::STR, "desc", /*optional=*/true, "A descriptor for spending coins sent to this address (only when solvable)."},
                         {RPCResult::Type::STR, "parent_desc", /*optional=*/true, "The descriptor used to derive this address if this is a descriptor wallet"},
@@ -526,8 +385,7 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::STR_HEX, "pubkey", /*optional=*/true, "The hex value of the raw public key for single-key addresses (possibly embedded in P2SH or P2WSH)."},
                         {RPCResult::Type::OBJ, "embedded", /*optional=*/true, "Information about the address embedded in P2SH or P2WSH, if relevant and known.",
                         {
-                            {RPCResult::Type::ELISION, "", "Includes all getaddressinfo output fields for the embedded address, excluding metadata (timestamp, hdkeypath, hdseedid)\n"
-                            "and relation to the wallet (ismine, iswatchonly)."},
+                            {RPCResult::Type::ELISION, "", "Includes all getaddressinfo output fields for the embedded address, excluding metadata (timestamp, hdkeypath, hdseedid) and relation to the wallet (ismine)."},
                         }},
                         {RPCResult::Type::BOOL, "iscompressed", /*optional=*/true, "If the pubkey is compressed."},
                         {RPCResult::Type::NUM_TIME, "timestamp", /*optional=*/true, "The creation time of the key, if available, expressed in " + UNIX_EPOCH_TIME + "."},
@@ -599,8 +457,6 @@ RPCHelpMan getaddressinfo()
             ret.pushKV("parent_desc", desc_str);
         }
     }
-
-    ret.pushKV("iswatchonly", bool(mine & ISMINE_WATCH_ONLY));
 
     UniValue detail = DescribeWalletAddress(*pwallet, dest);
     ret.pushKVs(detail);

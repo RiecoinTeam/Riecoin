@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -254,9 +255,7 @@ void CreateWalletActivity::createWallet()
     if (m_create_wallet_dialog->isMakeBlankWalletChecked()) {
         flags |= WALLET_FLAG_BLANK_WALLET;
     }
-    if (m_create_wallet_dialog->isDescriptorWalletChecked()) {
-        flags |= WALLET_FLAG_DESCRIPTORS;
-    }
+    flags |= WALLET_FLAG_DESCRIPTORS;
     if (m_create_wallet_dialog->isExternalSignerChecked()) {
         flags |= WALLET_FLAG_EXTERNAL_SIGNER;
     }

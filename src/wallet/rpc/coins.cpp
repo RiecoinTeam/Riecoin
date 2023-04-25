@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -167,7 +168,6 @@ RPCHelpMan getbalance()
                 {
                     {"dummy", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "Remains for backward compatibility. Must be excluded or set to \"*\"."},
                     {"minconf", RPCArg::Type::NUM, RPCArg::Default{0}, "Only include transactions confirmed at least this many times."},
-                    {"include_watchonly", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also include balance in watch-only addresses (see 'importaddress')"},
                     {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "(only available if avoid_reuse wallet flag is set) Do not include balance in dirty outputs; addresses are considered dirty if they have previously been used in a transaction."},
                 },
                 RPCResult{
@@ -202,13 +202,10 @@ RPCHelpMan getbalance()
         min_depth = request.params[1].getInt<int>();
     }
 
-    bool include_watchonly = ParseIncludeWatchonly(request.params[2], *pwallet);
-
-    bool avoid_reuse = GetAvoidReuseFlag(*pwallet, request.params[3]);
+    bool avoid_reuse = GetAvoidReuseFlag(*pwallet, request.params[2]);
 
     const auto bal = GetBalance(*pwallet, min_depth, avoid_reuse);
-
-    return ValueFromAmount(bal.m_mine_trusted + (include_watchonly ? bal.m_watchonly_trusted : 0));
+    return ValueFromAmount(bal.m_mine_trusted);
 },
     };
 }
@@ -445,12 +442,6 @@ RPCHelpMan getbalances()
                     {RPCResult::Type::STR_AMOUNT, "immature", "balance from immature coinbase outputs"},
                     {RPCResult::Type::STR_AMOUNT, "used", /*optional=*/true, "(only present if avoid_reuse is set) balance from coins sent to addresses that were previously spent from (potentially privacy violating)"},
                 }},
-                {RPCResult::Type::OBJ, "watchonly", /*optional=*/true, "watchonly balances (not present if wallet does not watch anything)",
-                {
-                    {RPCResult::Type::STR_AMOUNT, "trusted", "trusted balance (outputs created by the wallet or confirmed outputs)"},
-                    {RPCResult::Type::STR_AMOUNT, "untrusted_pending", "untrusted pending balance (outputs created by others that are in the mempool)"},
-                    {RPCResult::Type::STR_AMOUNT, "immature", "balance from immature coinbase outputs"},
-                }},
             }
             },
         RPCExamples{
@@ -482,14 +473,6 @@ RPCHelpMan getbalances()
             balances_mine.pushKV("used", ValueFromAmount(full_bal.m_mine_trusted + full_bal.m_mine_untrusted_pending - bal.m_mine_trusted - bal.m_mine_untrusted_pending));
         }
         balances.pushKV("mine", balances_mine);
-    }
-    auto spk_man = wallet.GetLegacyScriptPubKeyMan();
-    if (spk_man && spk_man->HaveWatchOnly()) {
-        UniValue balances_watchonly{UniValue::VOBJ};
-        balances_watchonly.pushKV("trusted", ValueFromAmount(bal.m_watchonly_trusted));
-        balances_watchonly.pushKV("untrusted_pending", ValueFromAmount(bal.m_watchonly_untrusted_pending));
-        balances_watchonly.pushKV("immature", ValueFromAmount(bal.m_watchonly_immature));
-        balances.pushKV("watchonly", balances_watchonly);
     }
     return balances;
 },

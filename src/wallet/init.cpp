@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,9 +17,6 @@
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/translation.h>
-#ifdef USE_BDB
-#include <wallet/bdb.h>
-#endif
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 #include <walletinitinterface.h>
@@ -78,14 +76,7 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
     argsman.AddArg("-walletnotify=<cmd>", "Execute command when a wallet transaction changes. %s in cmd is replaced by TxID, %w is replaced by wallet name, %b is replaced by the hash of the block including the transaction (set to 'unconfirmed' if the transaction is not included) and %h is replaced by the block height (-1 if not included). %w is not currently implemented on windows. On systems where %w is supported, it should NOT be quoted because this would break shell escaping used to invoke the command.", ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
 #endif
     argsman.AddArg("-walletrbf", strprintf("Send transactions with full-RBF opt-in enabled (RPC only, default: %u)", DEFAULT_WALLET_RBF), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
-
-#ifdef USE_BDB
-    argsman.AddArg("-dblogsize=<n>", strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DatabaseOptions().max_log_mb), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
-    argsman.AddArg("-flushwallet", strprintf("Run a thread to flush wallet periodically (default: %u)", DEFAULT_FLUSHWALLET), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
-    argsman.AddArg("-privdb", strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", !DatabaseOptions().use_shared_memory), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
-#else
     argsman.AddHiddenArgs({"-dblogsize", "-flushwallet", "-privdb"});
-#endif
 
 #ifdef USE_SQLITE
     argsman.AddArg("-unsafesqlitesync", "Set SQLite synchronous=OFF to disable waiting for the database to sync to disk. This is unsafe and can cause data loss and corruption. This option is only used by tests to improve their performance (default: false)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
@@ -101,11 +92,6 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
 
 bool WalletInit::ParameterInteraction() const
 {
-#ifdef USE_BDB
-     if (!BerkeleyDatabaseSanityCheck()) {
-         return InitError(Untranslated("A version conflict was detected between the run-time BerkeleyDB library and the one used during compilation."));
-     }
-#endif
     if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
         for (const std::string& wallet : gArgs.GetArgs("-wallet")) {
             LogPrintf("%s: parameter interaction: -disablewallet -> ignoring -wallet=%s\n", __func__, wallet);

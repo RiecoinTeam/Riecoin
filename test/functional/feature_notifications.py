@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the -alertnotify, -blocknotify and -walletnotify options."""
@@ -8,9 +9,7 @@ import os
 from test_framework.address import ADDRESS_BCRT1_UNSPENDABLE
 from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import (
-    assert_equal,
-)
+from test_framework.util import assert_equal
 
 # Linux allow all characters other than \x00
 # Windows disallow control characters (0-31) and /\?%:|"<>
@@ -53,7 +52,6 @@ class NotificationsTest(BitcoinTestFramework):
     def run_test(self):
         if self.is_wallet_compiled():
             # Setup the descriptors to be imported to the wallet
-            seed = "cTdGmKFWpbvpKQ7ejrdzqYT2hhjyb3GPHnLAK7wdi5Em67YLwSm9"
             xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
             desc_imports = [{
                 "desc": descsum_create(f"wpkh({xpriv}/0/*)"),
@@ -70,11 +68,8 @@ class NotificationsTest(BitcoinTestFramework):
             # Make the wallets and import the descriptors
             # Ensures that node 0 and node 1 share the same wallet for the conflicting transaction tests below.
             for i, name in enumerate(self.wallet_names):
-                self.nodes[i].createwallet(wallet_name=name, descriptors=self.options.descriptors, blank=True, load_on_startup=True)
-                if self.options.descriptors:
-                    self.nodes[i].importdescriptors(desc_imports)
-                else:
-                    self.nodes[i].sethdseed(True, seed)
+                self.nodes[i].createwallet(wallet_name=name, blank=True, load_on_startup=True)
+                self.nodes[i].importdescriptors(desc_imports)
 
         self.log.info("test -blocknotify")
         block_count = 10

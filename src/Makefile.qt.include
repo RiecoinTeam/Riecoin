@@ -1,4 +1,5 @@
 # Copyright (c) 2013-2016 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -193,8 +194,6 @@ QT_RES_ICONS = \
   qt/res/icons/editpaste.png \
   qt/res/icons/export.png \
   qt/res/icons/eye.png \
-  qt/res/icons/eye_minus.png \
-  qt/res/icons/eye_plus.png \
   qt/res/icons/fontbigger.png \
   qt/res/icons/fontsmaller.png \
   qt/res/icons/hd_disabled.png \
@@ -332,7 +331,7 @@ if ENABLE_ZMQ
 bitcoin_qt_ldadd += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 bitcoin_qt_ldadd += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
-  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(LIBSECP256K1) \
+  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(LIBSECP256K1) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(SQLITE_LIBS)
 bitcoin_qt_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 bitcoin_qt_libtoolflags = $(AM_LIBTOOLFLAGS) --tag CXX

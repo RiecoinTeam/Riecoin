@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -169,12 +170,10 @@ private:
     std::unique_ptr<interfaces::Handler> m_handler_address_book_changed;
     std::unique_ptr<interfaces::Handler> m_handler_transaction_changed;
     std::unique_ptr<interfaces::Handler> m_handler_show_progress;
-    std::unique_ptr<interfaces::Handler> m_handler_watch_only_changed;
     std::unique_ptr<interfaces::Handler> m_handler_can_get_addrs_changed;
     ClientModel* m_client_model;
     interfaces::Node& m_node;
 
-    bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged{false};
 
     // Wallet has an options model for wallet-specific options
@@ -218,9 +217,6 @@ Q_SIGNALS:
     // Show progress dialog e.g. for rescan
     void showProgress(const QString &title, int nProgress);
 
-    // Watch-only address added
-    void notifyWatchonlyChanged(bool fHaveWatchonly);
-
     // Signal that wallet is about to be removed
     void unload();
 
@@ -239,8 +235,6 @@ public Q_SLOTS:
     void updateTransaction();
     /* New, updated or removed address book entry */
     void updateAddressBook(const QString &address, const QString &label, bool isMine, const QString &purpose, int status);
-    /* Watch-only added */
-    void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
 };

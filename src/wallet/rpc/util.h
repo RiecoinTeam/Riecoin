@@ -1,4 +1,5 @@
 // Copyright (c) 2017-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,7 +19,6 @@ struct bilingual_str;
 
 namespace wallet {
 class CWallet;
-class LegacyScriptPubKeyMan;
 enum class DatabaseStatus;
 struct WalletContext;
 
@@ -35,8 +35,6 @@ bool GetWalletNameFromJSONRPCRequest(const JSONRPCRequest& request, std::string&
 
 void EnsureWalletIsUnlocked(const CWallet&);
 WalletContext& EnsureWalletContext(const std::any& context);
-LegacyScriptPubKeyMan& EnsureLegacyScriptPubKeyMan(CWallet& wallet, bool also_create = false);
-const LegacyScriptPubKeyMan& EnsureConstLegacyScriptPubKeyMan(const CWallet& wallet);
 
 bool GetAvoidReuseFlag(const CWallet& wallet, const UniValue& param);
 bool ParseIncludeWatchonly(const UniValue& include_watchonly, const CWallet& wallet);

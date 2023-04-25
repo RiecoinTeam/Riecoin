@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -35,7 +36,6 @@ public:
     bool isEncryptWalletChecked() const;
     bool isDisablePrivateKeysChecked() const;
     bool isMakeBlankWalletChecked() const;
-    bool isDescriptorWalletChecked() const;
     bool isExternalSignerChecked() const;
 
 private:

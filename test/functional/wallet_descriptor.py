@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2019-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test descriptor wallet function."""
@@ -24,18 +25,9 @@ class WalletDescriptorTest(BitcoinTestFramework):
         self.skip_if_no_sqlite()
 
     def run_test(self):
-        if self.is_bdb_compiled():
-            # Make a legacy wallet and check it is BDB
-            self.nodes[0].createwallet(wallet_name="legacy1", descriptors=False)
-            wallet_info = self.nodes[0].getwalletinfo()
-            assert_equal(wallet_info['format'], 'bdb')
-            self.nodes[0].unloadwallet("legacy1")
-        else:
-            self.log.warning("Skipping BDB test")
-
         # Make a descriptor wallet
         self.log.info("Making a descriptor wallet")
-        self.nodes[0].createwallet(wallet_name="desc1", descriptors=True)
+        self.nodes[0].createwallet(wallet_name="desc1")
 
         # A descriptor wallet should have 100 addresses * 4 types = 400 keys
         self.log.info("Checking wallet info")
@@ -79,7 +71,7 @@ class WalletDescriptorTest(BitcoinTestFramework):
         assert_equal(addr_info['hdkeypath'], 'm/84\'/1\'/0\'/1/0')
 
         # Make a wallet to receive coins at
-        self.nodes[0].createwallet(wallet_name="desc2", descriptors=True)
+        self.nodes[0].createwallet(wallet_name="desc2")
         recv_wrpc = self.nodes[0].get_wallet_rpc("desc2")
         send_wrpc = self.nodes[0].get_wallet_rpc("desc1")
 
@@ -90,18 +82,6 @@ class WalletDescriptorTest(BitcoinTestFramework):
         self.log.info("Test sending and receiving")
         addr = recv_wrpc.getnewaddress()
         send_wrpc.sendtoaddress(addr, 10)
-
-        # Make sure things are disabled
-        self.log.info("Test disabled RPCs")
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.importprivkey, "cVpF924EspNh8KjYsfhgY96mmxvT6DgdWiTYMtMjuM74hJaU5psW")
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.importpubkey, send_wrpc.getaddressinfo(send_wrpc.getnewaddress()))
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.importaddress, recv_wrpc.getnewaddress())
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.importmulti, [])
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.addmultisigaddress, 1, [recv_wrpc.getnewaddress()])
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.dumpprivkey, recv_wrpc.getnewaddress())
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.dumpwallet, 'wallet.dump')
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.importwallet, 'wallet.dump')
-        assert_raises_rpc_error(-4, "Only legacy wallets are supported by this command", recv_wrpc.rpc.sethdseed)
 
         self.log.info("Test encryption")
         # Get the master fingerprint before encrypt
@@ -143,19 +123,19 @@ class WalletDescriptorTest(BitcoinTestFramework):
         enc_rpc.getnewaddress() # Makes sure that we can get a new address from a born encrypted wallet
 
         self.log.info("Test blank descriptor wallets")
-        self.nodes[0].createwallet(wallet_name='desc_blank', blank=True, descriptors=True)
+        self.nodes[0].createwallet(wallet_name='desc_blank', blank=True)
         blank_rpc = self.nodes[0].get_wallet_rpc('desc_blank')
         assert_raises_rpc_error(-4, 'This wallet has no available keys', blank_rpc.getnewaddress)
 
         self.log.info("Test descriptor wallet with disabled private keys")
-        self.nodes[0].createwallet(wallet_name='desc_no_priv', disable_private_keys=True, descriptors=True)
+        self.nodes[0].createwallet(wallet_name='desc_no_priv', disable_private_keys=True)
         nopriv_rpc = self.nodes[0].get_wallet_rpc('desc_no_priv')
         assert_raises_rpc_error(-4, 'This wallet has no available keys', nopriv_rpc.getnewaddress)
 
         self.log.info("Test descriptor exports")
-        self.nodes[0].createwallet(wallet_name='desc_export', descriptors=True)
+        self.nodes[0].createwallet(wallet_name='desc_export',)
         exp_rpc = self.nodes[0].get_wallet_rpc('desc_export')
-        self.nodes[0].createwallet(wallet_name='desc_import', disable_private_keys=True, descriptors=True)
+        self.nodes[0].createwallet(wallet_name='desc_import', disable_private_keys=True)
         imp_rpc = self.nodes[0].get_wallet_rpc('desc_import')
 
         addr_types = [('legacy', False, 'pkh(', '44\'/1\'/0\'', -13),

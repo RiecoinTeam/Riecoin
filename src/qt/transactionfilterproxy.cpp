@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,7 +16,6 @@ TransactionFilterProxy::TransactionFilterProxy(QObject *parent) :
     QSortFilterProxyModel(parent),
     m_search_string(),
     typeFilter(ALL_TYPES),
-    watchOnlyFilter(WatchOnlyFilter_All),
     minAmount(0),
     showInactive(true)
 {
@@ -31,12 +31,6 @@ bool TransactionFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
 
     int type = index.data(TransactionTableModel::TypeRole).toInt();
     if (!(TYPE(type) & typeFilter))
-        return false;
-
-    bool involvesWatchAddress = index.data(TransactionTableModel::WatchonlyRole).toBool();
-    if (involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_No)
-        return false;
-    if (!involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_Yes)
         return false;
 
     QDateTime datetime = index.data(TransactionTableModel::DateRole).toDateTime();
@@ -82,12 +76,6 @@ void TransactionFilterProxy::setTypeFilter(quint32 modes)
 void TransactionFilterProxy::setMinAmount(const CAmount& minimum)
 {
     this->minAmount = minimum;
-    invalidateFilter();
-}
-
-void TransactionFilterProxy::setWatchOnlyFilter(WatchOnlyFilter filter)
-{
-    this->watchOnlyFilter = filter;
     invalidateFilter();
 }
 

@@ -1,4 +1,5 @@
 // Copyright (c) 2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -219,7 +220,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             continue;
         }
 
-        bool tx_from_me = CachedTxIsFromMe(wallet, wtx, ISMINE_ALL);
+        bool tx_from_me = CachedTxIsFromMe(wallet, wtx, ISMINE_SPENDABLE);
 
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             const CTxOut& output = wtx.tx->vout[i];
@@ -253,7 +254,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             // Because CalculateMaximumSignedInputSize just uses ProduceSignature and makes a dummy signature,
             // it is safe to assume that this input is solvable if input_bytes is greater -1.
             bool solvable = input_bytes > -1;
-            bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
+            bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO);
 
             // Filter by spendable outputs only
             if (!spendable && only_spendable) continue;
@@ -361,9 +362,7 @@ std::map<CTxDestination, std::vector<COutput>> ListCoins(const CWallet& wallet)
 
     std::vector<COutPoint> lockedCoins;
     wallet.ListLockedCoins(lockedCoins);
-    // Include watch-only for LegacyScriptPubKeyMan wallets without private keys
-    const bool include_watch_only = wallet.GetLegacyScriptPubKeyMan() && wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
-    const isminetype is_mine_filter = include_watch_only ? ISMINE_WATCH_ONLY : ISMINE_SPENDABLE;
+    const isminetype is_mine_filter = ISMINE_SPENDABLE;
     for (const COutPoint& output : lockedCoins) {
         auto it = wallet.mapWallet.find(output.hash);
         if (it != wallet.mapWallet.end()) {
@@ -376,7 +375,7 @@ std::map<CTxDestination, std::vector<COutput>> ListCoins(const CWallet& wallet)
                 if (ExtractDestination(FindNonChangeParentOutput(wallet, *wtx.tx, output.n).scriptPubKey, address)) {
                     const auto out = wtx.tx->vout.at(output.n);
                     result[address].emplace_back(
-                            COutPoint(wtx.GetHash(), output.n), out, depth, CalculateMaximumSignedInputSize(out, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ false, wtx.GetTxTime(), CachedTxIsFromMe(wallet, wtx, ISMINE_ALL));
+                            COutPoint(wtx.GetHash(), output.n), out, depth, CalculateMaximumSignedInputSize(out, &wallet, /*coin_control=*/nullptr), /*spendable=*/ true, /*solvable=*/ true, /*safe=*/ false, wtx.GetTxTime(), CachedTxIsFromMe(wallet, wtx, ISMINE_SPENDABLE));
                 }
             }
         }

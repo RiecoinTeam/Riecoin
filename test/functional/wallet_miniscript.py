@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2022 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test Miniscript descriptors integration in the wallet."""
@@ -65,7 +66,7 @@ class WalletMiniscriptTest(BitcoinTestFramework):
         self.log.info("Making a descriptor wallet")
         self.funder = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
         self.nodes[0].createwallet(
-            wallet_name="ms_wo", descriptors=True, disable_private_keys=True
+            wallet_name="ms_wo", disable_private_keys=True
         )
         self.ms_wo_wallet = self.nodes[0].get_wallet_rpc("ms_wo")
 

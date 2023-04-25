@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2020 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -41,20 +42,8 @@ class WalletCrossChain(BitcoinTestFramework):
 
         self.log.info("Loading wallets into nodes with a different genesis blocks")
 
-        if self.options.descriptors:
-            assert_raises_rpc_error(-18, 'Wallet file verification failed.', self.nodes[0].loadwallet, node1_wallet)
-            assert_raises_rpc_error(-18, 'Wallet file verification failed.', self.nodes[1].loadwallet, node0_wallet)
-        else:
-            assert_raises_rpc_error(-4, 'Wallet files should not be reused across chains.', self.nodes[0].loadwallet, node1_wallet)
-            assert_raises_rpc_error(-4, 'Wallet files should not be reused across chains.', self.nodes[1].loadwallet, node0_wallet)
-
-        if not self.options.descriptors:
-            self.log.info("Override cross-chain wallet load protection")
-            self.stop_nodes()
-            self.start_nodes([['-walletcrosschain']] * self.num_nodes)
-            self.nodes[0].loadwallet(node1_wallet)
-            self.nodes[1].loadwallet(node0_wallet)
-
+        assert_raises_rpc_error(-18, 'Wallet file verification failed.', self.nodes[0].loadwallet, node1_wallet)
+        assert_raises_rpc_error(-18, 'Wallet file verification failed.', self.nodes[1].loadwallet, node0_wallet)
 
 if __name__ == '__main__':
     WalletCrossChain().main()

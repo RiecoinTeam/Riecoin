@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -732,8 +733,7 @@ RPCHelpMan fundrawtransaction()
                 "or signrawtransactionwithwallet for that.\n"
                 "All existing inputs must either have their previous output transaction be in the wallet\n"
                 "or be in the UTXO set. Solving data must be provided for non-wallet inputs.\n"
-                "Note that all inputs selected must be of standard form and P2SH scripts must be\n"
-                "in the wallet using importaddress or addmultisigaddress (to calculate fees).\n"
+                "Note that all inputs selected must be of standard form.\n"
                 "You can see whether this is the case by checking the \"solvable\" field in the listunspent output.\n"
                 "Only pay-to-pubkey, multisig, and P2SH versions thereof are currently supported for watch-only\n",
                 {
@@ -749,8 +749,7 @@ RPCHelpMan fundrawtransaction()
                             {"changePosition", RPCArg::Type::NUM, RPCArg::DefaultHint{"random"}, "The index of the change output"},
                             {"change_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -changetype"}, "The output type to use. Only valid if changeAddress is not specified. Options are \"legacy\", \"p2sh-segwit\", \"bech32\", and \"bech32m\"."},
                             {"includeWatching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch only.\n"
-                                                          "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,\n"
-                                                          "e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field."},
+                                                          "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported."},
                             {"lockUnspents", RPCArg::Type::BOOL, RPCArg::Default{false}, "Lock selected unspent outputs"},
                             {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                             {"feeRate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_UNIT + "/kvB."},
@@ -1147,8 +1146,7 @@ RPCHelpMan send()
                     {"change_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -changetype"}, "The output type to use. Only valid if change_address is not specified. Options are \"legacy\", \"p2sh-segwit\", \"bech32\" and \"bech32m\"."},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                     {"include_watching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch only.\n"
-                                          "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,\n"
-                                          "e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field."},
+                                          "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported."},
                     {"inputs", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "Specify inputs instead of adding them automatically. A JSON array of JSON objects",
                         {
                             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id"},
@@ -1262,8 +1260,7 @@ RPCHelpMan sendall()
                         {"add_to_wallet", RPCArg::Type::BOOL, RPCArg::Default{true}, "When false, returns the serialized transaction without broadcasting or adding it to the wallet"},
                         {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                         {"include_watching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch-only.\n"
-                                              "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,\n"
-                                              "e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field."},
+                                              "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported."},
                         {"inputs", RPCArg::Type::ARR, RPCArg::Default{UniValue::VARR}, "Use exactly the specified inputs to build the transaction. Specifying inputs is incompatible with send_max.",
                             {
                                 {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
@@ -1380,7 +1377,7 @@ RPCHelpMan sendall()
                         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input not available. UTXO (%s:%d) was already spent.", input.prevout.hash.ToString(), input.prevout.n));
                     }
                     const CWalletTx* tx{pwallet->GetWalletTx(input.prevout.hash)};
-                    if (!tx || input.prevout.n >= tx->tx->vout.size() || !(pwallet->IsMine(tx->tx->vout[input.prevout.n]) & (coin_control.fAllowWatchOnly ? ISMINE_ALL : ISMINE_SPENDABLE))) {
+                    if (!tx || input.prevout.n >= tx->tx->vout.size() || !(pwallet->IsMine(tx->tx->vout[input.prevout.n]) & ISMINE_SPENDABLE)) {
                         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input not found. UTXO (%s:%d) is not part of wallet.", input.prevout.hash.ToString(), input.prevout.n));
                     }
                     total_input_value += tx->tx->vout[input.prevout.n].nValue;

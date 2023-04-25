@@ -1,4 +1,5 @@
 // Copyright (c) 2017-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -52,8 +53,7 @@ static feebumper::Result PreconditionChecks(const CWallet& wallet, const CWallet
     if (require_mine) {
         // check that original tx consists entirely of our inputs
         // if not, we can't bump the fee, because the wallet has no way of knowing the value of the other inputs (thus the fee)
-        isminefilter filter = wallet.GetLegacyScriptPubKeyMan() && wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) ? ISMINE_WATCH_ONLY : ISMINE_SPENDABLE;
-        if (!AllInputsMine(wallet, *wtx.tx, filter)) {
+        if (!AllInputsMine(wallet, *wtx.tx, ISMINE_SPENDABLE)) {
             errors.push_back(Untranslated("Transaction contains inputs that don't belong to this wallet"));
             return feebumper::Result::WALLET_ERROR;
         }

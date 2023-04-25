@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -56,13 +57,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
         hlayout->setSpacing(0);
         hlayout->addSpacing(23);
     }
-
-    watchOnlyWidget = new QComboBox(this);
-    watchOnlyWidget->setFixedWidth(24);
-    watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
-    watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_plus"), "", TransactionFilterProxy::WatchOnlyFilter_Yes);
-    watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_minus"), "", TransactionFilterProxy::WatchOnlyFilter_No);
-    hlayout->addWidget(watchOnlyWidget);
 
     dateWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
@@ -156,13 +150,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QSettings settings;
     if (!transactionView->horizontalHeader()->restoreState(settings.value("TransactionViewHeaderState").toByteArray())) {
         transactionView->setColumnWidth(TransactionTableModel::Status, STATUS_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Watchonly, WATCHONLY_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
         transactionView->setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
         transactionView->horizontalHeader()->setMinimumSectionSize(MINIMUM_COLUMN_WIDTH);
         transactionView->horizontalHeader()->setStretchLastSection(true);
     }
+    transactionView->setColumnHidden(TransactionTableModel::Date, false); // 2nd Column was previously something that was usually not visible (for Watch Only Wallets), for some reason this property carries out to the "new" 2nd Column (Date), so force it to be visible, else people who just upgraded will not see the Date column and have no practical way to make it appear. Remove once enough people upgraded to 23.04+, or if a more elegant solution can be found.
 
     contextMenu = new QMenu(this);
     contextMenu->setObjectName("contextMenu");
@@ -182,7 +176,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     connect(dateWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
     connect(typeWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
-    connect(watchOnlyWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
     connect(amountWidget, &QLineEdit::textChanged, amount_typing_delay, qOverload<>(&QTimer::start));
     connect(amount_typing_delay, &QTimer::timeout, this, &TransactionView::changedAmount);
     connect(search_widget, &QLineEdit::textChanged, prefix_typing_delay, qOverload<>(&QTimer::start));
@@ -241,26 +234,11 @@ void TransactionView::setModel(WalletModel *_model)
                 }
             }
         }
-
-        // show/hide column Watch-only
-        updateWatchOnlyColumn(_model->wallet().haveWatchOnly());
-
-        // Watch-only signal
-        connect(_model, &WalletModel::notifyWatchonlyChanged, this, &TransactionView::updateWatchOnlyColumn);
     }
 }
 
 void TransactionView::changeEvent(QEvent* e)
 {
-    if (e->type() == QEvent::PaletteChange) {
-        watchOnlyWidget->setItemIcon(
-            TransactionFilterProxy::WatchOnlyFilter_Yes,
-            m_platform_style->SingleColorIcon(QStringLiteral(":/icons/eye_plus")));
-        watchOnlyWidget->setItemIcon(
-            TransactionFilterProxy::WatchOnlyFilter_No,
-            m_platform_style->SingleColorIcon(QStringLiteral(":/icons/eye_minus")));
-    }
-
     QWidget::changeEvent(e);
 }
 
@@ -319,14 +297,6 @@ void TransactionView::chooseType(int idx)
         typeWidget->itemData(idx).toInt());
 }
 
-void TransactionView::chooseWatchonly(int idx)
-{
-    if(!transactionProxyModel)
-        return;
-    transactionProxyModel->setWatchOnlyFilter(
-        static_cast<TransactionFilterProxy::WatchOnlyFilter>(watchOnlyWidget->itemData(idx).toInt()));
-}
-
 void TransactionView::changedSearch()
 {
     if(!transactionProxyModel)
@@ -369,8 +339,6 @@ void TransactionView::exportClicked()
     // name, column, role
     writer.setModel(transactionProxyModel);
     writer.addColumn(tr("Confirmed"), 0, TransactionTableModel::ConfirmedRole);
-    if (model->wallet().haveWatchOnly())
-        writer.addColumn(tr("Watch-only"), TransactionTableModel::Watchonly);
     writer.addColumn(tr("Date"), 0, TransactionTableModel::DateRole);
     writer.addColumn(tr("Type"), TransactionTableModel::Type, Qt::EditRole);
     writer.addColumn(tr("Label"), 0, TransactionTableModel::LabelRole);
@@ -641,11 +609,4 @@ bool TransactionView::eventFilter(QObject *obj, QEvent *event)
         }
     }
     return QWidget::eventFilter(obj, event);
-}
-
-// show/hide column Watch-only
-void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
-{
-    watchOnlyWidget->setVisible(fHaveWatchOnly);
-    transactionView->setColumnHidden(TransactionTableModel::Watchonly, !fHaveWatchOnly);
 }

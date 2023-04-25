@@ -1,4 +1,5 @@
 // Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,7 +18,6 @@
 #include <optional>
 
 using wallet::CWallet;
-using wallet::DatabaseFormat;
 using wallet::DatabaseOptions;
 using wallet::TxStateInactive;
 using wallet::WALLET_FLAG_DESCRIPTORS;
@@ -88,12 +88,7 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
     // Setup the wallet
     // Loading the wallet will also create it
     DatabaseOptions options;
-    if (legacy_wallet) {
-        options.require_format = DatabaseFormat::BERKELEY;
-    } else {
-        options.create_flags = WALLET_FLAG_DESCRIPTORS;
-        options.require_format = DatabaseFormat::SQLITE;
-    }
+    options.create_flags = WALLET_FLAG_DESCRIPTORS;
     auto database = CreateMockWalletDatabase(options);
     auto wallet = BenchLoadWallet(std::move(database), context, options);
 
@@ -115,11 +110,6 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
         BenchUnloadWallet(std::move(wallet));
     });
 }
-
-#ifdef USE_BDB
-static void WalletLoadingLegacy(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/true); }
-BENCHMARK(WalletLoadingLegacy);
-#endif
 
 #ifdef USE_SQLITE
 static void WalletLoadingDescriptors(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/false); }

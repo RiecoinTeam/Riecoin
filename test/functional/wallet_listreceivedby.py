@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the listreceivedbyaddress, listreceivedbylabel, getreceivedybaddress, and getreceivedbylabel RPCs."""
@@ -27,7 +28,7 @@ class ReceivedByTest(BitcoinTestFramework):
 
     def run_test(self):
         # save the number of coinbase reward addresses so far
-        num_cb_reward_addresses = len(self.nodes[1].listreceivedbyaddress(minconf=0, include_empty=True, include_watchonly=True))
+        num_cb_reward_addresses = len(self.nodes[1].listreceivedbyaddress(minconf=0, include_empty=True))
 
         self.log.info("listreceivedbyaddress Test")
 
@@ -67,38 +68,38 @@ class ReceivedByTest(BitcoinTestFramework):
         # Test Address filtering
         # Only on addr
         expected = {"address": addr, "label": "", "amount": Decimal("0.1"), "confirmations": 10, "txids": [txid, ]}
-        res = self.nodes[1].listreceivedbyaddress(minconf=0, include_empty=True, include_watchonly=True, address_filter=addr)
+        res = self.nodes[1].listreceivedbyaddress(minconf=0, include_empty=True, address_filter=addr)
         assert_array_result(res, {"address": addr}, expected)
         assert_equal(len(res), 1)
         # Test for regression on CLI calls with address string (#14173)
-        cli_res = self.nodes[1].cli.listreceivedbyaddress(0, True, True, addr)
+        cli_res = self.nodes[1].cli.listreceivedbyaddress(0, True, addr)
         assert_array_result(cli_res, {"address": addr}, expected)
         assert_equal(len(cli_res), 1)
         # Error on invalid address
-        assert_raises_rpc_error(-4, "address_filter parameter was invalid", self.nodes[1].listreceivedbyaddress, minconf=0, include_empty=True, include_watchonly=True, address_filter="bamboozling")
+        assert_raises_rpc_error(-4, "address_filter parameter was invalid", self.nodes[1].listreceivedbyaddress, minconf=0, include_empty=True, address_filter="bamboozling")
         # Another address receive money
-        res = self.nodes[1].listreceivedbyaddress(0, True, True)
+        res = self.nodes[1].listreceivedbyaddress(0, True)
         assert_equal(len(res), 2 + num_cb_reward_addresses)  # Right now 2 entries
         other_addr = self.nodes[1].getnewaddress()
         txid2 = self.nodes[0].sendtoaddress(other_addr, 0.1)
         self.generate(self.nodes[0], 1)
         # Same test as above should still pass
         expected = {"address": addr, "label": "", "amount": Decimal("0.1"), "confirmations": 11, "txids": [txid, ]}
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, addr)
         assert_array_result(res, {"address": addr}, expected)
         assert_equal(len(res), 1)
         # Same test as above but with other_addr should still pass
         expected = {"address": other_addr, "label": "", "amount": Decimal("0.1"), "confirmations": 1, "txids": [txid2, ]}
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, other_addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, other_addr)
         assert_array_result(res, {"address": other_addr}, expected)
         assert_equal(len(res), 1)
         # Should be two entries though without filter
-        res = self.nodes[1].listreceivedbyaddress(0, True, True)
+        res = self.nodes[1].listreceivedbyaddress(0, True)
         assert_equal(len(res), 3 + num_cb_reward_addresses)  # Became 3 entries
 
         # Not on random addr
         other_addr = self.nodes[0].getnewaddress()  # note on node[0]! just a random addr
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, other_addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, other_addr)
         assert_equal(len(res), 0)
 
         self.log.info("getreceivedbyaddress Test")

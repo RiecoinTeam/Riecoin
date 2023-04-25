@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -197,15 +198,9 @@ public:
     std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override { return std::make_unique<DummyBatch>(); }
 };
 
-enum class DatabaseFormat {
-    BERKELEY,
-    SQLITE,
-};
-
 struct DatabaseOptions {
     bool require_existing = false;
     bool require_create = false;
-    std::optional<DatabaseFormat> require_format;
     uint64_t create_flags = 0;
     SecureString create_passphrase;
 
@@ -236,9 +231,7 @@ std::vector<fs::path> ListDatabases(const fs::path& path);
 void ReadDatabaseArgs(const ArgsManager& args, DatabaseOptions& options);
 std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error);
 
-fs::path BDBDataFile(const fs::path& path);
 fs::path SQLiteDataFile(const fs::path& path);
-bool IsBDBFile(const fs::path& path);
 bool IsSQLiteFile(const fs::path& path);
 } // namespace wallet
 

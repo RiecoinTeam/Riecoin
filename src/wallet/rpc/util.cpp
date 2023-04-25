@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -90,28 +91,6 @@ WalletContext& EnsureWalletContext(const std::any& context)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Wallet context not found");
     }
     return *wallet_context;
-}
-
-// also_create should only be set to true only when the RPC is expected to add things to a blank wallet and make it no longer blank
-LegacyScriptPubKeyMan& EnsureLegacyScriptPubKeyMan(CWallet& wallet, bool also_create)
-{
-    LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
-    if (!spk_man && also_create) {
-        spk_man = wallet.GetOrCreateLegacyScriptPubKeyMan();
-    }
-    if (!spk_man) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Only legacy wallets are supported by this command");
-    }
-    return *spk_man;
-}
-
-const LegacyScriptPubKeyMan& EnsureConstLegacyScriptPubKeyMan(const CWallet& wallet)
-{
-    const LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
-    if (!spk_man) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Only legacy wallets are supported by this command");
-    }
-    return *spk_man;
 }
 
 std::string LabelFromValue(const UniValue& value)

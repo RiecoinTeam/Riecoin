@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -699,12 +700,8 @@ void SendCoinsDialog::setBalance(const interfaces::WalletBalances& balances)
     if(model && model->getOptionsModel())
     {
         CAmount balance = balances.balance;
-        if (model->wallet().hasExternalSigner()) {
+        if (model->wallet().hasExternalSigner())
             ui->labelBalanceName->setText(tr("External balance:"));
-        } else if (model->wallet().privateKeysDisabled()) {
-            balance = balances.watch_only_balance;
-            ui->labelBalanceName->setText(tr("Watch-only balance:"));
-        }
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance));
     }
 }

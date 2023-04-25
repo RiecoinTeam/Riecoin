@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -32,11 +33,6 @@ struct WalletContext;
  *
  * - WalletBatch is an abstract modifier object for the wallet database, and encapsulates a database
  *   batch update as well as methods to act on the database. It should be agnostic to the database implementation.
- *
- * The following classes are implementation specific:
- * - BerkeleyEnvironment is an environment in which the database exists.
- * - BerkeleyDatabase represents a wallet database.
- * - BerkeleyBatch is a low-level database batch update.
  */
 
 static const bool DEFAULT_FLUSHWALLET = true;
@@ -61,21 +57,13 @@ extern const std::string ACTIVEEXTERNALSPK;
 extern const std::string ACTIVEINTERNALSPK;
 extern const std::string BESTBLOCK;
 extern const std::string BESTBLOCK_NOMERKLE;
-extern const std::string CRYPTED_KEY;
-extern const std::string CSCRIPT;
-extern const std::string DEFAULTKEY;
 extern const std::string DESTDATA;
 extern const std::string FLAGS;
-extern const std::string HDCHAIN;
-extern const std::string KEY;
-extern const std::string KEYMETA;
 extern const std::string LOCKED_UTXO;
 extern const std::string MASTER_KEY;
 extern const std::string MINVERSION;
 extern const std::string NAME;
-extern const std::string OLD_KEY;
 extern const std::string ORDERPOSNEXT;
-extern const std::string POOL;
 extern const std::string PURPOSE;
 extern const std::string SETTINGS;
 extern const std::string TX;
@@ -83,11 +71,6 @@ extern const std::string VERSION;
 extern const std::string WALLETDESCRIPTOR;
 extern const std::string WALLETDESCRIPTORCKEY;
 extern const std::string WALLETDESCRIPTORKEY;
-extern const std::string WATCHMETA;
-extern const std::string WATCHS;
-
-// Keys in this set pertain only to the legacy wallet (LegacyScriptPubKeyMan) and are removed during migration from legacy to descriptors.
-extern const std::unordered_set<std::string> LEGACY_TYPES;
 } // namespace DBKeys
 
 /* simple HD chain data model */
@@ -233,7 +216,6 @@ public:
 
     bool WriteKeyMetadata(const CKeyMetadata& meta, const CPubKey& pubkey, const bool overwrite);
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta);
-    bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret, const CKeyMetadata &keyMeta);
     bool WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey);
 
     bool WriteCScript(const uint160& hash, const CScript& redeemScript);
