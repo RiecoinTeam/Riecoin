@@ -53,8 +53,7 @@ bool VerifyWallets(WalletContext& context)
 
     chain.initMessage(_("Verifying wallet(s)…").translated);
 
-    // For backwards compatibility if an unnamed top level wallet exists in the
-    // wallets directory, include it in the default list of wallets to load.
+    // Handle unnamed/default wallet (wallet.dat at the root of the Wallet Dir)
     if (!args.IsArgSet("wallet")) {
         DatabaseOptions options;
         DatabaseStatus status;

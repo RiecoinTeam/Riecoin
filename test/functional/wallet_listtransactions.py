@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the listtransactions API."""
@@ -231,8 +232,8 @@ class ListTransactionsTest(BitcoinTestFramework):
         # refill keypool otherwise the second node wouldn't recognize addresses generated on the first nodes
         self.nodes[0].keypoolrefill(1000)
         self.stop_nodes()
-        wallet0 = os.path.join(self.nodes[0].datadir, self.chain, self.default_wallet_name, "wallet.dat")
-        wallet2 = os.path.join(self.nodes[2].datadir, self.chain, self.default_wallet_name, "wallet.dat")
+        wallet0 = os.path.join(self.nodes[0].datadir, self.chain, "wallets", self.default_wallet_name, "wallet.dat")
+        wallet2 = os.path.join(self.nodes[2].datadir, self.chain, "wallets", self.default_wallet_name, "wallet.dat")
         shutil.copyfile(wallet0, wallet2)
         self.start_nodes()
         # reconnect nodes

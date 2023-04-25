@@ -169,7 +169,7 @@ class MultiWalletTest(BitcoinTestFramework):
         self.log.info("Do not allow -upgradewallet with multiwallet")
         self.nodes[0].assert_start_raises_init_error(['-upgradewallet'], "Error: Error parsing command line arguments: Invalid parameter -upgradewallet")
 
-        # if wallets/ doesn't exist, datadir should be the default wallet dir
+        # if wallets/ doesn't exist, it it recreated
         wallet_dir2 = data_dir('walletdir')
         os.rename(wallet_dir(), wallet_dir2)
         self.start_node(0)
@@ -179,9 +179,12 @@ class MultiWalletTest(BitcoinTestFramework):
         w5 = wallet("w5")
         self.generatetoaddress(node, nblocks=1, address=w5.getnewaddress(), sync_fun=self.no_op)
 
-        # now if wallets/ exists again, but the rootdir is specified as the walletdir, w4 and w5 should still be loaded
+        # swap wallets/ and wallet_dir2, and specify wallet_dir2 as the walletdir, w4 and w5 should still be loaded
+        wallet_dir3 = data_dir('walletdir2')
+        os.rename(wallet_dir(), wallet_dir3)
         os.rename(wallet_dir2, wallet_dir())
-        self.restart_node(0, ['-nowallet', '-walletdir=' + data_dir()])
+        os.rename(wallet_dir3, wallet_dir2)
+        self.restart_node(0, ['-nowallet', '-walletdir=' + wallet_dir2])
         self.nodes[0].loadwallet("w4")
         self.nodes[0].loadwallet("w5")
         assert_equal(set(node.listwallets()), {"w4", "w5"})
