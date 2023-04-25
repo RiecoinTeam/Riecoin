@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -85,7 +86,7 @@ namespace GUIUtil {
 
 QString dateTimeStr(const QDateTime &date)
 {
-    return QLocale::system().toString(date.date(), QLocale::ShortFormat) + QString(" ") + date.toString("hh:mm");
+    return QLocale::system().toString(date.date(), "yyyy-MM-dd") + QString(" ") + date.toString("hh:mm:ss");
 }
 
 QString dateTimeStr(qint64 nTime)
