@@ -235,38 +235,6 @@ chain for " target " development."))
 parse, modify and abstract ELF, PE and MachO formats.")
    (license license:asl2.0)))
 
-(define osslsigncode
-  (package
-    (name "osslsigncode")
-    (version "2.0")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append "https://github.com/mtrojnar/"
-                                  name "/archive/" version ".tar.gz"))
-              (sha256
-               (base32
-                "0byri6xny770wwb2nciq44j5071122l14bvv65axdd70nfjf0q2s"))))
-    (build-system gnu-build-system)
-    (native-inputs
-     `(("pkg-config" ,pkg-config)
-       ("autoconf" ,autoconf)
-       ("automake" ,automake)
-       ("libtool" ,libtool)))
-    (inputs
-     `(("openssl" ,openssl)))
-    (arguments
-     `(#:configure-flags
-       `("--without-gsf"
-         "--without-curl"
-         "--disable-dependency-tracking")))
-    (home-page "https://github.com/mtrojnar/osslsigncode")
-    (synopsis "Authenticode signing and timestamping tool")
-    (description "osslsigncode is a small tool that implements part of the
-functionality of the Microsoft tool signtool.exe - more exactly the Authenticode
-signing and timestamping. But osslsigncode is based on OpenSSL and cURL, and
-thus should be able to compile on most platforms where these exist.")
-    (license license:gpl3+))) ; license is with openssl exception
-
 (define-public python-elfesteem
   (let ((commit "2eb1e5384ff7a220fd1afacd4a0170acff54fe56"))
     (package
@@ -624,8 +592,7 @@ inspecting signatures in Mach-O binaries.")
            ;; Windows
            (list zip
                  (make-mingw-pthreads-cross-toolchain "x86_64-w64-mingw32")
-                 (make-nsis-for-gcc-10 nsis-x86_64)
-                 osslsigncode))
+                 (make-nsis-for-gcc-10 nsis-x86_64)))
           ((string-contains target "-linux-")
            (list (cond ((string-contains target "riscv64-")
                         (make-bitcoin-cross-toolchain target

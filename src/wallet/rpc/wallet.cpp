@@ -40,10 +40,7 @@ static RPCHelpMan getwalletinfo()
                         {
                         {RPCResult::Type::STR, "walletname", "the wallet name"},
                         {RPCResult::Type::NUM, "walletversion", "the wallet version"},
-                        {RPCResult::Type::STR, "format", "the database format (bdb or sqlite)"},
-                        {RPCResult::Type::STR_AMOUNT, "balance", "DEPRECATED. Identical to getbalances().mine.trusted"},
-                        {RPCResult::Type::STR_AMOUNT, "unconfirmed_balance", "DEPRECATED. Identical to getbalances().mine.untrusted_pending"},
-                        {RPCResult::Type::STR_AMOUNT, "immature_balance", "DEPRECATED. Identical to getbalances().mine.immature"},
+                        {RPCResult::Type::STR, "format", "the database format (always sqlite)"},
                         {RPCResult::Type::NUM, "txcount", "the total number of transactions in the wallet"},
                         {RPCResult::Type::NUM, "keypoolsize", "how many new keys are pre-generated (only counts external keys)"},
                         {RPCResult::Type::NUM, "keypoolsize_hd_internal", /*optional=*/true, "how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)"},
@@ -82,9 +79,6 @@ static RPCHelpMan getwalletinfo()
     obj.pushKV("walletname", pwallet->GetName());
     obj.pushKV("walletversion", pwallet->GetVersion());
     obj.pushKV("format", pwallet->GetDatabase().Format());
-    obj.pushKV("balance", ValueFromAmount(bal.m_mine_trusted));
-    obj.pushKV("unconfirmed_balance", ValueFromAmount(bal.m_mine_untrusted_pending));
-    obj.pushKV("immature_balance", ValueFromAmount(bal.m_mine_immature));
     obj.pushKV("txcount",       (int)pwallet->mapWallet.size());
     obj.pushKV("keypoolsize", (int64_t)kpExternalSize);
 
@@ -611,7 +605,6 @@ RPCHelpMan restorewallet();
 RPCHelpMan getreceivedbyaddress();
 RPCHelpMan getreceivedbylabel();
 RPCHelpMan getbalance();
-RPCHelpMan getunconfirmedbalance();
 RPCHelpMan lockunspent();
 RPCHelpMan listlockunspent();
 RPCHelpMan getbalances();
@@ -669,7 +662,6 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &getreceivedbyaddress},
         {"wallet", &getreceivedbylabel},
         {"wallet", &gettransaction},
-        {"wallet", &getunconfirmedbalance},
         {"wallet", &getbalances},
         {"wallet", &getwalletinfo},
         {"wallet", &importdescriptors},

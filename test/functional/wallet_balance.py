@@ -70,11 +70,11 @@ class WalletTest(BitcoinTestFramework):
         self.generatetoaddress(self.nodes[1], COINBASE_MATURITY + 1, ADDRESS_WATCHONLY)
 
         self.log.info("Test getbalance with different arguments")
-        assert_equal(self.nodes[0].getbalance("*"), 50)
-        assert_equal(self.nodes[0].getbalance("*", 1), 50)
+        assert_equal(self.nodes[0].getbalance(), 50)
+        assert_equal(self.nodes[0].getbalance(1), 50)
         assert_equal(self.nodes[0].getbalance(minconf=1), 50)
         assert_equal(self.nodes[0].getbalance(minconf=0), 50)
-        assert_equal(self.nodes[0].getbalance("*", 1, False), 50)
+        assert_equal(self.nodes[0].getbalance(1, False), 50)
         assert_equal(self.nodes[1].getbalance(minconf=0), 50)
 
         # Send 40 BTC from 0 to 1 and 60 BTC from 1 to 0.
@@ -87,9 +87,6 @@ class WalletTest(BitcoinTestFramework):
         self.nodes[1].sendrawtransaction(txs[0]['hex'])
         self.nodes[0].sendrawtransaction(txs[0]['hex'])  # sending on both nodes is faster than waiting for propagation
         self.sync_all()
-
-        # First argument of getbalance must be set to "*"
-        assert_raises_rpc_error(-32, "dummy first argument must be excluded or set to \"*\"", self.nodes[1].getbalance, "")
 
         self.log.info("Test balances with unconfirmed inputs")
 
@@ -155,12 +152,9 @@ class WalletTest(BitcoinTestFramework):
             # TODO: fix getbalance tracking of coin spentness depth
             assert_equal(self.nodes[0].getbalance(minconf=1), Decimal('0'))
             assert_equal(self.nodes[1].getbalance(minconf=1), Decimal('0'))
-            # getunconfirmedbalance
-            assert_equal(self.nodes[0].getunconfirmedbalance(), Decimal('60'))  # output of node 1's spend
-            assert_equal(self.nodes[1].getunconfirmedbalance(), Decimal('30') - fee_node_1)  # Doesn't include output of node 0's send since it was spent
-            # getwalletinfo.unconfirmed_balance
-            assert_equal(self.nodes[0].getwalletinfo()["unconfirmed_balance"], Decimal('60'))
-            assert_equal(self.nodes[1].getwalletinfo()["unconfirmed_balance"], Decimal('30') - fee_node_1)
+            # getbalances().mine.untrusted_pending (formerly getunconfirmedbalance and getwalletinfo.unconfirmed_balance)
+            assert_equal(self.nodes[0].getbalances()["mine"]["untrusted_pending"], Decimal('60'))  # output of node 1's spend
+            assert_equal(self.nodes[1].getbalances()["mine"]["untrusted_pending"], Decimal('30') - fee_node_1)  # Doesn't include output of node 0's send since it was spent
 
         test_balances(fee_node_1=Decimal('0.01'))
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the prioritisetransaction mining RPC."""
@@ -111,21 +112,17 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         # Test `prioritisetransaction` required parameters
         assert_raises_rpc_error(-1, "prioritisetransaction", self.nodes[0].prioritisetransaction)
         assert_raises_rpc_error(-1, "prioritisetransaction", self.nodes[0].prioritisetransaction, '')
-        assert_raises_rpc_error(-1, "prioritisetransaction", self.nodes[0].prioritisetransaction, '', 0)
+        assert_raises_rpc_error(-8, "txid must be of length 64", self.nodes[0].prioritisetransaction, '', 0)
 
         # Test `prioritisetransaction` invalid extra parameters
-        assert_raises_rpc_error(-1, "prioritisetransaction", self.nodes[0].prioritisetransaction, '', 0, 0, 0)
+        assert_raises_rpc_error(-1, "prioritisetransaction", self.nodes[0].prioritisetransaction, '', 0, 0)
 
         # Test `prioritisetransaction` invalid `txid`
         assert_raises_rpc_error(-8, "txid must be of length 64 (not 3, for 'foo')", self.nodes[0].prioritisetransaction, txid='foo', fee_delta=0)
         assert_raises_rpc_error(-8, "txid must be hexadecimal string (not 'Zd1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000')", self.nodes[0].prioritisetransaction, txid='Zd1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000', fee_delta=0)
 
-        # Test `prioritisetransaction` invalid `dummy`
-        txid = '1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000'
-        assert_raises_rpc_error(-1, "JSON value of type string is not of expected type number", self.nodes[0].prioritisetransaction, txid, 'foo', 0)
-        assert_raises_rpc_error(-8, "Priority is no longer supported, dummy argument to prioritisetransaction must be 0.", self.nodes[0].prioritisetransaction, txid, 1, 0)
-
         # Test `prioritisetransaction` invalid `fee_delta`
+        txid = '1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000'
         assert_raises_rpc_error(-1, "JSON value of type string is not of expected type number", self.nodes[0].prioritisetransaction, txid=txid, fee_delta='foo')
 
         self.test_diamond()

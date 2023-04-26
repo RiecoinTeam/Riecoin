@@ -64,9 +64,9 @@ class WalletTest(BitcoinTestFramework):
 
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 50)
-        assert_equal(walletinfo['balance'], 0)
+        walletbalances = self.nodes[0].getbalances()
+        assert_equal(walletbalances['mine']['immature'], 50)
+        assert_equal(walletbalances['mine']['trusted'], 0)
 
         self.sync_all(self.nodes[0:3])
         self.generate(self.nodes[1], COINBASE_MATURITY + 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))
@@ -113,8 +113,8 @@ class WalletTest(BitcoinTestFramework):
         # but 10 will go to node2 and the rest will go to node0
         balance = self.nodes[0].getbalance()
         assert_equal(set([txout1['value'], txout2['value']]), set([10, balance]))
-        walletinfo = self.nodes[0].getwalletinfo()
-        assert_equal(walletinfo['immature_balance'], 0)
+        walletbalances = self.nodes[0].getbalances()
+        assert_equal(walletbalances['mine']['immature'], 0)
 
         # Have node0 mine a block, thus it will collect its own fee.
         self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))

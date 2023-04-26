@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_POLICY_FEES_H
@@ -197,10 +198,6 @@ public:
 
     /** Remove a transaction from the mempool tracking stats*/
     bool removeTx(uint256 hash, bool inBlock)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
-
-    /** DEPRECATED. Return a feerate estimate */
-    CFeeRate estimateFee(int confTarget) const
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_fee_estimator);
 
     /** Estimate feerate needed to get be included in a block within confTarget

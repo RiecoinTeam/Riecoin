@@ -166,7 +166,6 @@ RPCHelpMan getbalance()
                 "The available balance is what the wallet considers currently spendable, and is\n"
                 "thus affected by options which limit spendability such as -spendzeroconfchange.\n",
                 {
-                    {"dummy", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "Remains for backward compatibility. Must be excluded or set to \"*\"."},
                     {"minconf", RPCArg::Type::NUM, RPCArg::Default{0}, "Only include transactions confirmed at least this many times."},
                     {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "(only available if avoid_reuse wallet flag is set) Do not include balance in dirty outputs; addresses are considered dirty if they have previously been used in a transaction."},
                 },
@@ -177,9 +176,9 @@ RPCHelpMan getbalance()
             "\nThe total amount in the wallet with 0 or more confirmations\n"
             + HelpExampleCli("getbalance", "") +
             "\nThe total amount in the wallet with at least 6 confirmations\n"
-            + HelpExampleCli("getbalance", "\"*\" 6") +
+            + HelpExampleCli("getbalance", "6") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("getbalance", "\"*\", 6")
+            + HelpExampleRpc("getbalance", "6")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -192,43 +191,12 @@ RPCHelpMan getbalance()
 
     LOCK(pwallet->cs_wallet);
 
-    const UniValue& dummy_value = request.params[0];
-    if (!dummy_value.isNull() && dummy_value.get_str() != "*") {
-        throw JSONRPCError(RPC_METHOD_DEPRECATED, "dummy first argument must be excluded or set to \"*\".");
-    }
-
     int min_depth = 0;
-    if (!request.params[1].isNull()) {
-        min_depth = request.params[1].getInt<int>();
-    }
-
-    bool avoid_reuse = GetAvoidReuseFlag(*pwallet, request.params[2]);
-
+    if (!request.params[0].isNull())
+        min_depth = request.params[0].getInt<int>();
+    bool avoid_reuse = GetAvoidReuseFlag(*pwallet, request.params[1]);
     const auto bal = GetBalance(*pwallet, min_depth, avoid_reuse);
     return ValueFromAmount(bal.m_mine_trusted);
-},
-    };
-}
-
-RPCHelpMan getunconfirmedbalance()
-{
-    return RPCHelpMan{"getunconfirmedbalance",
-                "DEPRECATED\nIdentical to getbalances().mine.untrusted_pending\n",
-                {},
-                RPCResult{RPCResult::Type::NUM, "", "The balance"},
-                RPCExamples{""},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return UniValue::VNULL;
-
-    // Make sure the results are valid at least up to the most recent block
-    // the user could have gotten from another RPC command prior to now
-    pwallet->BlockUntilSyncedToCurrentChain();
-
-    LOCK(pwallet->cs_wallet);
-
-    return ValueFromAmount(GetBalance(*pwallet).m_mine_untrusted_pending);
 },
     };
 }

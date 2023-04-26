@@ -96,17 +96,3 @@ redistributed.
 [`xorrisofs`](https://www.gnu.org/software/xorriso/) is used to create the DMG.
 
 A background image is added to DMG files by inserting a `.DS_Store` during creation.
-
-As of OS X 10.9 Mavericks, using an Apple-blessed key to sign binaries is a requirement in
-order to satisfy the new Gatekeeper requirements. Because this private key cannot be
-shared, we'll have to be a bit creative in order for the build process to remain somewhat
-deterministic. Here's how it works:
-
-- Builders use Guix to create an unsigned release. This outputs an unsigned DMG which
-  users may choose to bless and run. It also outputs an unsigned app structure in the form
-  of a tarball, which also contains all of the tools that have been previously (deterministically)
-  built in order to create a final DMG.
-- The Apple keyholder uses this unsigned app to create a detached signature, using the
-  script that is also included there. Detached signatures are available from this [repository](https://github.com/bitcoin-core/bitcoin-detached-sigs).
-- Builders feed the unsigned app + detached signature back into Guix. It uses the
-  pre-built tools to recombine the pieces into a deterministic DMG.

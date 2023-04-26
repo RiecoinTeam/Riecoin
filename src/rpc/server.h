@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -164,8 +165,6 @@ public:
     void appendCommand(const std::string& name, const CRPCCommand* pcmd);
     bool removeCommand(const std::string& name, const CRPCCommand* pcmd);
 };
-
-bool IsDeprecatedRPCEnabled(const std::string& method);
 
 extern CRPCTable tableRPC;
 

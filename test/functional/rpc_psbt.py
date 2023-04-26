@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2018-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the Partially Signed Transaction RPCs.
@@ -223,21 +224,17 @@ class PSBTTest(BitcoinTestFramework):
         self.log.info("Test walletcreatefundedpsbt fee rate of 10000 sat/vB and 0.1 BTC/kvB produces a total fee at or slightly below -maxtxfee (~0.05290000)")
         res1 = self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {"fee_rate": 10000, "add_inputs": True})
         assert_approx(res1["fee"], 0.055, 0.005)
-        res2 = self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {"feeRate": "0.1", "add_inputs": True})
-        assert_approx(res2["fee"], 0.055, 0.005)
 
         self.log.info("Test min fee rate checks with walletcreatefundedpsbt are bypassed, e.g. a fee_rate under 1 sat/vB is allowed")
         res3 = self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {"fee_rate": "0.999", "add_inputs": True})
         assert_approx(res3["fee"], 0.00000381, 0.0000001)
-        res4 = self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {"feeRate": 0.00000999, "add_inputs": True})
-        assert_approx(res4["fee"], 0.00000381, 0.0000001)
 
         self.log.info("Test min fee rate checks with walletcreatefundedpsbt are bypassed and that funding non-standard 'zero-fee' transactions is valid")
-        for param, zero_value in product(["fee_rate", "feeRate"], [0, 0.000, 0.00000000, "0", "0.000", "0.00000000"]):
+        for param, zero_value in product(["fee_rate"], [0, 0.000, 0.00000000, "0", "0.000", "0.00000000"]):
             assert_equal(0, self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {param: zero_value, "add_inputs": True})["fee"])
 
         self.log.info("Test invalid fee rate settings")
-        for param, value in {("fee_rate", 100000), ("feeRate", 1)}:
+        for param, value in {("fee_rate", 100000)}:
             assert_raises_rpc_error(-4, "Fee exceeds maximum configured by user (e.g. -maxtxfee, maxfeerate)",
                 self.nodes[1].walletcreatefundedpsbt, inputs, outputs, 0, {param: value, "add_inputs": True})
             assert_raises_rpc_error(-3, "Amount out of range",
@@ -253,15 +250,11 @@ class PSBTTest(BitcoinTestFramework):
             assert_raises_rpc_error(-3, "Invalid amount",
                 self.nodes[1].walletcreatefundedpsbt, inputs, outputs, 0, {"fee_rate": invalid_value, "add_inputs": True})
 
-        self.log.info("- raises RPC error if both feeRate and fee_rate are passed")
-        assert_raises_rpc_error(-8, "Cannot specify both fee_rate (sat/vB) and feeRate (BTC/kvB)",
-            self.nodes[1].walletcreatefundedpsbt, inputs, outputs, 0, {"fee_rate": 0.1, "feeRate": 0.1, "add_inputs": True})
+        self.log.info("- raises RPC error if both fee_rate and estimate_mode passed")
+        assert_raises_rpc_error(-8, "Cannot specify both estimate_mode and fee_rate",
+            self.nodes[1].walletcreatefundedpsbt, inputs, outputs, 0, {"estimate_mode": "economical", "fee_rate": 10000, "add_inputs": True})
 
-        self.log.info("- raises RPC error if both feeRate and estimate_mode passed")
-        assert_raises_rpc_error(-8, "Cannot specify both estimate_mode and feeRate",
-            self.nodes[1].walletcreatefundedpsbt, inputs, outputs, 0, {"estimate_mode": "economical", "feeRate": 0.1, "add_inputs": True})
-
-        for param in ["feeRate", "fee_rate"]:
+        for param in ["fee_rate"]:
             self.log.info("- raises RPC error if both {} and conf_target are passed".format(param))
             assert_raises_rpc_error(-8, "Cannot specify both conf_target and {}. Please provide either a confirmation "
                 "target in blocks for automatic fee estimation, or an explicit fee rate.".format(param),
@@ -294,7 +287,6 @@ class PSBTTest(BitcoinTestFramework):
         for bool_add, outputs_array in {True: outputs, False: [{self.nodes[1].getnewaddress(): 1}]}.items():
             msg = "Fee exceeds maximum configured by user (e.g. -maxtxfee, maxfeerate)"
             assert_raises_rpc_error(-4, msg, self.nodes[1].walletcreatefundedpsbt, inputs, outputs_array, 0, {"fee_rate": 1000000, "add_inputs": bool_add})
-            assert_raises_rpc_error(-4, msg, self.nodes[1].walletcreatefundedpsbt, inputs, outputs_array, 0, {"feeRate": 1, "add_inputs": bool_add})
 
         self.log.info("Test various PSBT operations")
         # partially sign multisig things with node 1

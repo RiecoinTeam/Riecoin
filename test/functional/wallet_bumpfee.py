@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2016-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the bumpfee RPC.
@@ -144,10 +145,6 @@ class BumpFeeTest(BitcoinTestFramework):
         self.log.info("Test explicit fee rate raises RPC error if both fee_rate and estimate_mode are passed")
         assert_raises_rpc_error(-8, "Cannot specify both estimate_mode and fee_rate",
             rbf_node.bumpfee, rbfid, {"estimate_mode": "economical", "fee_rate": NORMAL})
-
-        self.log.info("Test invalid conf_target settings")
-        assert_raises_rpc_error(-8, "confTarget and conf_target options should not both be set",
-            rbf_node.bumpfee, rbfid, {"confTarget": 123, "conf_target": 456})
 
         self.log.info("Test invalid estimate_mode settings")
         for k, v in {"number": 42, "object": {"foo": "bar"}}.items():

@@ -1,4 +1,5 @@
 // Copyright (c) 2016-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -85,8 +86,6 @@ void RPCNestedTests::rpcNestedTests()
     QVERIFY(result == "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
     QVERIFY(filtered == "getblock(getbestblockhash())[tx][0]");
 
-    RPCConsole::RPCParseCommandLine(nullptr, result, "importprivkey", false, &filtered);
-    QVERIFY(filtered == "importprivkey(…)");
     RPCConsole::RPCParseCommandLine(nullptr, result, "signmessagewithprivkey abc", false, &filtered);
     QVERIFY(filtered == "signmessagewithprivkey(…)");
     RPCConsole::RPCParseCommandLine(nullptr, result, "signmessagewithprivkey abc,def", false, &filtered);
@@ -99,12 +98,8 @@ void RPCNestedTests::rpcNestedTests()
     QVERIFY(filtered == "walletpassphrasechange(…)");
     RPCConsole::RPCParseCommandLine(nullptr, result, "help(encryptwallet(abc, def))", false, &filtered);
     QVERIFY(filtered == "help(encryptwallet(…))");
-    RPCConsole::RPCParseCommandLine(nullptr, result, "help(importprivkey())", false, &filtered);
-    QVERIFY(filtered == "help(importprivkey(…))");
-    RPCConsole::RPCParseCommandLine(nullptr, result, "help(importprivkey(help()))", false, &filtered);
-    QVERIFY(filtered == "help(importprivkey(…))");
-    RPCConsole::RPCParseCommandLine(nullptr, result, "help(importprivkey(abc), walletpassphrase(def))", false, &filtered);
-    QVERIFY(filtered == "help(importprivkey(…), walletpassphrase(…))");
+    RPCConsole::RPCParseCommandLine(nullptr, result, "help(signrawtransactionwithkey(abc), walletpassphrase(def))", false, &filtered);
+    QVERIFY(filtered == "help(signrawtransactionwithkey(…), walletpassphrase(…))");
 
     RPCConsole::RPCExecuteCommandLine(m_node, result, "rpcNestedTest");
     QVERIFY(result == "[]");

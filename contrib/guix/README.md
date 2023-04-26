@@ -64,32 +64,6 @@ following from the top of a clean repository:
 ./contrib/guix/guix-build
 ```
 
-## Codesigning build outputs
-
-The `guix-codesign` command attaches codesignatures (produced by codesigners) to
-existing non-codesigned outputs. Please see the [release process
-documentation](/doc/release-process.md) for more context.
-
-It respects many of the same environment variable flags as `guix-build`, with 2
-crucial differences:
-
-1. Since only Windows and macOS build outputs require codesigning, the `HOSTS`
-   environment variable will have a sane default value of `x86_64-w64-mingw32
-   x86_64-apple-darwin arm64-apple-darwin` instead of all the platforms.
-2. The `guix-codesign` command ***requires*** a `DETACHED_SIGS_REPO` flag.
-    * _**DETACHED_SIGS_REPO**_
-
-      Set the directory where detached codesignatures can be found for the current
-      Bitcoin Core version being built.
-
-      _REQUIRED environment variable_
-
-An invocation with all default options would look like:
-
-```
-env DETACHED_SIGS_REPO=<path/to/bitcoin-detached-sigs> ./contrib/guix/guix-codesign
-```
-
 ## Cleaning intermediate work directories
 
 By default, `guix-build` leaves all intermediate files or "work directories"
@@ -102,34 +76,6 @@ worktree to save disk space:
 ```
 ./contrib/guix/guix-clean
 ```
-
-
-## Attesting to build outputs
-
-Much like how Gitian build outputs are attested to in a `gitian.sigs`
-repository, Guix build outputs are attested to in the [`guix.sigs`
-repository](https://github.com/bitcoin-core/guix.sigs).
-
-After you've cloned the `guix.sigs` repository, to attest to the current
-worktree's commit/tag:
-
-```
-env GUIX_SIGS_REPO=<path/to/guix.sigs> SIGNER=<gpg-key-name> ./contrib/guix/guix-attest
-```
-
-See `./contrib/guix/guix-attest --help` for more information on the various ways
-`guix-attest` can be invoked.
-
-## Verifying build output attestations
-
-After at least one other signer has uploaded their signatures to the `guix.sigs`
-repository:
-
-```
-git -C <path/to/guix.sigs> pull
-env GUIX_SIGS_REPO=<path/to/guix.sigs> ./contrib/guix/guix-verify
-```
-
 
 ## Common `guix-build` invocation patterns and examples
 

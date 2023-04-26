@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the fundrawtransaction RPC."""
@@ -549,8 +550,6 @@ class RawTransactionsTest(BitcoinTestFramework):
                 addr2Obj['pubkey'],
             ]
         )['address']
-        if not self.options.descriptors:
-            wmulti.importaddress(mSigObj)
 
         # Send 1.2 BTC to msig addr.
         self.nodes[0].sendtoaddress(mSigObj, 1.2)
@@ -576,20 +575,19 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.nodes[1].encryptwallet("test")
 
-        if self.options.descriptors:
-            self.nodes[1].walletpassphrase('test', 10)
-            self.nodes[1].importdescriptors([{
-                'desc': descsum_create('wpkh(tprv8ZgxMBicQKsPdYeeZbPSKd2KYLmeVKtcFA7kqCxDvDR13MQ6us8HopUR2wLcS2ZKPhLyKsqpDL2FtL73LMHcgoCL7DXsciA8eX8nbjCR2eG/0h/*h)'),
-                'timestamp': 'now',
-                'active': True
-            },
-            {
-                'desc': descsum_create('wpkh(tprv8ZgxMBicQKsPdYeeZbPSKd2KYLmeVKtcFA7kqCxDvDR13MQ6us8HopUR2wLcS2ZKPhLyKsqpDL2FtL73LMHcgoCL7DXsciA8eX8nbjCR2eG/1h/*h)'),
-                'timestamp': 'now',
-                'active': True,
-                'internal': True
-            }])
-            self.nodes[1].walletlock()
+        self.nodes[1].walletpassphrase('test', 10)
+        self.nodes[1].importdescriptors([{
+            'desc': descsum_create('wpkh(tprv8ZgxMBicQKsPdYeeZbPSKd2KYLmeVKtcFA7kqCxDvDR13MQ6us8HopUR2wLcS2ZKPhLyKsqpDL2FtL73LMHcgoCL7DXsciA8eX8nbjCR2eG/0h/*h)'),
+            'timestamp': 'now',
+            'active': True
+        },
+        {
+            'desc': descsum_create('wpkh(tprv8ZgxMBicQKsPdYeeZbPSKd2KYLmeVKtcFA7kqCxDvDR13MQ6us8HopUR2wLcS2ZKPhLyKsqpDL2FtL73LMHcgoCL7DXsciA8eX8nbjCR2eG/1h/*h)'),
+            'timestamp': 'now',
+            'active': True,
+            'internal': True
+        }])
+        self.nodes[1].walletlock()
 
         # Drain the keypool.
         self.nodes[1].getnewaddress()
@@ -716,19 +714,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             "range": [0, 100],
             "watchonly": True,
         }]
-        if self.options.descriptors:
-            wwatch.importdescriptors(desc_import)
-        else:
-            wwatch.importmulti(desc_import)
-
-        # Backward compatibility test (2nd params is includeWatching)
-        result = wwatch.fundrawtransaction(rawtx, True)
-        res_dec = self.nodes[0].decoderawtransaction(result["hex"])
-        assert_equal(len(res_dec["vin"]), 1)
-        assert_equal(res_dec["vin"][0]["txid"], self.watchonly_txid)
-
-        assert "fee" in result.keys()
-        assert_greater_than(result["changepos"], -1)
+        wwatch.importdescriptors(desc_import)
 
         wwatch.unloadwallet()
 
@@ -761,7 +747,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         wwatch.unloadwallet()
 
     def test_option_feerate(self):
-        self.log.info("Test fundrawtxn with explicit fee rates (fee_rate sat/vB and feeRate BTC/kvB)")
+        self.log.info("Test fundrawtxn with explicit fee rates (fee_rate sat/vB)")
         node = self.nodes[3]
         # Make sure there is exactly one input so coin selection can't skew the result.
         assert_equal(len(self.nodes[3].listunspent(1)), 1)
@@ -772,18 +758,14 @@ class RawTransactionsTest(BitcoinTestFramework):
         result = node.fundrawtransaction(rawtx)  # uses self.min_relay_tx_fee (set by settxfee)
         btc_kvb_to_sat_vb = 100000  # (1e5)
         result1 = node.fundrawtransaction(rawtx, {"fee_rate": str(2 * btc_kvb_to_sat_vb * self.min_relay_tx_fee)})
-        result2 = node.fundrawtransaction(rawtx, {"feeRate": 2 * self.min_relay_tx_fee})
-        result3 = node.fundrawtransaction(rawtx, {"fee_rate": 10 * btc_kvb_to_sat_vb * self.min_relay_tx_fee})
-        result4 = node.fundrawtransaction(rawtx, {"feeRate": str(10 * self.min_relay_tx_fee)})
+        result2 = node.fundrawtransaction(rawtx, {"fee_rate": 10 * btc_kvb_to_sat_vb * self.min_relay_tx_fee})
 
         result_fee_rate = result['fee'] * 1000 / count_bytes(result['hex'])
         assert_fee_amount(result1['fee'], count_bytes(result1['hex']), 2 * result_fee_rate)
-        assert_fee_amount(result2['fee'], count_bytes(result2['hex']), 2 * result_fee_rate)
-        assert_fee_amount(result3['fee'], count_bytes(result3['hex']), 10 * result_fee_rate)
-        assert_fee_amount(result4['fee'], count_bytes(result4['hex']), 10 * result_fee_rate)
+        assert_fee_amount(result2['fee'], count_bytes(result2['hex']), 10 * result_fee_rate)
 
         # Test that funding non-standard "zero-fee" transactions is valid.
-        for param, zero_value in product(["fee_rate", "feeRate"], [0, 0.000, 0.00000000, "0", "0.000", "0.00000000"]):
+        for param, zero_value in product(["fee_rate"], [0, 0.000, 0.00000000, "0", "0.000", "0.00000000"]):
             assert_equal(self.nodes[3].fundrawtransaction(rawtx, {param: zero_value})["fee"], 0)
 
         # With no arguments passed, expect fee of 141 satoshis.
@@ -811,7 +793,7 @@ class RawTransactionsTest(BitcoinTestFramework):
                     node.fundrawtransaction, rawtx, {"estimate_mode": mode, "conf_target": n, "add_inputs": True})
 
         self.log.info("Test invalid fee rate settings")
-        for param, value in {("fee_rate", 100000), ("feeRate", 1.000)}:
+        for param, value in {("fee_rate", 100000)}:
             assert_raises_rpc_error(-4, "Fee exceeds maximum configured by user (e.g. -maxtxfee, maxfeerate)",
                 node.fundrawtransaction, rawtx, {param: value, "add_inputs": True})
             assert_raises_rpc_error(-3, "Amount out of range",
@@ -828,17 +810,8 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.log.info("Test min fee rate checks are bypassed with fundrawtxn, e.g. a fee_rate under 1 sat/vB is allowed")
         node.fundrawtransaction(rawtx, {"fee_rate": 0.999, "add_inputs": True})
-        node.fundrawtransaction(rawtx, {"feeRate": 0.00000999, "add_inputs": True})
 
-        self.log.info("- raises RPC error if both feeRate and fee_rate are passed")
-        assert_raises_rpc_error(-8, "Cannot specify both fee_rate (sat/vB) and feeRate (BTC/kvB)",
-            node.fundrawtransaction, rawtx, {"fee_rate": 0.1, "feeRate": 0.1, "add_inputs": True})
-
-        self.log.info("- raises RPC error if both feeRate and estimate_mode passed")
-        assert_raises_rpc_error(-8, "Cannot specify both estimate_mode and feeRate",
-            node.fundrawtransaction, rawtx, {"estimate_mode": "economical", "feeRate": 0.1, "add_inputs": True})
-
-        for param in ["feeRate", "fee_rate"]:
+        for param in ["fee_rate"]:
             self.log.info("- raises RPC error if both {} and conf_target are passed".format(param))
             assert_raises_rpc_error(-8, "Cannot specify both conf_target and {}. Please provide either a confirmation "
                 "target in blocks for automatic fee estimation, or an explicit fee rate.".format(param),
@@ -873,25 +846,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         inputs = []
         outputs = {self.nodes[2].getnewaddress(): 1}
         rawtx = self.nodes[3].createrawtransaction(inputs, outputs)
-
-        # Test subtract fee from outputs with feeRate (BTC/kvB)
-        result = [self.nodes[3].fundrawtransaction(rawtx),  # uses self.min_relay_tx_fee (set by settxfee)
-            self.nodes[3].fundrawtransaction(rawtx, {"subtractFeeFromOutputs": []}),  # empty subtraction list
-            self.nodes[3].fundrawtransaction(rawtx, {"subtractFeeFromOutputs": [0]}),  # uses self.min_relay_tx_fee (set by settxfee)
-            self.nodes[3].fundrawtransaction(rawtx, {"feeRate": 2 * self.min_relay_tx_fee}),
-            self.nodes[3].fundrawtransaction(rawtx, {"feeRate": 2 * self.min_relay_tx_fee, "subtractFeeFromOutputs": [0]}),]
-        dec_tx = [self.nodes[3].decoderawtransaction(tx_['hex']) for tx_ in result]
-        output = [d['vout'][1 - r['changepos']]['value'] for d, r in zip(dec_tx, result)]
-        change = [d['vout'][r['changepos']]['value'] for d, r in zip(dec_tx, result)]
-
-        assert_equal(result[0]['fee'], result[1]['fee'], result[2]['fee'])
-        assert_equal(result[3]['fee'], result[4]['fee'])
-        assert_equal(change[0], change[1])
-        assert_equal(output[0], output[1])
-        assert_equal(output[0], output[2] + result[2]['fee'])
-        assert_equal(change[0] + result[0]['fee'], change[2])
-        assert_equal(output[3], output[4] + result[4]['fee'])
-        assert_equal(change[3] + result[3]['fee'], change[4])
 
         # Test subtract fee from outputs with fee_rate (sat/vB)
         btc_kvb_to_sat_vb = 100000  # (1e5)
@@ -997,10 +951,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Make a weird but signable script. sh(pkh()) descriptor accomplishes this
         desc = descsum_create("sh(pkh({}))".format(privkey))
-        if self.options.descriptors:
-            res = self.nodes[0].importdescriptors([{"desc": desc, "timestamp": "now"}])
-        else:
-            res = self.nodes[0].importmulti([{"desc": desc, "timestamp": "now"}])
+        res = self.nodes[0].importdescriptors([{"desc": desc, "timestamp": "now"}])
         assert res[0]["success"]
         addr = self.nodes[0].deriveaddresses(desc)[0]
         addr_info = self.nodes[0].getaddressinfo(addr)

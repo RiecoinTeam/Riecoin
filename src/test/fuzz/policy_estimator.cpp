@@ -1,4 +1,5 @@
 // Copyright (c) 2020-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +68,6 @@ FUZZ_TARGET_INIT(policy_estimator, initialize_policy_estimator)
             [&] {
                 block_policy_estimator.FlushUnconfirmed();
             });
-        (void)block_policy_estimator.estimateFee(fuzzed_data_provider.ConsumeIntegral<int>());
         EstimationResult result;
         (void)block_policy_estimator.estimateRawFee(fuzzed_data_provider.ConsumeIntegral<int>(), fuzzed_data_provider.ConsumeFloatingPoint<double>(), fuzzed_data_provider.PickValueInArray(ALL_FEE_ESTIMATE_HORIZONS), fuzzed_data_provider.ConsumeBool() ? &result : nullptr);
         FeeCalculation fee_calculation;

@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -344,13 +345,6 @@ bool RPCIsInWarmup(std::string *outStatus)
     if (outStatus)
         *outStatus = rpcWarmupStatus;
     return fRPCInWarmup;
-}
-
-bool IsDeprecatedRPCEnabled(const std::string& method)
-{
-    const std::vector<std::string> enabled_methods = gArgs.GetArgs("-deprecatedrpc");
-
-    return find(enabled_methods.begin(), enabled_methods.end(), method) != enabled_methods.end();
 }
 
 static UniValue JSONRPCExecOne(JSONRPCRequest jreq, const UniValue& req)

@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -668,15 +669,6 @@ void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
 
     trackedTxs = 0;
     untrackedTxs = 0;
-}
-
-CFeeRate CBlockPolicyEstimator::estimateFee(int confTarget) const
-{
-    // It's not possible to get reasonable estimates for confTarget of 1
-    if (confTarget <= 1)
-        return CFeeRate(0);
-
-    return estimateRawFee(confTarget, DOUBLE_SUCCESS_PCT, FeeEstimateHorizon::MED_HALFLIFE);
 }
 
 CFeeRate CBlockPolicyEstimator::estimateRawFee(int confTarget, double successThreshold, FeeEstimateHorizon horizon, EstimationResult* result) const

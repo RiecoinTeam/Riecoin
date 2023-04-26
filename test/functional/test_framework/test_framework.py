@@ -438,14 +438,12 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         def get_bin_from_version(version, bin_name, bin_default):
             if not version:
                 return bin_default
-            if version > 219999:
-                # Starting at client version 220000 the first two digits represent
-                # the major version, e.g. v22.0 instead of v0.22.0.
-                version *= 100
+            # The first two digits represent the major version, e.g. v22.0 instead of v0.22.0.
+            version *= 100
             return os.path.join(
                 self.options.previous_releases_path,
                 re.sub(
-                    r'\.0$' if version <= 219999 else r'(\.0){1,2}$',
+                    r'(\.0){1,2}$',
                     '', # Remove trailing dot for point releases, after 22.0 also remove double trailing dot.
                     'v{}.{}.{}.{}'.format(
                         (version % 100000000) // 1000000,
@@ -501,13 +499,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 descriptors=self.options.descriptors,
             )
             self.nodes.append(test_node_i)
-            if not test_node_i.version_is_at_least(170000):
-                # adjust conf for pre 17
-                conf_file = test_node_i.bitcoinconf
-                with open(conf_file, 'r', encoding='utf8') as conf:
-                    conf_data = conf.read()
-                with open(conf_file, 'w', encoding='utf8') as conf:
-                    conf.write(conf_data.replace('[regtest]', ''))
 
     def start_node(self, i, *args, **kwargs):
         """Start a bitcoind"""
