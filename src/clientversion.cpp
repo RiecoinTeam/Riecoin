@@ -1,4 +1,5 @@
 // Copyright (c) 2012-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,7 +17,7 @@
  * for both bitcoind and bitcoin-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("Satoshi");
+const std::string CLIENT_NAME("Stella");
 
 
 #ifdef HAVE_BUILD_INFO
@@ -34,7 +35,7 @@ const std::string CLIENT_NAME("Satoshi");
     #define BUILD_DESC BUILD_GIT_TAG
     #define BUILD_SUFFIX ""
 #else
-    #define BUILD_DESC "v" PACKAGE_VERSION
+    #define BUILD_DESC PACKAGE_VERSION
     #if CLIENT_VERSION_IS_RELEASE
         #define BUILD_SUFFIX ""
     #elif defined(BUILD_GIT_COMMIT)
@@ -79,28 +80,25 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
-    const auto copyright_devs = strprintf(_(COPYRIGHT_HOLDERS).translated, COPYRIGHT_HOLDERS_SUBSTITUTION);
-    std::string strCopyrightHolders = strPrefix + copyright_devs;
-
-    // Make sure Bitcoin Core copyright is not removed by accident
-    if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
-    }
+    std::string strCopyrightHolders = strPrefix + " 2009-2021 The Bitcoin Core developers";
+    strCopyrightHolders += "\n" + strPrefix + " 2013-2023 The Riecoin developers";
     return strCopyrightHolders;
 }
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/bitcoin/bitcoin>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
 
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i").translated, 2009, COPYRIGHT_YEAR) + " ") + "\n" +
-           "\n" +
+    return CopyrightHolders("(C) ") + "" +
+           "\n Riecoin Core 23.04 is based on Bitcoin Core 24.0.1.\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software.").translated, PACKAGE_NAME, "<" PACKAGE_URL ">") +
            "\n" +
-           strprintf(_("The source code is available from %s.").translated, URL_SOURCE_CODE) +
-           "\n" +
-           "\n" +
+           strprintf(_("The source code is available from %s. Support us by starring our repositories!").translated, URL_SOURCE_CODE) +
+           "\n\n Riecoin Forum: <https://forum.riecoin.dev/>" +
+           "\n Discord: <https://discord.gg/2sJEayC>" +
+           "\n Twitter: <https://twitter.com/RiecoinDev>" +
+           "\n Reddit: <https://www.reddit.com/r/Riecoin/>\n\n" +
            _("This is experimental software.").translated + "\n" +
            strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s").translated, "COPYING", "<https://opensource.org/licenses/MIT>") +
            "\n";

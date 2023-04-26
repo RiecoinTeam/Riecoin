@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<defs>
+		<linearGradient id="a">
+			<stop stop-color="#40ffff" offset="0"/>
+			<stop stop-color="#ffff80" offset="1"/>
+		</linearGradient>
+		<linearGradient id="b">
+			<stop stop-color="#208080" offset="0"/>
+			<stop stop-color="#808040" offset="1"/>
+		</linearGradient>
+		<linearGradient id="c" x1="0.5" x2="0.5" y1="1" y2="0" xlink:href="#b"/>
+		<linearGradient id="d" x1="0.5" x2="0.5" y1="0" y2="1" xlink:href="#a"/>
+		<linearGradient id="e" x1="0.5" x2="0.5" y1="0.875" y2="0" xlink:href="#a"/>
+	</defs>
+	<circle cx="512" cy="512" r="512" fill="#c0e0d8"/>
+	<circle cx="512" cy="512" r="480" fill="url(#c)"/>
+	<circle cx="512" cy="512" r="368" fill="url(#d)"/>
+	<path d="m 176,697 c 83,-2 157,-62 186,-139 20,-49 35,-112 91,-132 60,-24 128,29 130,91 7,79 -69,143 -144,139 -94,0 -170,-87 -171,-179 -6,-111 87,-212 196,-224 121,-19 244,68 273,186 34,118 -31,254 -145,301 -104,47 -240,9 -297,-92 -50,-80 -34,-199 46,-254 61,-47 161,-38 204,29 43,59 19,149 -45,182 -73,42 -170,5 -211,-65 -59,-93 -26,-223 57,-290 101,-88 260,-86 365,-8 115,81 165,238 122,371 -40,135 -173,237 -315,234 -124,1 -250,-88 -270,-214 -16,-80 25,-178 109,-199 44,-13 103,16 101,67 -2,53 -67,78 -112,61 -84,-28 -120,-128 -102,-209 15,-75 102,-173 166,-208" fill="none" stroke="url(#e)" stroke-width="24"/>
+	<path d="m 360,560 h -96 v 32 h 78 l -14,24 h -88 v 32 h 66 l -50,88 h 216 c -96,-32 -80,-88 -80,-88 h 72 v -32 h -66 l 8,-24 h 82 v -32 h -72 c 32,-96 160,-192 256,-176 48,16 48,46 80,40 16,-2 64,-16 48,-56 -96,-144 -272,40 -336,40 -80,0 -80,-80 -32,-120 32,-24 32,-48 -16,-32 -48,16 -152,144 24,192 -24,36 -58,82 -80,112 z" fill="url(#c)" stroke="#ffffff" stroke-width="12"/>
+	<circle cx="512" cy="512" r="380" fill="none" stroke="#e0fff8" stroke-width="25"/>
+</svg>

@@ -120,7 +120,7 @@ The following can be set when running make: `make FOO=bar`
 - `LTO`: Use LTO when building packages.
 
 If some packages are not built, for example `make NO_WALLET=1`, the appropriate
-options will be passed to bitcoin's configure. In this case, `--disable-wallet`.
+options will be passed to Riecoin's configure. In this case, `--disable-wallet`.
 
 ### Additional targets
 

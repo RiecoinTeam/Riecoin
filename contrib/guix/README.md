@@ -1,6 +1,6 @@
-# Bootstrappable Bitcoin Core Builds
+# Bootstrappable Riecoin Core Builds
 
-This directory contains the files necessary to perform bootstrappable Bitcoin
+This directory contains the files necessary to perform bootstrappable Riecoin
 Core builds.
 
 [Bootstrappability][b17e] furthers our binary security guarantees by allowing us
@@ -52,12 +52,11 @@ tar -C depends/SDKs -xaf /path/to/SDK/tarball
 
 ## Building
 
-*The author highly recommends at least reading over the [common usage patterns
-and examples](#common-guix-build-invocation-patterns-and-examples) section below
-before starting a build. For a full list of customization options, see the
+*It is recommended to read over the [common usage patterns and examples](#common-guix-build-invocation-patterns-and-examples)
+section below before starting a build. For a full list of customization options, see the
 [recognized environment variables][env-vars-list] section.*
 
-To build Bitcoin Core reproducibly with all default options, invoke the
+To build Riecoin Core reproducibly with all default options, invoke the
 following from the top of a clean repository:
 
 ```sh

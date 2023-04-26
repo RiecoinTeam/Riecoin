@@ -9,11 +9,11 @@ import sys
 import tempfile
 
 BINARIES = [
-'src/bitcoind',
-'src/bitcoin-cli',
-'src/bitcoin-tx',
-'src/bitcoin-wallet',
-'src/qt/bitcoin-qt',
+'src/riecoind',
+'src/riecoin-cli',
+'src/riecoin-tx',
+'src/riecoin-wallet',
+'src/qt/riecoin-qt',
 ]
 
 # Paths to external utilities.
@@ -44,10 +44,8 @@ for relpath in BINARIES:
     verstr = r.stdout.splitlines()[0]
     # last word of line is the actual version e.g. v22.99.0-5c6b3d5b3508
     verstr = verstr.split()[-1]
-    assert verstr.startswith('v')
     # remaining lines are copyright
     copyright = r.stdout.split('\n')[1:]
-    assert copyright[0].startswith('Copyright (C)')
 
     versions.append((abspath, verstr, copyright))
 

@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -31,10 +32,10 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     : QWidget(), curAlignment(0)
 {
     // set reference point, paddings
-    int paddingRight            = 50;
-    int paddingTop              = 50;
-    int titleVersionVSpace      = 17;
-    int titleCopyrightVSpace    = 40;
+    int paddingRight            = 30;
+    int paddingTop              = 225;
+    int titleVersionVSpace      = 15;
+    int titleCopyrightVSpace    = 30;
 
     float fontFactor            = 1.0;
     float devicePixelRatio      = 1.0;
@@ -42,8 +43,8 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
 
     // define text to place
     QString titleText       = PACKAGE_NAME;
-    QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
-    QString copyrightText   = QString::fromUtf8(CopyrightHolders(strprintf("\xc2\xA9 %u-%u ", 2009, COPYRIGHT_YEAR)).c_str());
+    QString versionText     = QString("%1").arg(QString::fromStdString(FormatFullVersion()));
+    QString copyrightText   = QString::fromUtf8(CopyrightHolders(strprintf("\xc2\xA9 ")).c_str());
     const QString& titleAddText    = networkStyle->getTitleAddText();
 
     QString font            = QApplication::font().toString();
@@ -56,21 +57,26 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     pixmap.setDevicePixelRatio(devicePixelRatio);
 
     QPainter pixPaint(&pixmap);
-    pixPaint.setPen(QColor(100,100,100));
+    pixPaint.setPen(QColor(224, 224, 224));
 
     // draw a slightly radial gradient
     QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-    gradient.setColorAt(0, Qt::white);
-    gradient.setColorAt(1, QColor(247,247,247));
+    if (titleAddText == "[test]")
+        gradient.setColorAt(0, QColor(0, 112, 128));
+    else if (titleAddText == "[regtest]")
+        gradient.setColorAt(0, QColor(128, 0, 112));
+    else
+        gradient.setColorAt(0, QColor(0, 128, 112));
+    gradient.setColorAt(1, Qt::black);
     QRect rGradient(QPoint(0,0), splashSize);
     pixPaint.fillRect(rGradient, gradient);
 
-    // draw the bitcoin icon, expected size of PNG: 1024x1024
-    QRect rectIcon(QPoint(-150,-122), QSize(430,430));
+    // draw the Riecoin icon, expected size of PNG: 1024x1024
+    QRect rectIcon(QPoint(-120 ,-120), QSize(420, 420));
 
     const QSize requiredSize(1024,1024);
     QPixmap icon(networkStyle->getAppIcon().pixmap(requiredSize));
-
+    pixPaint.setRenderHint(QPainter::SmoothPixmapTransform);
     pixPaint.drawPixmap(rectIcon, icon);
 
     // check font size and drawing with
@@ -102,8 +108,8 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
         pixPaint.setFont(QFont(font, 10*fontFactor));
         const int x = pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight;
         const int y = paddingTop+titleCopyrightVSpace;
-        QRect copyrightRect(x, y, pixmap.width() - x - paddingRight, pixmap.height() - y);
-        pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, copyrightText);
+        QRect copyrightRect(x, y, pixmap.width() - x, pixmap.height() - y);
+        pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop, copyrightText);
     }
 
     // draw additional text if special network
@@ -177,7 +183,7 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
         Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(55,55,55)));
+        Q_ARG(QColor, QColor(192, 192, 192)));
     assert(invoked);
 }
 
