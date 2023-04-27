@@ -74,25 +74,15 @@ struct BIP9Deployment {
 struct Params {
     uint256 hashGenesisBlock;
     int nSubsidyHalvingInterval;
-    /**
-     * Hashes of blocks that
-     * - are known to be consensus valid, and
-     * - buried in the chain, and
-     * - fail if the default script verify flags are applied.
-     */
-    std::map<uint256, uint32_t> script_flag_exceptions;
-    /** Block height and hash at which BIP34 becomes active */
+    /** Block height at which BIP34 becomes active */
     int BIP34Height;
-    uint256 BIP34Hash;
     /** Block height at which BIP65 becomes active */
     int BIP65Height;
     /** Block height at which BIP66 becomes active */
     int BIP66Height;
     /** Block height at which CSV (BIP68, BIP112 and BIP113) becomes active */
     int CSVHeight;
-    /** Block height at which Segwit (BIP141, BIP143 and BIP147) becomes active.
-     * Note that segwit v0 script rules are enforced on all blocks except the
-     * BIP 16 exception blocks. */
+    /** Block height at which Segwit (BIP141, BIP143 and BIP147) becomes active. */
     int SegwitHeight;
     /** Don't warn about unknown BIP 9 activations below this height.
      * This prevents us from warning about the CSV and segwit activations. */
