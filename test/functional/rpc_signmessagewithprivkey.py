@@ -31,17 +31,17 @@ class SignMessagesWithPrivTest(BitcoinTestFramework):
 
         self.log.info('test signing with priv_key')
         priv_key = 'prvd2b8a0116d641fe7d3036f8464628fb595b480414c13a301b3d4038c811c28b0'
-        expected_signature = 'INbVnW4e6PeRmsv2Qgu8NuopvrVjkcxob+sX8OcZG0SALhWybUjzMLPdAsXI46YZGb0KQTRii+wWIQzRpG/U+S0='
+        expected_signature = 'ILo9wUJXRheXNKGSbXKcKgXKMnsGbcmKUQK8aqQILG84BbrQKTYiwynQWURmc+0itT7NgXfRBUbZqiYB6gLUlWU='
         signature = self.nodes[0].signmessagewithprivkey(priv_key, message)
         assert_equal(expected_signature, signature)
 
         self.log.info('test that verifying with P2PKH address succeeds')
         addresses = self.addresses_from_privkey(priv_key)
-        assert_equal(addresses[0], 'rF43ZrbGxaCqCFbScvAjqYijHNnWGsr9Bb')
-        assert self.nodes[0].verifymessage(addresses[0], signature, message)
+        assert_equal(addresses[2], 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5g9m3ly')
+        assert self.nodes[0].verifymessage(addresses[2], signature, message)
 
         self.log.info('test that verifying with non-P2PKH addresses throws error')
-        for non_p2pkh_address in addresses[1:]:
+        for non_p2pkh_address in addresses[0:2]:
             assert_raises_rpc_error(-3, "Address does not refer to key", self.nodes[0].verifymessage, non_p2pkh_address, signature, message)
 
         self.log.info('test parameter validity and error codes')
@@ -57,7 +57,7 @@ class SignMessagesWithPrivTest(BitcoinTestFramework):
         assert_raises_rpc_error(-5, "Invalid private key", self.nodes[0].signmessagewithprivkey, "invalid_key", message)
         assert_raises_rpc_error(-5, "Invalid address", self.nodes[0].verifymessage, "invalid_addr", signature, message)
         # malformed signature provided
-        assert_raises_rpc_error(-3, "Malformed base64 encoding", self.nodes[0].verifymessage, 'rF43ZrbGxaCqCFbScvAjqYijHNnWGsr9Bb', "invalid_sig", message)
+        assert_raises_rpc_error(-3, "Malformed base64 encoding", self.nodes[0].verifymessage, 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5g9m3ly', "invalid_sig", message)
 
 
 if __name__ == '__main__':

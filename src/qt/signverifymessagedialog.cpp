@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -91,7 +92,7 @@ void SignVerifyMessageDialog::on_addressBookButton_SM_clicked()
 {
     if (model && model->getAddressTableModel())
     {
-        model->refresh(/*pk_hash_only=*/true);
+        model->refresh();
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
@@ -120,13 +121,6 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
         ui->statusLabel_SM->setText(tr("The entered address is invalid.") + QString(" ") + tr("Please check the address and try again."));
         return;
     }
-    const PKHash* pkhash = std::get_if<PKHash>(&destination);
-    if (!pkhash) {
-        ui->addressIn_SM->setValid(false);
-        ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
-        ui->statusLabel_SM->setText(tr("The entered address does not refer to a key.") + QString(" ") + tr("Please check the address and try again."));
-        return;
-    }
 
     WalletModel::UnlockContext ctx(model->requestUnlock());
     if (!ctx.isValid())
@@ -138,7 +132,7 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
 
     const std::string& message = ui->messageIn_SM->document()->toPlainText().toStdString();
     std::string signature;
-    SigningResult res = model->wallet().signMessage(message, *pkhash, signature);
+    SigningResult res = model->wallet().signMessage(MessageSignatureFormat::SIMPLE, message, destination, signature);
 
     QString error;
     switch (res) {
@@ -214,6 +208,27 @@ void SignVerifyMessageDialog::on_verifyMessageButton_VM_clicked()
             QString("<nobr>") + tr("Message verified.") + QString("</nobr>")
         );
         return;
+    case MessageVerificationResult::OK_TIMELOCKED:
+        ui->statusLabel_VM->setText(
+            QString("<nobr>") + tr("Message verified, but includes timelocks.") + QString("</nobr>")
+        );
+        return;
+    case MessageVerificationResult::INCONCLUSIVE:
+        ui->statusLabel_VM->setText(
+            QString("<nobr>") + tr("Inconclusive.") + QString("</nobr>")
+        );
+        return;
+    case MessageVerificationResult::ERR_INVALID:
+        ui->statusLabel_VM->setText(
+            QString("<nobr>") + tr("Message verification failed.") + QString(" (ERR_INVALID)</nobr>")
+        );
+        return;
+    case MessageVerificationResult::ERR_POF:
+        // TODO: support proof of funds verifications
+        ui->statusLabel_VM->setText(
+            QString("</nobr>") + tr("Proof of funds verification unavailable right now.") + QString("</nobr>")
+        );
+        return;
     case MessageVerificationResult::ERR_INVALID_ADDRESS:
         ui->statusLabel_VM->setText(
             tr("The entered address is invalid.") + QString(" ") +
@@ -243,7 +258,7 @@ void SignVerifyMessageDialog::on_verifyMessageButton_VM_clicked()
         return;
     case MessageVerificationResult::ERR_NOT_SIGNED:
         ui->statusLabel_VM->setText(
-            QString("<nobr>") + tr("Message verification failed.") + QString("</nobr>")
+            QString("<nobr>") + tr("Message verification failed.") + QString(" (ERR_NOT_SIGNED)</nobr>")
         );
         return;
     }

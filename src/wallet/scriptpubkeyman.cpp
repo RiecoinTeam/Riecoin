@@ -24,6 +24,47 @@ const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
 typedef std::vector<unsigned char> valtype;
 
+SigningResult ScriptPubKeyMan::SignMessageBIP322(MessageSignatureFormat format, const SigningProvider* keystore, const std::string& message, const CTxDestination& address, std::string& str_sig) const
+{
+    assert(format != MessageSignatureFormat::LEGACY);
+
+    MessageVerificationResult result; // unused
+    auto txs = BIP322Txs::Create(address, message, result);
+    assert(txs);
+
+    const CTransaction& to_spend = txs->m_to_spend;
+    CMutableTransaction to_sign(txs->m_to_sign);
+
+    // Create the "unspent output" map, consisting of the to_spend output
+    std::map<COutPoint, Coin> coins;
+    coins[to_sign.vin[0].prevout] = Coin(to_spend.vout[0], 1, false);
+
+    // Sign the transaction
+    std::map<int, bilingual_str> errors;
+    if (!::SignTransaction(to_sign, keystore, coins, SIGHASH_ALL, errors)) {
+        // TODO: this may be a multisig which successfully signed but needed additional signatures
+        return SigningResult::SIGNING_FAILED;
+    }
+
+    // We force the format to FULL, if this turned out to be a legacy format (p2pkh) signature
+    if (to_sign.vin[0].scriptSig.size() > 0 || to_sign.vin[0].scriptWitness.IsNull()) {
+        format = MessageSignatureFormat::FULL;
+    }
+
+    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    if (format == MessageSignatureFormat::SIMPLE) {
+        // Simple format output
+        ds << to_sign.vin[0].scriptWitness.stack;
+    } else {
+        // Full format output
+        ds << to_sign;
+    }
+
+    str_sig = EncodeBase64(ds);
+
+    return SigningResult::OK;
+}
+
 util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const OutputType type)
 {
     // Returns true if this descriptor supports getting new addresses. Conditions where we may be unable to fetch them (e.g. locked) are caught later
@@ -488,15 +529,24 @@ bool DescriptorScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const s
     return ::SignTransaction(tx, keys.get(), coins, sighash, input_errors);
 }
 
-SigningResult DescriptorScriptPubKeyMan::SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const
+SigningResult DescriptorScriptPubKeyMan::SignMessage(const MessageSignatureFormat format, const std::string& message, const CTxDestination& address, std::string& str_sig) const
 {
-    std::unique_ptr<FlatSigningProvider> keys = GetSigningProvider(GetScriptForDestination(pkhash), true);
+    std::unique_ptr<FlatSigningProvider> keys = GetSigningProvider(GetScriptForDestination(address), true);
     if (!keys) {
         return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
     }
 
+    if (format != MessageSignatureFormat::LEGACY) {
+        return SignMessageBIP322(format, keys.get(), message, address, str_sig);
+    }
+
+    const WitnessV0KeyHash* w0pkhash = std::get_if<WitnessV0KeyHash>(&address);
+    if (!w0pkhash) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
     CKey key;
-    if (!keys->GetKey(ToKeyID(pkhash), key)) {
+    if (!keys->GetKey(ToKeyID(*w0pkhash), key)) {
         return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
     }
 

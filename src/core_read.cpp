@@ -1,4 +1,5 @@
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -121,7 +122,7 @@ static bool CheckTxScriptsSanity(const CMutableTransaction& tx)
     return true;
 }
 
-static bool DecodeTx(CMutableTransaction& tx, const std::vector<unsigned char>& tx_data, bool try_no_witness, bool try_witness)
+bool DecodeTx(CMutableTransaction& tx, const std::vector<unsigned char>& tx_data, bool try_no_witness, bool try_witness)
 {
     // General strategy:
     // - Decode both with extended serialization (which interprets the 0x0001 tag as a marker for
