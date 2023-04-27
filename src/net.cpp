@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1651,9 +1652,9 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             // 60 seconds for any of those sources to populate addrman.
             bool add_fixed_seeds_now = false;
             // It is cheapest to check if enough time has passed first.
-            if (GetTime<std::chrono::seconds>() > start + std::chrono::minutes{1}) {
+            if (GetTime<std::chrono::seconds>() > start + std::chrono::seconds{3}) {
                 add_fixed_seeds_now = true;
-                LogPrintf("Adding fixed seeds as 60 seconds have passed and addrman is empty\n");
+                LogPrintf("Adding fixed seeds as addrman is still empty\n");
             }
 
             // Checking !dnsseed is cheaper before locking 2 mutexes.

@@ -175,7 +175,7 @@ class ConfArgsTest(BitcoinTestFramework):
         ):
             self.start_node(0, extra_args=['-dnsseed=1', '-fixedseeds=1', f'-mocktime={start}'])
         with self.nodes[0].assert_debug_log(expected_msgs=[
-                "Adding fixed seeds as 60 seconds have passed and addrman is empty",
+                "Adding fixed seeds as addrman is still empty",
         ]):
             self.nodes[0].setmocktime(start + 65)
         self.stop_node(0)
@@ -221,7 +221,7 @@ class ConfArgsTest(BitcoinTestFramework):
         ):
             self.start_node(0, extra_args=['-dnsseed=0', '-fixedseeds=1', '-addnode=fakenodeaddr', f'-mocktime={start}'])
         with self.nodes[0].assert_debug_log(expected_msgs=[
-                "Adding fixed seeds as 60 seconds have passed and addrman is empty",
+                "Adding fixed seeds as addrman is still empty",
         ]):
             self.nodes[0].setmocktime(start + 65)
 
