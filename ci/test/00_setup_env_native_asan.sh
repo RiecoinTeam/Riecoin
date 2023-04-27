@@ -13,7 +13,7 @@ export LC_ALL=C.UTF-8
 export ADD_UNTRUSTED_BPFCC_PPA=true
 
 export CONTAINER_NAME=ci_native_asan
-export PACKAGES="systemtap-sdt-dev bpfcc-tools clang llvm python3-zmq qtbase5-dev qttools5-dev-tools libevent-dev bsdmainutils libboost-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev libqrencode-dev libsqlite3-dev"
+export PACKAGES="systemtap-sdt-dev bpfcc-tools clang llvm python3-zmq qtbase5-dev qttools5-dev-tools libevent-dev bsdmainutils libboost-dev libgmp-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev libqrencode-dev libsqlite3-dev"
 export DOCKER_NAME_TAG=ubuntu:22.04  # May not run in docker unless --enable-usdt is dropped
 export NO_DEPENDS=1
 export GOAL="install"

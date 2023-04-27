@@ -1550,6 +1550,10 @@ if test "$use_tests" = "yes"; then
   fi
 fi
 
+dnl Check for libgmp
+AC_CHECK_HEADERS([gmp.h gmpxx.h], , AC_MSG_ERROR(gmp headers missing), )
+AC_CHECK_LIB([gmp], [main], GMP_LIBS=-lgmp, AC_MSG_ERROR(gmp missing))
+
 dnl libevent check
 
 use_libevent=no
@@ -1931,6 +1935,7 @@ AC_SUBST(USE_SQLITE)
 AC_SUBST(ENABLE_EXTERNAL_SIGNER)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
+AC_SUBST(GMP_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)

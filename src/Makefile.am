@@ -726,7 +726,7 @@ riecoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-riecoin_bin_ldadd += $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
+riecoin_bin_ldadd += $(GMP_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
 
 riecoind_SOURCES = $(riecoin_daemon_sources) init/bitcoind.cpp
 riecoind_CPPFLAGS = $(riecoin_bin_cppflags)
@@ -756,7 +756,7 @@ riecoin_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-riecoin_cli_LDADD += $(EVENT_LIBS)
+riecoin_cli_LDADD += $(GMP_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
