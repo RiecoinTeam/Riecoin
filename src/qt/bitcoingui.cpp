@@ -315,6 +315,7 @@ void BitcoinGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(tr("&Change Passphrase…"), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
+    generateCodeAction = new QAction(tr("&Generate Code…"), this);
     signMessageAction = new QAction(tr("Sign &message…"), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Riecoin addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message…"), this);
@@ -383,6 +384,7 @@ void BitcoinGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
+        connect(generateCodeAction, &QAction::triggered, walletFrame, &WalletFrame::generateCode);
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(m_load_psbt_action, &QAction::triggered, [this]{ gotoLoadPSBT(); });
@@ -487,6 +489,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(m_restore_wallet_action);
         file->addSeparator();
         file->addAction(openAction);
+        file->addAction(generateCodeAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
         file->addAction(m_load_psbt_action);
@@ -778,6 +781,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    generateCodeAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -816,12 +820,14 @@ void BitcoinGUI::createTrayIconMenu()
 
     QAction* send_action{nullptr};
     QAction* receive_action{nullptr};
+    QAction* generate_action{nullptr};
     QAction* sign_action{nullptr};
     QAction* verify_action{nullptr};
     if (enableWallet) {
         send_action = trayIconMenu->addAction(sendCoinsAction->text(), sendCoinsAction, &QAction::trigger);
         receive_action = trayIconMenu->addAction(receiveCoinsAction->text(), receiveCoinsAction, &QAction::trigger);
         trayIconMenu->addSeparator();
+        generate_action = trayIconMenu->addAction(generateCodeAction->text(), generateCodeAction, &QAction::trigger);
         sign_action = trayIconMenu->addAction(signMessageAction->text(), signMessageAction, &QAction::trigger);
         verify_action = trayIconMenu->addAction(verifyMessageAction->text(), verifyMessageAction, &QAction::trigger);
         trayIconMenu->addSeparator();
@@ -856,7 +862,7 @@ void BitcoinGUI::createTrayIconMenu()
         // Using QSystemTrayIcon::Context is not reliable.
         // See https://bugreports.qt.io/browse/QTBUG-91697
         trayIconMenu.get(), &QMenu::aboutToShow,
-        [this, show_hide_action, send_action, receive_action, sign_action, verify_action, options_action, node_window_action, quit_action] {
+        [this, show_hide_action, send_action, receive_action, generate_action, sign_action, verify_action, options_action, node_window_action, quit_action] {
             if (show_hide_action) show_hide_action->setText(
                 (!isHidden() && !isMinimized() && !GUIUtil::isObscured(this)) ?
                     tr("&Hide") :
@@ -870,6 +876,7 @@ void BitcoinGUI::createTrayIconMenu()
                 if (enableWallet) {
                     send_action->setEnabled(sendCoinsAction->isEnabled());
                     receive_action->setEnabled(receiveCoinsAction->isEnabled());
+                    generate_action->setEnabled(generateCodeAction->isEnabled());
                     sign_action->setEnabled(signMessageAction->isEnabled());
                     verify_action->setEnabled(verifyMessageAction->isEnabled());
                 }

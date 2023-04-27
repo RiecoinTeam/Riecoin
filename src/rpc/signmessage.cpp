@@ -15,6 +15,57 @@
 
 #include <string>
 
+static RPCHelpMan verifycode()
+{
+    return RPCHelpMan{"verifycode",
+        "Verify a code.",
+        {
+            {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to use for the code."},
+            {"code", RPCArg::Type::STR, RPCArg::Optional::NO, "The provided code (see signmessage)."},
+        },
+        RPCResult{
+            RPCResult::Type::BOOL, "", "Whether the code is valid or not. Note that a code expires the next minute."
+        },
+        RPCExamples{
+            "\nUnlock the wallet for 30 seconds\n"
+            + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+            "\nCreate the code\n"
+            + HelpExampleCli("generatecode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\"") +
+            "\nVerify the code\n"
+            + HelpExampleCli("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\" \"code\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\", \"code\"")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            std::string strAddress = request.params[0].get_str();
+            std::string strSign = request.params[1].get_str();
+            const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+            const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
+
+            switch (MessageVerify(strAddress, strSign, timestampStr)) {
+            case MessageVerificationResult::ERR_INVALID_ADDRESS:
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+            case MessageVerificationResult::ERR_ADDRESS_NO_KEY:
+                throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
+            case MessageVerificationResult::ERR_MALFORMED_SIGNATURE:
+                throw JSONRPCError(RPC_TYPE_ERROR, "Malformed base64 encoding");
+            case MessageVerificationResult::ERR_PUBKEY_NOT_RECOVERED:
+            case MessageVerificationResult::ERR_NOT_SIGNED:
+            case MessageVerificationResult::INCONCLUSIVE:
+            case MessageVerificationResult::ERR_INVALID:
+            case MessageVerificationResult::ERR_POF:
+                return false;
+            case MessageVerificationResult::OK_TIMELOCKED:
+            case MessageVerificationResult::OK:
+                return true;
+            }
+
+            return false;
+        },
+    };
+}
+
 static RPCHelpMan verifymessage()
 {
     return RPCHelpMan{"verifymessage",
@@ -69,6 +120,46 @@ static RPCHelpMan verifymessage()
     };
 }
 
+static RPCHelpMan generatecode()
+{
+    return RPCHelpMan{"generatecode",
+        "\nGenerate a code with the private key of an address\n",
+        {
+            {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The private key to generate the message with."},
+        },
+        RPCResult{
+            RPCResult::Type::STR, "code", "The code"
+        },
+        RPCExamples{
+            "\nCreate the code\n"
+            + HelpExampleCli("generatecode", "\"privkey\"") +
+            "\nVerify the code\n"
+            + HelpExampleCli("verifycode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\" \"code\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("generatecode", "\"ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja\"")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            std::string strPrivkey = request.params[0].get_str();
+            const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+            const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
+
+            CKey key = DecodeSecret(strPrivkey);
+            if (!key.IsValid()) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
+            }
+
+            std::string signature;
+
+            if (!MessageSign(key, timestampStr, signature)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Code generation failed");
+            }
+
+            return signature;
+        },
+    };
+}
+
 static RPCHelpMan signmessagewithprivkey()
 {
     return RPCHelpMan{"signmessagewithprivkey",
@@ -112,7 +203,9 @@ static RPCHelpMan signmessagewithprivkey()
 void RegisterSignMessageRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
+        {"util", &verifycode},
         {"util", &verifymessage},
+        {"util", &generatecode},
         {"util", &signmessagewithprivkey},
     };
     for (const auto& c : commands) {

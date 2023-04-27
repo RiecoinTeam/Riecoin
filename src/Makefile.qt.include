@@ -20,6 +20,7 @@ QT_FORMS_UI = \
   qt/forms/coincontroldialog.ui \
   qt/forms/createwalletdialog.ui \
   qt/forms/editaddressdialog.ui \
+  qt/forms/generatecodedialog.ui \
   qt/forms/helpmessagedialog.ui \
   qt/forms/intro.ui \
   qt/forms/modaloverlay.ui \
@@ -51,6 +52,7 @@ QT_MOC_CPP = \
   qt/moc_coincontroltreewidget.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
+  qt/moc_generatecodedialog.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_initexecutor.cpp \
   qt/moc_intro.cpp \
@@ -122,6 +124,7 @@ BITCOIN_QT_H = \
   qt/createwalletdialog.h \
   qt/csvmodelwriter.h \
   qt/editaddressdialog.h \
+  qt/generatecodedialog.h \
   qt/guiconstants.h \
   qt/guiutil.h \
   qt/initexecutor.h \
@@ -255,6 +258,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/coincontroltreewidget.cpp \
   qt/createwalletdialog.cpp \
   qt/editaddressdialog.cpp \
+  qt/generatecodedialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
   qt/paymentserver.cpp \

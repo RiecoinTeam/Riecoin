@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,6 +8,7 @@
 #include <qt/addressbookpage.h>
 #include <qt/askpassphrasedialog.h>
 #include <qt/clientmodel.h>
+#include <qt/generatecodedialog.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
@@ -164,6 +166,13 @@ void WalletView::gotoSendCoinsPage(QString addr)
 
     if (!addr.isEmpty())
         sendCoinsPage->setAddress(addr);
+}
+
+void WalletView::generateCode()
+{
+    GenerateCodeDialog *generateCodeDialog = new GenerateCodeDialog(platformStyle, this);
+    generateCodeDialog->setAttribute(Qt::WA_DeleteOnClose);
+    generateCodeDialog->setModel(walletModel);
 }
 
 void WalletView::gotoSignMessageTab(QString addr)
