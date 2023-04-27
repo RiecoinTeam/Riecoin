@@ -80,7 +80,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
              'scriptPubKey': 'badbadbadbad'}
         ]
 
-        outputs = {'mpLQjfK79b7CCV4VMJWEWAj5Mpx8Up5zxB': 0.1}
+        outputs = {'rF43ZrbGxaCqCFbScvAjqYijHNnWGsr9Bb': 0.1}
 
         rawTx = self.nodes[0].createrawtransaction(inputs, outputs)
 

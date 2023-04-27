@@ -41,7 +41,7 @@ class WalletHDTest(BitcoinTestFramework):
         assert_equal(change_addrV["hdkeypath"], "m/84'/1'/0'/1/0")
 
         # Import a non-HD private key in the HD wallet
-        non_hd_add = 'bcrt1qmevj8zfx0wdvp05cqwkmr6mxkfx60yezwjksmt'
+        non_hd_add = 'rric1qmevj8zfx0wdvp05cqwkmr6mxkfx60yez7dc7fy'
         non_hd_key = 'prv886efa8b717fc4f44af66bd2cb9396e4714f641a55337b1b3bc7f808b2200b8e'
         self.nodes[1].importprivkey(non_hd_key)
 

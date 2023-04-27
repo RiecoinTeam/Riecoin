@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(rpc_rawsign)
       "\"vout\":1,\"scriptPubKey\":\"a914b10c9df5f7edf436c697f02f1efdba4cf399615187\","
       "\"redeemScript\":\"512103debedc17b3df2badbcdd86d5feb4562b86fe182e5998abd8bcd4f122c6155b1b21027e940bb73ab8732bfdf7f9216ecefca5b94d6df834e77e108f68e66f126044c052ae\"}]";
     r = CallRPC(std::string("createrawtransaction ")+prevout+" "+
-      "{\"3HqAe9LtNBjnsfM4CyYaWTnvCaUYT7v4oZ\":11}");
+      "{\"TS7MifEAy1YMwfiFg9Xhbz87xqw98qQrvs\":11}");
     std::string notsigned = r.get_str();
     std::string privkey1 = "\"prv6cf864daeb6a276e7bc66466ec624d7e1ca9c5be11155399f37ce7a9f819b641\"";
     std::string privkey2 = "\"prv4a09f53de410732e5e6e82deca3498bf58d23ee079e70b1c06b3cae26bf34d53\"";
@@ -337,22 +337,22 @@ BOOST_AUTO_TEST_CASE(rpc_convert_values_generatetoaddress)
 {
     UniValue result;
 
-    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"101", "mkESjLZW66TmHhiFX8MCaBjrhZ543PPh9a"}));
+    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"101", "rydHXkSFKSV9vLXNqagLspH5t7RKGD6qJK"}));
     BOOST_CHECK_EQUAL(result[0].getInt<int>(), 101);
-    BOOST_CHECK_EQUAL(result[1].get_str(), "mkESjLZW66TmHhiFX8MCaBjrhZ543PPh9a");
+    BOOST_CHECK_EQUAL(result[1].get_str(), "rydHXkSFKSV9vLXNqagLspH5t7RKGD6qJK");
 
-    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"101", "mhMbmE2tE9xzJYCV9aNC8jKWN31vtGrguU"}));
+    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"101", "rvkSZdudTVzNwB1cU2hLSMrjYbNCAQJjQL"}));
     BOOST_CHECK_EQUAL(result[0].getInt<int>(), 101);
-    BOOST_CHECK_EQUAL(result[1].get_str(), "mhMbmE2tE9xzJYCV9aNC8jKWN31vtGrguU");
+    BOOST_CHECK_EQUAL(result[1].get_str(), "rvkSZdudTVzNwB1cU2hLSMrjYbNCAQJjQL");
 
-    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"1", "mkESjLZW66TmHhiFX8MCaBjrhZ543PPh9a", "9"}));
+    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"1", "rydHXkSFKSV9vLXNqagLspH5t7RKGD6qJK", "9"}));
     BOOST_CHECK_EQUAL(result[0].getInt<int>(), 1);
-    BOOST_CHECK_EQUAL(result[1].get_str(), "mkESjLZW66TmHhiFX8MCaBjrhZ543PPh9a");
+    BOOST_CHECK_EQUAL(result[1].get_str(), "rydHXkSFKSV9vLXNqagLspH5t7RKGD6qJK");
     BOOST_CHECK_EQUAL(result[2].getInt<int>(), 9);
 
-    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"1", "mhMbmE2tE9xzJYCV9aNC8jKWN31vtGrguU", "9"}));
+    BOOST_CHECK_NO_THROW(result = RPCConvertValues("generatetoaddress", {"1", "rvkSZdudTVzNwB1cU2hLSMrjYbNCAQJjQL", "9"}));
     BOOST_CHECK_EQUAL(result[0].getInt<int>(), 1);
-    BOOST_CHECK_EQUAL(result[1].get_str(), "mhMbmE2tE9xzJYCV9aNC8jKWN31vtGrguU");
+    BOOST_CHECK_EQUAL(result[1].get_str(), "rvkSZdudTVzNwB1cU2hLSMrjYbNCAQJjQL");
     BOOST_CHECK_EQUAL(result[2].getInt<int>(), 9);
 }
 

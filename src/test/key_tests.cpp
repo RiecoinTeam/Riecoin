@@ -20,10 +20,10 @@
 
 static const std::string strSecret1C = "prv12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747";
 static const std::string strSecret2C = "prvb524c28b61c9b2c49b2c7dd4c2d75887abb78768c054bd7c01af4029f6c0d117";
-static const std::string addr1C = "1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs";
-static const std::string addr2C = "1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs";
+static const std::string addr1C = "RX5VwKmAZCytjCf6mhSBP6xWcnspqFiSfK";
+static const std::string addr2C = "RLhv6ordc2L64HXioasqMsJtSdukCn2Tcg";
 
-static const std::string strAddressBad = "1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF";
+static const std::string strAddressBad = "RRmLR7w9y7NY1jRmDGeJ8fDSXTKaV5ms8X";
 
 
 BOOST_FIXTURE_TEST_SUITE(key_tests, BasicTestingSetup)

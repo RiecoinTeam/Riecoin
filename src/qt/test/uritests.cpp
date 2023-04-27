@@ -14,54 +14,54 @@ void URITests::uriTests()
 {
     SendCoinsRecipient rv;
     QUrl uri;
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?req-dontexist="));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?req-dontexist="));
     QVERIFY(!GUIUtil::parseBitcoinURI(uri, &rv));
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?dontexist="));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?dontexist="));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.label == QString());
     QVERIFY(rv.amount == 0);
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?label=Wikipedia Example Address"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?label=Example Address"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
-    QVERIFY(rv.label == QString("Wikipedia Example Address"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
+    QVERIFY(rv.label == QString("Example Address"));
     QVERIFY(rv.amount == 0);
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=0.001"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?amount=0.001"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.label == QString());
     QVERIFY(rv.amount == 100000);
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1.001"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?amount=1.001"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.label == QString());
     QVERIFY(rv.amount == 100100000);
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=100&label=Wikipedia Example"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?amount=100&label=Example"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.amount == 10000000000LL);
-    QVERIFY(rv.label == QString("Wikipedia Example"));
+    QVERIFY(rv.label == QString("Example"));
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?message=Wikipedia Example Address"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?message=Example Address"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.label == QString());
 
-    QVERIFY(GUIUtil::parseBitcoinURI("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?message=Wikipedia Example Address", &rv));
-    QVERIFY(rv.address == QString("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"));
+    QVERIFY(GUIUtil::parseBitcoinURI("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?message=Example Address", &rv));
+    QVERIFY(rv.address == QString("ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"));
     QVERIFY(rv.label == QString());
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?req-message=Wikipedia Example Address"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?req-message=Example Address"));
     QVERIFY(GUIUtil::parseBitcoinURI(uri, &rv));
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1,000&label=Wikipedia Example"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?amount=1,000&label=Example"));
     QVERIFY(!GUIUtil::parseBitcoinURI(uri, &rv));
 
-    uri.setUrl(QString("riecoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?amount=1,000.0&label=Wikipedia Example"));
+    uri.setUrl(QString("riecoin:ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja?amount=1,000.0&label=Example"));
     QVERIFY(!GUIUtil::parseBitcoinURI(uri, &rv));
 }
