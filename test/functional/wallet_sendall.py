@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2022 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the sendall RPC command."""
@@ -32,6 +33,7 @@ class SendallTest(BitcoinTestFramework):
     def set_test_params(self):
         getcontext().prec=10
         self.num_nodes = 1
+        self.extra_args = [["-addresstype=bech32"]]
         self.setup_clean_chain = True
 
     def assert_balance_swept_completely(self, tx, balance):

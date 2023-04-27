@@ -202,7 +202,7 @@ class WalletSignerTest(BitcoinTestFramework):
 
         self.log.info('Test sendall using hww1')
 
-        res = hww.sendall(recipients=[{dest:0.5}, hww.getrawchangeaddress()],options={"add_to_wallet": False})
+        res = hww.sendall(recipients=[{dest:0.5}, hww.getrawchangeaddress(address_type="bech32")],options={"add_to_wallet": False})
         assert(res["complete"])
         assert_equal(res["hex"], mock_tx)
 

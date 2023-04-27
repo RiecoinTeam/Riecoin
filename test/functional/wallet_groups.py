@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2018-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test wallet group functionality."""
@@ -20,11 +21,11 @@ class WalletGroupTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 5
         self.extra_args = [
-            [],
+            ["-addresstype=bech32"],
             [],
             ["-avoidpartialspends"],
-            ["-maxapsfee=0.00002719"],
-            ["-maxapsfee=0.00002720"],
+            ["-addresstype=bech32", "-maxapsfee=0.00002719"],
+            ["-addresstype=bech32", "-maxapsfee=0.00002720"],
         ]
 
         for args in self.extra_args:

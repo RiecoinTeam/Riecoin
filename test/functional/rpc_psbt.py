@@ -53,8 +53,8 @@ class PSBTTest(BitcoinTestFramework):
         self.num_nodes = 3
         self.extra_args = [
             ["-walletrbf=1", "-addresstype=bech32", "-changetype=bech32"], #TODO: Remove address type restrictions once taproot has psbt extensions
-            ["-walletrbf=0", "-changetype=legacy"],
-            []
+            ["-walletrbf=0", "-addresstype=bech32", "-changetype=bech32m"],
+            ["-addresstype=bech32", "-changetype=bech32m"]
         ]
         self.supports_cli = False
 
@@ -227,7 +227,7 @@ class PSBTTest(BitcoinTestFramework):
 
         self.log.info("Test min fee rate checks with walletcreatefundedpsbt are bypassed, e.g. a fee_rate under 1 sat/vB is allowed")
         res3 = self.nodes[1].walletcreatefundedpsbt(inputs, outputs, 0, {"fee_rate": "0.999", "add_inputs": True})
-        assert_approx(res3["fee"], 0.00000381, 0.0000001)
+        assert_approx(res3["fee"], 0.00000391, 0.0000001)
 
         self.log.info("Test min fee rate checks with walletcreatefundedpsbt are bypassed and that funding non-standard 'zero-fee' transactions is valid")
         for param, zero_value in product(["fee_rate"], [0, 0.000, 0.00000000, "0", "0.000", "0.00000000"]):
@@ -405,15 +405,15 @@ class PSBTTest(BitcoinTestFramework):
         small_output = {self.nodes[0].getnewaddress():0.1}
         psbtx_native = self.nodes[0].walletcreatefundedpsbt([], [small_output])
         self.assert_change_type(psbtx_native, "witness_v0_keyhash")
-        psbtx_legacy = self.nodes[1].walletcreatefundedpsbt([], [small_output])
-        self.assert_change_type(psbtx_legacy, "pubkeyhash")
+        psbtx_p2tr = self.nodes[1].walletcreatefundedpsbt([], [small_output])
+        self.assert_change_type(psbtx_p2tr, "witness_v1_taproot")
 
         # Make sure the change type of the wallet can also be overwritten
-        psbtx_np2wkh = self.nodes[1].walletcreatefundedpsbt([], [small_output], 0, {"change_type":"p2sh-segwit"})
-        self.assert_change_type(psbtx_np2wkh, "scripthash")
+        psbtx_np2wkh = self.nodes[1].walletcreatefundedpsbt([], [small_output], 0, {"change_type":"bech32"})
+        self.assert_change_type(psbtx_np2wkh, "witness_v0_keyhash")
 
         # Make sure the change type cannot be specified if a change address is given
-        invalid_options = {"change_type":"legacy","changeAddress":self.nodes[0].getnewaddress()}
+        invalid_options = {"change_type":"witness_v1_taproot","changeAddress":self.nodes[0].getnewaddress()}
         assert_raises_rpc_error(-8, "both change address and address type options", self.nodes[0].walletcreatefundedpsbt, [], [small_output], 0, invalid_options)
 
         # Regression test for 14473 (mishandling of already-signed witness transaction):

@@ -21,8 +21,8 @@ class WalletChangeAddressTest(BitcoinTestFramework):
         # discardfee is used to make change outputs less likely in the change_pos test
         self.extra_args = [
             [],
-            ["-discardfee=1"],
-            ["-avoidpartialspends", "-discardfee=1"]
+            ["-discardfee=1", "-changetype=bech32"],
+            ["-avoidpartialspends", "-discardfee=1", "-changetype=bech32"]
         ]
 
     def skip_test_if_missing_module(self):

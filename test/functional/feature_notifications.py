@@ -54,12 +54,12 @@ class NotificationsTest(BitcoinTestFramework):
             # Setup the descriptors to be imported to the wallet
             xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
             desc_imports = [{
-                "desc": descsum_create(f"wpkh({xpriv}/0/*)"),
+                "desc": descsum_create(f"tr({xpriv}/0/*)"),
                 "timestamp": 0,
                 "active": True,
                 "keypool": True,
             },{
-                "desc": descsum_create(f"wpkh({xpriv}/1/*)"),
+                "desc": descsum_create(f"tr({xpriv}/1/*)"),
                 "timestamp": 0,
                 "active": True,
                 "keypool": True,
