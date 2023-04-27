@@ -25,9 +25,6 @@ PUBKEY_ADDRESS_TEST = 111
 SCRIPT_ADDRESS_TEST = 196
 PUBKEY_ADDRESS_REGTEST = 111
 SCRIPT_ADDRESS_REGTEST = 196
-PRIVKEY = 128
-PRIVKEY_TEST = 239
-PRIVKEY_REGTEST = 239
 
 # script
 pubkey_prefix = (OP_DUP, OP_HASH160, 20)
@@ -49,12 +46,9 @@ templates = [
   ((SCRIPT_ADDRESS_TEST,),    20, (),   (False, 'test',    None,  None), script_prefix, script_suffix),
   ((PUBKEY_ADDRESS_REGTEST,), 20, (),   (False, 'regtest', None,  None), pubkey_prefix, pubkey_suffix),
   ((SCRIPT_ADDRESS_REGTEST,), 20, (),   (False, 'regtest', None,  None), script_prefix, script_suffix),
-  ((PRIVKEY,),                32, (),   (True,  'main',    False, None), (),            ()),
-  ((PRIVKEY,),                32, (1,), (True,  'main',    True,  None), (),            ()),
-  ((PRIVKEY_TEST,),           32, (),   (True,  'test',    False, None), (),            ()),
-  ((PRIVKEY_TEST,),           32, (1,), (True,  'test',    True,  None), (),            ()),
-  ((PRIVKEY_REGTEST,),        32, (),   (True,  'regtest', False, None), (),            ()),
-  ((PRIVKEY_REGTEST,),        32, (1,), (True,  'regtest', True,  None), (),            ())
+  ('prv',                     32, (1,), (True,  'main',    True,  None), (),            ()),
+  ('prv',                     32, (1,), (True,  'test',    True,  None), (),            ()),
+  ('prv',                     32, (1,), (True,  'regtest', True,  None), (),            ())
 ]
 # templates for valid bech32 sequences
 bech32_templates = [
@@ -95,6 +89,11 @@ bech32_ng_templates = [
 
 def is_valid(v):
     '''Check vector v for validity'''
+    if len(v) == 67:
+        if v[:3] == 'prv':
+            return True
+        else:
+            return False
     if len(set(v) - set(b58chars)) > 0:
         return is_valid_bech32(v)
     try:
@@ -103,6 +102,8 @@ def is_valid(v):
     except ValueError:  # thrown if checksum doesn't match
         return is_valid_bech32(v)
     for template in templates:
+        if template[0] == 'prv':
+            return False;
         prefix = bytearray(template[0])
         suffix = bytearray(template[2])
         if result.startswith(prefix) and result.endswith(suffix):
@@ -119,13 +120,16 @@ def is_valid_bech32(v):
 
 def gen_valid_base58_vector(template):
     '''Generate valid base58 vector'''
-    prefix = bytearray(template[0])
+    prefix = template[0]
     payload = rand_bytes(size=template[1])
     suffix = bytearray(template[2])
     dst_prefix = bytearray(template[4])
     dst_suffix = bytearray(template[5])
-    assert len(prefix) == 1
-    rv = byte_to_base58(payload + suffix, prefix[0])
+    if isinstance(prefix[0], int):
+        prefix = bytearray(prefix)
+        rv = byte_to_base58(payload + suffix, prefix[0])
+    else:
+        rv = prefix + payload.hex()
     return rv, dst_prefix + payload + dst_suffix
 
 def gen_valid_bech32_vector(template):
@@ -162,9 +166,9 @@ def gen_invalid_base58_vector(template):
     corrupt_suffix = randbool(0.2)
 
     if corrupt_prefix:
-        prefix = rand_bytes(size=1)
+        prefix = rand_bytes(size=len(template[0]))
     else:
-        prefix = bytearray(template[0])
+        prefix = template[0]
 
     if randomize_payload_size:
         payload = rand_bytes(size=max(int(random.expovariate(0.5)), 50))
@@ -176,8 +180,10 @@ def gen_invalid_base58_vector(template):
     else:
         suffix = bytearray(template[2])
 
-    assert len(prefix) == 1
-    val = byte_to_base58(payload + suffix, prefix[0])
+    if isinstance(prefix[0], int):
+        val = byte_to_base58(payload + suffix, prefix[0])
+    else:
+        val = prefix + payload.hex()
     if random.randint(0,10)<1: # line corruption
         if randbool(): # add random character to end
             val += random.choice(b58chars)

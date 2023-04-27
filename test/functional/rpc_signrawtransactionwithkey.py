@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2015-2022 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test transaction signing using the signrawtransactionwithkey RPC."""
@@ -55,7 +56,7 @@ class SignRawTransactionWithKeyTest(BitcoinTestFramework):
         1) The transaction has a complete set of signatures
         2) No script verification error occurred"""
         self.log.info("Test valid raw transaction with one input")
-        privKeys = ['cUeKHd5orzT3mz8P9pxyREHfsWtVfgsfDjiZZBcjUBAaGk1BTj7N', 'cVKpPfVKSJxKqVpE9awvXNWuLHCa5j5tiE7K6zbUSptFpTEtiFrA']
+        privKeys = ['prvd2b8a0116d641fe7d3036f8464628fb595b480414c13a301b3d4038c811c28b0', 'prve70adb8829abccd27c1427a60bc7f8af6529abd53748bb5cafbab6484c0a1c86']
 
         inputs = [
             # Valid pay-to-pubkey scripts
