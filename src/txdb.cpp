@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -324,9 +325,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams)) {
+                // This makes the start very long and disabling this check should not have any practical drawback. It has been so since at least 0.10.2 (2014). So, assume that the disk's PoW data is valid.
+                /*if (!CheckProofOfWork(pindexNew->GetBlockHeader().GetHashForPoW(), pindexNew->nBits, ArithToUint256(pindexNew->nNonce), consensusParams)) {
                     return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
-                }
+                }*/
 
                 pcursor->Next();
             } else {

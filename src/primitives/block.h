@@ -1,11 +1,13 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2020 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_PRIMITIVES_BLOCK_H
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
+#include <arith_uint256.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <uint256.h>
@@ -25,9 +27,9 @@ public:
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
-    uint32_t nTime;
+    int64_t nTime;
     uint32_t nBits;
-    uint32_t nNonce;
+    arith_uint256 nNonce;
 
     CBlockHeader()
     {
@@ -52,6 +54,7 @@ public:
     }
 
     uint256 GetHash() const;
+    uint256 GetHashForPoW() const;
 
     NodeSeconds Time() const
     {
@@ -60,8 +63,10 @@ public:
 
     int64_t GetBlockTime() const
     {
-        return (int64_t)nTime;
+        return nTime;
     }
+
+    int32_t GetPoWVersion() const;
 };
 
 

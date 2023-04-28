@@ -6,6 +6,8 @@
 #ifndef BITCOIN_ARITH_UINT256_H
 #define BITCOIN_ARITH_UINT256_H
 
+#include <span.h>
+
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -238,6 +240,18 @@ public:
     {
         static_assert(WIDTH >= 2, "Assertion WIDTH >= 2 failed (WIDTH = BITS / 32). BITS is a template parameter.");
         return pn[0] | (uint64_t)pn[1] << 32;
+    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        s.write(MakeByteSpan(pn));
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        s.read(MakeWritableByteSpan(pn));
     }
 };
 

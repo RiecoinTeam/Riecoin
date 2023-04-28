@@ -1,4 +1,5 @@
 // Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,7 +16,6 @@
 #include <serialize.h>
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
-#include <timedata.h>
 #include <util/string.h>
 #include <util/system.h>
 #include <util/time.h>
@@ -70,7 +70,6 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
         /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
         /*version=*/PROTOCOL_VERSION,
         /*relay_txs=*/true);
-    TestOnlyResetTimeData();
 
     // This test requires that we have a chain with non-zero work.
     {

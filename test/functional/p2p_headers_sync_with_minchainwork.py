@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2019-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test that we reject low difficulty headers to prevent our block tree from filling up with useless bloat"""
@@ -30,7 +31,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 4
         # Node0 has no required chainwork; node1 requires 15 blocks on top of the genesis block; node2 requires 2047
-        self.extra_args = [["-minimumchainwork=0x0", "-checkblockindex=0"], ["-minimumchainwork=0x1f", "-checkblockindex=0"], ["-minimumchainwork=0x1000", "-checkblockindex=0"], ["-minimumchainwork=0x1000", "-checkblockindex=0", "-whitelist=noban@127.0.0.1"]]
+        self.extra_args = [["-minimumchainwork=0x0", "-checkblockindex=0"], ["-minimumchainwork=0x1207c6547", "-checkblockindex=0"], ["-minimumchainwork=0x94e55d9000", "-checkblockindex=0"], ["-minimumchainwork=0x94e55d9000", "-checkblockindex=0", "-whitelist=noban@127.0.0.1"]]
 
     def setup_network(self):
         self.setup_nodes()
@@ -72,7 +73,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
             assert(len(chaintips) == 1)
             assert {
                 'height': 0,
-                'hash': '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206',
+                'hash': 'cc673f6ea26e6477ab71b67c47149a4206b2098be8612f7e8357aeb1523ee01b',
                 'branchlen': 0,
                 'status': 'active',
             } in chaintips
@@ -84,7 +85,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
 
         assert {
             'height': 0,
-            'hash': '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206',
+            'hash': 'be65fb0d828c82a8535e548fb9eb5bbfd81a1abaaaca03ae3a943cbb5a1a4090',
             'branchlen': 0,
             'status': 'active',
         } in self.nodes[2].getchaintips()

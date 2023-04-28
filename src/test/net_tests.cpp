@@ -1,4 +1,5 @@
 // Copyright (c) 2012-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,7 +17,6 @@
 #include <streams.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
-#include <timedata.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>
@@ -837,7 +837,7 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
                /*inbound_onion=*/false};
 
     const uint64_t services{NODE_NETWORK | NODE_WITNESS};
-    const int64_t time{0};
+    const int64_t time{GetTime()};
     const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
 
     // Force Chainstate::IsInitialBlockDownload() to return false.
@@ -900,10 +900,6 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     chainstate.ResetIbd();
     m_node.args->ForceSetArg("-capturemessages", "0");
     m_node.args->ForceSetArg("-bind", "");
-    // PeerManager::ProcessMessage() calls AddTimeData() which changes the internal state
-    // in timedata.cpp and later confuses the test "timedata_tests/addtimedata". Thus reset
-    // that state as it was before our test was run.
-    TestOnlyResetTimeData();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

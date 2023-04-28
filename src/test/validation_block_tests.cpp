@@ -1,4 +1,5 @@
 // Copyright (c) 2018-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -93,8 +94,9 @@ std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock>
 
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
-    while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-        ++(pblock->nNonce);
+    pblock->nNonce = 1;
+    while (!CheckProofOfWork(pblock->GetHashForPoW(), pblock->nBits, ArithToUint256(pblock->nNonce), Params().GetConsensus())) {
+        pblock->nNonce += 2;
     }
 
     // submit block header, so that miner can get the block height from the

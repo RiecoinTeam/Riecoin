@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2023 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test logic for setting nMinimumChainWork on command line.
@@ -21,16 +22,16 @@ from test_framework.p2p import P2PInterface, msg_getheaders
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 
-# 2 hashes required per regtest block (with no difficulty adjustment)
-REGTEST_WORK_PER_BLOCK = 2
+# 304^(1 + 2.3) (was 2 for Bitcoin)
+REGTEST_WORK_PER_BLOCK = 156128729
 
 class MinimumChainWorkTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 3
 
-        self.extra_args = [[], ["-minimumchainwork=0x65"], ["-minimumchainwork=0x65"]]
-        self.node_min_work = [0, 101, 101]
+        self.extra_args = [[], ["-minimumchainwork=0x1d5f3ef4e"], ["-minimumchainwork=0x1d5f3ef4e"]] # REGTEST_WORK_PER_BLOCK*50.5 (was 101 for Bitcoin)
+        self.node_min_work = [0, 7884500814, 7884500814] # REGTEST_WORK_PER_BLOCK*50.5
 
     def setup_network(self):
         # This test relies on the chain setup being:
@@ -76,7 +77,9 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getblockcount(), starting_blockcount)
 
         self.log.info("Check that getheaders requests to node2 are ignored")
+        self.nodes[2].setmocktime(int(time.time())) # Set to now to avoid "Too Large Time Offset" disconnect in Riecoin
         peer = self.nodes[2].add_p2p_connection(P2PInterface())
+        self.nodes[2].setmocktime(int(time.time()) + 48*60*60) # Revert
         msg = msg_getheaders()
         msg.locator.vHave = [int(self.nodes[2].getbestblockhash(), 16)]
         msg.hashstop = 0

@@ -1,4 +1,5 @@
 // Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -28,9 +29,9 @@ struct HeadersGeneratorSetup : public RegTestingSetup {
 
 void HeadersGeneratorSetup::FindProofOfWork(CBlockHeader& starting_header)
 {
-    while (!CheckProofOfWork(starting_header.GetHash(), starting_header.nBits, Params().GetConsensus())) {
-        ++(starting_header.nNonce);
-    }
+    starting_header.nNonce = 1;
+    while (!CheckProofOfWork(starting_header.GetHashForPoW(), starting_header.nBits, ArithToUint256(starting_header.nNonce), Params().GetConsensus()))
+        starting_header.nNonce += 2;
 }
 
 void HeadersGeneratorSetup::GenerateHeaders(std::vector<CBlockHeader>& headers,
@@ -73,7 +74,8 @@ BOOST_AUTO_TEST_CASE(headers_sync_state)
     std::unique_ptr<HeadersSyncState> hss;
 
     const int target_blocks = 15000;
-    arith_uint256 chain_work = target_blocks*2;
+    arith_uint256 chain_work = target_blocks;
+    chain_work *= 156128729; // 304^(1 + 2.3) (was 2 for Bitcoin)
 
     // Generate headers for two different chains (using differing merkle roots
     // to ensure the headers are different).

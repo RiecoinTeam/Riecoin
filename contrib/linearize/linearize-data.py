@@ -22,11 +22,20 @@ from collections import namedtuple
 settings = {}
 
 def calc_hash_str(blk_hdr):
-    blk_hdr_hash = hashlib.sha256(hashlib.sha256(blk_hdr).digest()).digest()
+    if blk_hdr.hex() == "0100000000000000000000000000000000000000000000000000000000000000000000001881a43a68091cb9a2ccb3d30ac5c308ee8b8ac1c8b290be26619ebb19fe9ad57d73f95200000000003001020000000000000000000000000000000000000000000000000000000000000000": # PoW Version 0 (MainNet Genesis Block, must be handled separately)
+        blk_hdr_hash = bytes.fromhex("e1ea18d0676ef9899fbc78ef428d1d26a2416d0f0441d46668d33bcb41275740")[::-1];
+    elif blk_hdr.hex() == "010000000000000000000000000000000000000000000000000000000000000000000000a147e7a071602ff1d5be6bbc63f248d80932eb6bff4baa0baeaa0c0d7a30fb8600d2fb5e00000000005802020000000000000000000000000000000000000000000000000000000000000000": # PoW Version 0 (TestNet Genesis Block, must be handled separately)
+        blk_hdr_hash = bytes.fromhex("a437561f7e97ee05f336c12b36900ccf3ef19851a08805c1452d69a4efcbe701")[::-1];
+    elif blk_hdr.hex() == "010000000000000000000000000000000000000000000000000000000000000000000000a147e7a071602ff1d5be6bbc63f248d80932eb6bff4baa0baeaa0c0d7a30fb8600e10b5e00000000003001020000000000000000000000000000000000000000000000000000000000000000": # PoW Version 0 (RegTest Genesis Block, must be handled separately)
+        blk_hdr_hash = bytes.fromhex("cc673f6ea26e6477ab71b67c47149a4206b2098be8612f7e8357aeb1523ee01b")[::-1];
+    elif blk_hdr[80] % 2 == 1: # PoW Version -1
+        blk_hdr_hash = hashlib.sha256(hashlib.sha256(blk_hdr[0:68] + blk_hdr[76:80] + blk_hdr[68:76] + blk_hdr[80:112]).digest()).digest()
+    else: # PoW Version 1
+        blk_hdr_hash = hashlib.sha256(hashlib.sha256(blk_hdr).digest()).digest()
     return blk_hdr_hash[::-1].hex()
 
 def get_blk_dt(blk_hdr):
-    members = struct.unpack("<I", blk_hdr[68:68+4])
+    members = struct.unpack("<Q", blk_hdr[68:68+8])
     nTime = members[0]
     dt = datetime.datetime.fromtimestamp(nTime)
     dt_ym = datetime.datetime(dt.year, dt.month, 1)
@@ -207,8 +216,8 @@ class BlockDataCopier:
                 continue
             inLenLE = inhdr[4:]
             su = struct.unpack("<I", inLenLE)
-            inLen = su[0] - 80 # length without header
-            blk_hdr = self.inF.read(80)
+            inLen = su[0] - 112 # length without header
+            blk_hdr = self.inF.read(112)
             inExtent = BlockExtent(self.inFn, self.inF.tell(), inhdr, blk_hdr, inLen)
 
             self.hash_str = calc_hash_str(blk_hdr)
@@ -272,7 +281,7 @@ if __name__ == '__main__':
     if 'netmagic' not in settings:
         settings['netmagic'] = 'fcbcb2db'
     if 'genesis' not in settings:
-        settings['genesis'] = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+        settings['genesis'] = 'e1ea18d0676ef9899fbc78ef428d1d26a2416d0f0441d46668d33bcb41275740'
     if 'input' not in settings:
         settings['input'] = 'input'
     if 'hashlist' not in settings:

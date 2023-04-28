@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-2021 The Bitcoin Core developers
+# Copyright (c) 2013-2021 The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPCs related to blockchainstate.
@@ -54,7 +55,7 @@ from test_framework.wallet import MiniWallet
 
 
 HEIGHT = 200  # blocks mined
-TIME_RANGE_STEP = 600  # ten-minute steps
+TIME_RANGE_STEP = 150  # s
 TIME_RANGE_MTP = TIME_GENESIS_BLOCK + (HEIGHT - 6) * TIME_RANGE_STEP
 TIME_RANGE_TIP = TIME_GENESIS_BLOCK + (HEIGHT - 1) * TIME_RANGE_STEP
 TIME_RANGE_END = TIME_GENESIS_BLOCK + HEIGHT * TIME_RANGE_STEP
@@ -84,7 +85,7 @@ class BlockchainTest(BitcoinTestFramework):
         self._test_gettxoutsetinfo()
         self._test_getblockheader()
         self._test_getdifficulty()
-        self._test_getnetworkhashps()
+        self._test_getnetworkminingpower()
         self._test_stopatheight()
         self._test_waitforblockheight()
         self._test_getblock()
@@ -279,7 +280,7 @@ class BlockchainTest(BitcoinTestFramework):
         chaintxstats = self.nodes[0].getchaintxstats(nblocks=1)
         # 200 txs plus genesis tx
         assert_equal(chaintxstats['txcount'], HEIGHT + 1)
-        # tx rate should be 1 per 10 minutes, or 1/600
+        # tx rate should be 1 per 2.5 minutes, or 1/150
         # we have to round because of binary math
         assert_equal(round(chaintxstats['txrate'] * TIME_RANGE_STEP, 10), Decimal(1))
 
@@ -394,10 +395,10 @@ class BlockchainTest(BitcoinTestFramework):
         assert_is_hash_string(header['bits'], length=None)
         assert isinstance(header['time'], int)
         assert_equal(header['mediantime'], TIME_RANGE_MTP)
-        assert isinstance(header['nonce'], int)
+        assert isinstance(header['nonce'], str)
         assert isinstance(header['version'], int)
         assert isinstance(int(header['versionHex'], 16), int)
-        assert isinstance(header['difficulty'], Decimal)
+        assert isinstance(header['difficulty'], int)
 
         # Test with verbose=False, which should return the header as hex.
         header_hex = node.getblockheader(blockhash=besthash, verbose=False)
@@ -413,15 +414,12 @@ class BlockchainTest(BitcoinTestFramework):
     def _test_getdifficulty(self):
         self.log.info("Test getdifficulty")
         difficulty = self.nodes[0].getdifficulty()
-        # 1 hash in 2 should be valid, so difficulty should be 1/2**31
-        # binary => decimal => binary math is why we do this check
-        assert abs(difficulty * 2**31 - 1) < 0.0001
+        assert difficulty == 304
 
-    def _test_getnetworkhashps(self):
-        self.log.info("Test getnetworkhashps")
-        hashes_per_second = self.nodes[0].getnetworkhashps()
-        # This should be 2 hashes every 10 minutes or 1/300
-        assert abs(hashes_per_second * 300 - 1) < 0.0001
+    def _test_getnetworkminingpower(self):
+        mining_power = self.nodes[0].getnetworkminingpower()
+        # Mining 1 block every 150 s at Difficulty 304, by definition, corresponds to a Mining Power of 1
+        assert abs(mining_power - 1.) < 0.0001
 
     def _test_stopatheight(self):
         self.log.info("Test stopping at height")
@@ -488,7 +486,7 @@ class BlockchainTest(BitcoinTestFramework):
 
         def assert_hexblock_hashes(verbosity):
             block = node.getblock(blockhash, verbosity)
-            assert_equal(blockhash, hash256(bytes.fromhex(block[:160]))[::-1].hex())
+            assert_equal(blockhash, hash256(bytes.fromhex(block[0:136] + block[152:160] + block[136:152] + block[160:224]))[::-1].hex())
 
         def assert_fee_not_in_block(verbosity):
             block = node.getblock(blockhash, verbosity)

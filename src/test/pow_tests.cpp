@@ -16,17 +16,17 @@ BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(get_next_work)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
-    int64_t nLastRetargetTime = 1261130161; // Block #30240
+    int64_t nLastRetargetTime = 1435639430; // Block #287712
     CBlockIndex pindexLast;
-    pindexLast.nHeight = 32255;
-    pindexLast.nTime = 1262152739;  // Block #32255
-    pindexLast.nBits = 0x1d00ffff;
+    pindexLast.nHeight = 287999;
+    pindexLast.nTime = 1435676461;  // Block #287999
+    pindexLast.nBits = 0x0205d900; // 1497
 
     // Here (and below): expected_nbits is calculated in
     // CalculateNextWorkRequired(); redoing the calculation here would be just
     // reimplementing the same code that is written in pow.cpp. Rather than
     // copy that code, we just hardcode the expected result.
-    unsigned int expected_nbits = 0x1d00d86aU;
+    unsigned int expected_nbits = 0x0205f200; // 1522
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
 }
@@ -35,102 +35,100 @@ BOOST_AUTO_TEST_CASE(get_next_work)
 BOOST_AUTO_TEST_CASE(get_next_work_pow_limit)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
-    int64_t nLastRetargetTime = 1231006505; // Block #0
+    int64_t nLastRetargetTime = 1577836800;
     CBlockIndex pindexLast;
-    pindexLast.nHeight = 2015;
-    pindexLast.nTime = 1233061996;  // Block #2015
-    pindexLast.nBits = 0x1d00ffff;
-    unsigned int expected_nbits = 0x1d00ffffU;
+    pindexLast.nHeight = 287;
+    pindexLast.nTime = nLastRetargetTime + 288*150*2;
+    pindexLast.nBits = 0x02013000; // 304
+    unsigned int expected_nbits = 0x02013000; // 304
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
-}
-
-/* Test the constraint on the lower bound for actual time taken */
-BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual)
-{
-    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
-    int64_t nLastRetargetTime = 1279008237; // Block #66528
-    CBlockIndex pindexLast;
-    pindexLast.nHeight = 68543;
-    pindexLast.nTime = 1279297671;  // Block #68543
-    pindexLast.nBits = 0x1c05a3f4;
-    unsigned int expected_nbits = 0x1c0168fdU;
-    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
-    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
-    // Test that reducing nbits further would not be a PermittedDifficultyTransition.
-    unsigned int invalid_nbits = expected_nbits-1;
-    BOOST_CHECK(!PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, invalid_nbits));
 }
 
 /* Test the constraint on the upper bound for actual time taken */
-BOOST_AUTO_TEST_CASE(get_next_work_upper_limit_actual)
+BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
-    int64_t nLastRetargetTime = 1263163443; // NOTE: Not an actual block time
+    int64_t nLastRetargetTime = 1577836800;
     CBlockIndex pindexLast;
-    pindexLast.nHeight = 46367;
-    pindexLast.nTime = 1269211443;  // Block #46367
-    pindexLast.nBits = 0x1c387f6f;
-    unsigned int expected_nbits = 0x1d00e1fdU;
+    pindexLast.nHeight = 1151; // Note that the bound is not applied for the first 3 adjustments
+    pindexLast.nTime = nLastRetargetTime + 288*150/5; // Limited to >= 288*150/4
+    pindexLast.nBits = 0x02064000; // 1600
+    unsigned int expected_nbits = 0x02074a00; // 1866
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
     BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
     // Test that increasing nbits further would not be a PermittedDifficultyTransition.
-    unsigned int invalid_nbits = expected_nbits+1;
+    unsigned int invalid_nbits = expected_nbits + 0x100; // 1867
+    BOOST_CHECK(!PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, invalid_nbits));
+}
+
+/* Test the constraint on the lower bound for actual time taken */
+BOOST_AUTO_TEST_CASE(get_next_work_upper_limit_actual)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    int64_t nLastRetargetTime = 1577836800;
+    CBlockIndex pindexLast;
+    pindexLast.nHeight = 1151; // Note that the bound is not applied for the 3 first adjustments
+    pindexLast.nTime = nLastRetargetTime + 5*288*150; // Limited to <= 4*288*150
+    pindexLast.nBits = 0x02064000; // 1600
+    unsigned int expected_nbits = 0x02055b00; // 1371
+    BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, expected_nbits));
+    // Test that reducing nbits further would not be a PermittedDifficultyTransition.
+    unsigned int invalid_nbits = expected_nbits - 0x100; // 1370
     BOOST_CHECK(!PermittedDifficultyTransition(chainParams->GetConsensus(), pindexLast.nHeight+1, pindexLast.nBits, invalid_nbits));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_negative_target)
 {
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
-    nBits = UintToArith256(consensus.powLimit).GetCompact(true);
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST)->GetConsensus();
+    uint256 hash, offset;
+    unsigned int nBits(arith_uint256{304}.GetCompact(true));
+    hash.SetHex("0x0");
+    offset.SetHex("0x65"); // 2^303 + 101 is prime
+    BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_overflow_target)
 {
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits{~0x00800000U};
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST)->GetConsensus();
+    uint256 hash, offset;
+    unsigned int nBits(~0x00800000);
+    hash.SetHex("0x0");
+    offset.SetHex("0xaf"); // 2^264 + 175 is prime
+    BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_too_easy_target)
 {
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
-    arith_uint256 nBits_arith = UintToArith256(consensus.powLimit);
-    nBits_arith *= 2;
-    nBits = nBits_arith.GetCompact();
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST)->GetConsensus();
+    uint256 hash, offset;
+    unsigned int nBits(33632000); // 303
+    hash.SetHex("0x0");
+    offset.SetHex("0x133"); // 2^302 + 307 is prime
+    BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_biger_hash_than_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
-    arith_uint256 hash_arith = UintToArith256(consensus.powLimit);
-    nBits = hash_arith.GetCompact();
-    hash_arith *= 2; // hash > nBits
-    hash = ArithToUint256(hash_arith);
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    uint256 hash, offset;
+    unsigned int nBits(33632256); // 304
+    hash.SetHex("0x0");
+    offset.SetHex("0x0b770d4f166f50f63d6001df19f113cf68f79133439a90dc59c99b22a69dd8c3"); // 2^303 + offset is a prime sextuplet, but offset >= 2^39
+    BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_zero_target)
 {
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
+    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST)->GetConsensus();
+    uint256 hash, offset;
     unsigned int nBits;
     arith_uint256 hash_arith{0};
     nBits = hash_arith.GetCompact();
     hash = ArithToUint256(hash_arith);
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    offset.SetHex("0xaf"); // 2^264 + 175 is prime
+    BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
@@ -140,8 +138,8 @@ BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
     for (int i = 0; i < 10000; i++) {
         blocks[i].pprev = i ? &blocks[i - 1] : nullptr;
         blocks[i].nHeight = i;
-        blocks[i].nTime = 1269211443 + i * chainParams->GetConsensus().nPowTargetSpacing;
-        blocks[i].nBits = 0x207fffff; /* target 0x7fffff000... */
+        blocks[i].nTime = 1577836800 + i * chainParams->GetConsensus().nPowTargetSpacing;
+        blocks[i].nBits = 0x02013000;
         blocks[i].nChainWork = i ? blocks[i - 1].nChainWork + GetBlockProof(blocks[i - 1]) : arith_uint256(0);
     }
 
@@ -165,21 +163,6 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
 
     // target timespan is an even multiple of spacing
     BOOST_CHECK_EQUAL(consensus.nPowTargetTimespan % consensus.nPowTargetSpacing, 0);
-
-    // genesis nBits is positive, doesn't overflow and is lower than powLimit
-    arith_uint256 pow_compact;
-    bool neg, over;
-    pow_compact.SetCompact(chainParams->GenesisBlock().nBits, &neg, &over);
-    BOOST_CHECK(!neg && pow_compact != 0);
-    BOOST_CHECK(!over);
-    BOOST_CHECK(UintToArith256(consensus.powLimit) >= pow_compact);
-
-    // check max target * 4*nPowTargetTimespan doesn't overflow -- see pow.cpp:CalculateNextWorkRequired()
-    if (!consensus.fPowNoRetargeting) {
-        arith_uint256 targ_max("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-        targ_max /= consensus.nPowTargetTimespan*4;
-        BOOST_CHECK(UintToArith256(consensus.powLimit) < targ_max);
-    }
 }
 
 BOOST_AUTO_TEST_CASE(ChainParams_MAIN_sanity)

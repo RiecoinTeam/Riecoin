@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,12 +16,14 @@
 #include <util/time.h>
 
 #include <vector>
+#include <gmp.h>
+#include <gmpxx.h>
 
 /**
  * Maximum amount of time that a block timestamp is allowed to exceed the
  * current network-adjusted time before the block will be accepted.
  */
-static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60;
+static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 15;
 
 /**
  * Timestamp window used as a grace period by code that compares external
@@ -203,15 +206,15 @@ public:
     //! block header
     int32_t nVersion{0};
     uint256 hashMerkleRoot{};
-    uint32_t nTime{0};
+    int64_t nTime{0};
     uint32_t nBits{0};
-    uint32_t nNonce{0};
+    arith_uint256 nNonce{0};
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId{0};
 
     //! (memory only) Maximum nTime in the chain up to and including this block.
-    unsigned int nTimeMax{0};
+    int64_t nTimeMax{0};
 
     CBlockIndex()
     {
@@ -288,7 +291,7 @@ public:
 
     int64_t GetBlockTimeMax() const
     {
-        return (int64_t)nTimeMax;
+        return nTimeMax;
     }
 
     static constexpr int nMedianTimeSpan = 11;

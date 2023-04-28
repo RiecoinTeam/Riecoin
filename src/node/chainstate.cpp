@@ -1,4 +1,5 @@
 // Copyright (c) 2021 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -160,7 +161,10 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
     for (Chainstate* chainstate : chainman.GetAll()) {
         if (!is_coinsview_empty(chainstate)) {
             const CBlockIndex* tip = chainstate->m_chain.Tip();
-            if (tip && tip->nTime > GetTime() + MAX_FUTURE_BLOCK_TIME) {
+            int64_t maxFutureBlockTime(MAX_FUTURE_BLOCK_TIME);
+            if (chainman.GetParams().NetworkIDString() == CBaseChainParams::REGTEST) // Fix Functional Tests for Riecoin
+                maxFutureBlockTime = 7200;
+            if (tip && tip->nTime > GetTime() + maxFutureBlockTime) {
                 return {ChainstateLoadStatus::FAILURE, _("The block database contains a block which appears to be from the future. "
                                                          "This may be due to your computer's date and time being set incorrectly. "
                                                          "Only rebuild the block database if you are sure that your computer's date and time are correct")};

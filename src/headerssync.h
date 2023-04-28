@@ -1,4 +1,5 @@
 // Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -22,9 +23,9 @@ struct CompressedHeader {
     // header
     int32_t nVersion{0};
     uint256 hashMerkleRoot;
-    uint32_t nTime{0};
+    int64_t nTime{0};
     uint32_t nBits{0};
-    uint32_t nNonce{0};
+    arith_uint256 nNonce{0};
 
     CompressedHeader()
     {

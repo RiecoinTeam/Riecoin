@@ -1478,8 +1478,34 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
         return 0;
 
     CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+    // Subsidy is cut in half every 840,000 blocks which will occur approximately every 4 years
     nSubsidy >>= halvings;
+    if (nHeight >= 1152 || !consensusParams.hasFairLaunch)
+    {
+        if (nHeight > consensusParams.fork1Height && nHeight < consensusParams.fork2Height)
+        {
+            if (isInSuperblockInterval(nHeight, consensusParams))
+            {
+                if (isSuperblock(nHeight, consensusParams))
+                {
+                    nSubsidy *= 2084; // 4168/150
+                    nSubsidy /= 75;
+                }
+                else
+                {
+                    nSubsidy *= 68; // 136/150
+                    nSubsidy /= 75;
+                }
+            }
+        }
+    }
+    else if (nHeight > 576) // 576 blocks with linearly increasing subsidy
+    {
+        nSubsidy *= nHeight - 576;
+        nSubsidy /= 576;
+    }
+    else // First 576 blocks without subsidy
+        nSubsidy = 0;
     return nSubsidy;
 }
 
@@ -3229,8 +3255,8 @@ void Chainstate::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pin
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
+    if (fCheckPOW && !CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nNonce), consensusParams))
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "short-constellation", "proof of work failed");
 
     return true;
 }
@@ -3346,7 +3372,7 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
     return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams);});
+            [&](const auto& header) { return CheckProofOfWork(header.GetHashForPoW(), header.nBits, ArithToUint256(header.nNonce), consensusParams);});
 }
 
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
@@ -3378,6 +3404,8 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     const Consensus::Params& consensusParams = chainman.GetConsensus();
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
+    if (block.GetPoWVersion() != consensusParams.GetPoWVersionAtHeight(nHeight))
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-pow-version", "incorrect proof of work version");
 
     // Check against checkpoints
     if (fCheckpointsEnabled) {
@@ -3396,8 +3424,16 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "time-too-old", "block's timestamp is too early");
 
     // Check timestamp
-    if (block.Time() > now + std::chrono::seconds{MAX_FUTURE_BLOCK_TIME}) {
+    int64_t maxFutureBlockTime(MAX_FUTURE_BLOCK_TIME);
+    if (chainman.GetParams().NetworkIDString() == CBaseChainParams::REGTEST) // Fix Functional Tests
+        maxFutureBlockTime = 7200;
+    if (block.Time() > now + std::chrono::seconds{maxFutureBlockTime}) {
         return state.Invalid(BlockValidationResult::BLOCK_TIME_FUTURE, "time-too-new", "block timestamp too far in the future");
+    }
+
+    if (nHeight >= consensusParams.fork2Height) { // Stricter Timestamp Check starting from Fork 2 (note that the MAX_FUTURE_BLOCK_TIME above was also reduced to 15 s, and we do no longer have to check for the Fork)
+        if (block.GetBlockTime() < pindexPrev->GetBlockTime() - 15)
+            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "time-too-old", "block's timestamp is too early");
     }
 
     // Reject blocks with outdated version
@@ -3519,11 +3555,6 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             return true;
         }
 
-        if (!CheckBlockHeader(block, state, GetConsensus())) {
-            LogPrint(BCLog::VALIDATION, "%s: Consensus::CheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
-            return false;
-        }
-
         // Get prev block index
         CBlockIndex* pindexPrev = nullptr;
         BlockMap::iterator mi{m_blockman.m_block_index.find(block.hashPrevBlock)};
@@ -3538,6 +3569,11 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
         }
         if (!ContextualCheckBlockHeader(block, state, m_blockman, *this, pindexPrev, m_options.adjusted_time_callback())) {
             LogPrint(BCLog::VALIDATION, "%s: Consensus::ContextualCheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
+            return false;
+        }
+
+        if (!CheckBlockHeader(block, state, GetConsensus())) {
+            LogPrint(BCLog::VALIDATION, "%s: Consensus::CheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
             return false;
         }
 
@@ -3697,8 +3733,8 @@ bool Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockV
         if (pindex->nChainWork < nMinimumChainWork) return true;
     }
 
-    if (!CheckBlock(block, state, m_params.GetConsensus()) ||
-        !ContextualCheckBlock(block, state, m_chainman, pindex->pprev)) {
+    if (!ContextualCheckBlock(block, state, m_chainman, pindex->pprev) ||
+        !CheckBlock(block, state, m_params.GetConsensus())) {
         if (state.IsInvalid() && state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             m_blockman.m_dirty_blockindex.insert(pindex);
