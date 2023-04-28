@@ -745,7 +745,7 @@ riecoin_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 riecoin_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-riecoin_cli_SOURCES += bitcoin-cli-res.rc
+riecoin_cli_SOURCES += riecoin-cli-res.rc
 endif
 
 riecoin_cli_LDADD = \
@@ -764,7 +764,7 @@ riecoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 riecoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-riecoin_tx_SOURCES += bitcoin-tx-res.rc
+riecoin_tx_SOURCES += riecoin-tx-res.rc
 endif
 
 riecoin_tx_LDADD = \
