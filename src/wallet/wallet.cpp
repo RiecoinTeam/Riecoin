@@ -2007,32 +2007,19 @@ SigningResult CWallet::SignMessage(const MessageSignatureFormat format, const st
 OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& change_type, const std::vector<CRecipient>& vecSend) const
 {
     // If -changetype is specified, always use that change type.
-    if (change_type) {
+    if (change_type)
         return *change_type;
-    }
-
-    // if m_default_address_type is legacy, use legacy address as change.
-    if (m_default_address_type == OutputType::LEGACY) {
-        return OutputType::LEGACY;
-    }
 
     bool any_tr{false};
     bool any_wpkh{false};
-    bool any_sh{false};
-    bool any_pkh{false};
 
     for (const auto& recipient : vecSend) {
         std::vector<std::vector<uint8_t>> dummy;
         const TxoutType type{Solver(recipient.scriptPubKey, dummy)};
-        if (type == TxoutType::WITNESS_V1_TAPROOT) {
+        if (type == TxoutType::WITNESS_V1_TAPROOT)
             any_tr = true;
-        } else if (type == TxoutType::WITNESS_V0_KEYHASH) {
+        else if (type == TxoutType::WITNESS_V0_KEYHASH)
             any_wpkh = true;
-        } else if (type == TxoutType::SCRIPTHASH) {
-            any_sh = true;
-        } else if (type == TxoutType::PUBKEYHASH) {
-            any_pkh = true;
-        }
     }
 
     const bool has_bech32m_spkman(GetScriptPubKeyMan(OutputType::BECH32M, /*internal=*/true));
@@ -2045,24 +2032,11 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
         // Currently wpkh is the only type supported by the BECH32 spkman
         return OutputType::BECH32;
     }
-    const bool has_p2sh_segwit_spkman(GetScriptPubKeyMan(OutputType::P2SH_SEGWIT, /*internal=*/true));
-    if (has_p2sh_segwit_spkman && any_sh) {
-        // Currently sh_wpkh is the only type supported by the P2SH_SEGWIT spkman
-        // As of 2021 about 80% of all SH are wrapping WPKH, so use that
-        return OutputType::P2SH_SEGWIT;
-    }
-    const bool has_legacy_spkman(GetScriptPubKeyMan(OutputType::LEGACY, /*internal=*/true));
-    if (has_legacy_spkman && any_pkh) {
-        // Currently pkh is the only type supported by the LEGACY spkman
-        return OutputType::LEGACY;
-    }
 
-    if (has_bech32m_spkman) {
+    if (has_bech32m_spkman)
         return OutputType::BECH32M;
-    }
-    if (has_bech32_spkman) {
+    if (has_bech32_spkman)
         return OutputType::BECH32;
-    }
     // else use m_default_address_type for change
     return m_default_address_type;
 }
@@ -2677,7 +2651,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     if (!args.GetArg("-addresstype", "").empty()) {
         std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-addresstype", ""));
         if (!parsed) {
-            error = strprintf(_("Unknown address type '%s'"), args.GetArg("-addresstype", ""));
+            error = strprintf(_("Unknown or obsolete address type '%s'"), args.GetArg("-addresstype", ""));
             return nullptr;
         }
         walletInstance->m_default_address_type = parsed.value();
@@ -2686,7 +2660,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     if (!args.GetArg("-changetype", "").empty()) {
         std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-changetype", ""));
         if (!parsed) {
-            error = strprintf(_("Unknown change type '%s'"), args.GetArg("-changetype", ""));
+            error = strprintf(_("Unknown or obsolete change type '%s'"), args.GetArg("-changetype", ""));
             return nullptr;
         }
         walletInstance->m_default_change_type = parsed.value();
@@ -3212,7 +3186,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key)
     AssertLockHeld(cs_wallet);
 
     for (bool internal : {false, true}) {
-        for (OutputType t : OUTPUT_TYPES) {
+        for (OutputType t : {OutputType::BECH32, OutputType::BECH32M}) {
             auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this));
             if (IsCrypted()) {
                 if (IsLocked()) {

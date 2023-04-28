@@ -31,41 +31,17 @@ import random
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.blocktools import COINBASE_MATURITY
 
-ADDRESS_TYPES = [
-    "bech32m",
-    "bech32",
-    "p2sh-segwit",
-    "legacy",
-]
-
+ADDRESS_TYPES = ["bech32m", "bech32",]
 
 def is_bech32_address(node, addr):
     """Check if an address contains a bech32 output."""
     addr_info = node.getaddressinfo(addr)
     return addr_info['desc'].startswith('wpkh(')
 
-
 def is_bech32m_address(node, addr):
     """Check if an address contains a bech32m output."""
     addr_info = node.getaddressinfo(addr)
     return addr_info['desc'].startswith('tr(')
-
-
-def is_p2sh_segwit_address(node, addr):
-    """Check if an address contains a P2SH-Segwit output.
-       Note: this function does not actually determine the type
-       of P2SH output, but is sufficient for this test in that
-       we are only generating P2SH-Segwit outputs.
-    """
-    addr_info = node.getaddressinfo(addr)
-    return addr_info['desc'].startswith('sh(wpkh(')
-
-
-def is_legacy_address(node, addr):
-    """Check if an address contains a legacy output."""
-    addr_info = node.getaddressinfo(addr)
-    return addr_info['desc'].startswith('pkh(')
-
 
 def is_same_type(node, tx):
     """Check that all inputs are of the same OutputType"""
@@ -79,22 +55,16 @@ def is_same_type(node, tx):
                 True,
             )['vout'][n]['scriptPubKey']['address']
         )
-    has_legacy = False
-    has_p2sh = False
     has_bech32 = False
     has_bech32m = False
 
     for addr in inputs:
-        if is_legacy_address(node, addr):
-            has_legacy = True
-        if is_p2sh_segwit_address(node, addr):
-            has_p2sh = True
         if is_bech32_address(node, addr):
             has_bech32 = True
         if is_bech32m_address(node, addr):
             has_bech32m = True
 
-    return (sum([has_legacy, has_p2sh, has_bech32, has_bech32m]) == 1)
+    return (sum([has_bech32, has_bech32m]) == 1)
 
 
 def generate_payment_values(n, m):
@@ -116,7 +86,6 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
                 "-txindex",
             ],
             [
-                "-addresstype=p2sh-segwit",
                 "-whitelist=noban@127.0.0.1",
                 "-txindex",
             ],
@@ -143,13 +112,6 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
         self.generate(A, COINBASE_MATURITY + 5)
 
         self.log.info("Creating mixed UTXOs in B's wallet")
-        for v in generate_payment_values(3, 10):
-            self.log.debug(f"Making payment of {v} BTC to legacy")
-            A.sendtoaddress(B.getnewaddress(address_type="legacy"), v)
-
-        for v in generate_payment_values(3, 10):
-            self.log.debug(f"Making payment of {v} BTC to p2sh")
-            A.sendtoaddress(B.getnewaddress(address_type="p2sh-segwit"), v)
 
         for v in generate_payment_values(3, 10):
             self.log.debug(f"Making payment of {v} BTC to bech32")
@@ -169,7 +131,7 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
             self.generate(A, 1)
             assert is_same_type(B, tx)
 
-        tx = self.make_payment(A, B, 30.99, random.choice(ADDRESS_TYPES))
+        tx = self.make_payment(A, B, 10.99, random.choice(ADDRESS_TYPES))
         assert not is_same_type(B, tx)
 
 

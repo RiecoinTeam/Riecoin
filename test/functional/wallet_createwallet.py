@@ -139,11 +139,11 @@ class CreateWalletTest(BitcoinTestFramework):
         w6 = node.get_wallet_rpc('w6')
         assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", w6.signmessage, "needanargument", "test")
         w6.walletpassphrase('thisisapassphrase', 60)
-        w6.signmessage(w6.getnewaddress('', 'legacy'), "test")
+        w6.signmessage(w6.getnewaddress(), "test")
         w6.keypoolrefill(1)
-        # There should only be 1 key for legacy, 3 for descriptors
+        # There should be 2 keys (for Bech32 and Bech32M)
         walletinfo = w6.getwalletinfo()
-        keys = 4
+        keys = 2
         assert_equal(walletinfo['keypoolsize'], keys)
         assert_equal(walletinfo['keypoolsize_hd_internal'], keys)
         # Allow empty passphrase, but there should be a warning

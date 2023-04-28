@@ -1,4 +1,5 @@
 // Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2013-2023 The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +68,7 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
     BOOST_CHECK_EQUAL(available_coins.Size(), 1U);
     BOOST_CHECK_EQUAL(available_coins.coins[OutputType::UNKNOWN].size(), 1U);
 
-    // We will create a self transfer for each of the OutputTypes and
+    // We will create a self transfer for Bech32 and Bech32M and
     // verify it is put in the correct bucket after running GetAvailablecoins
     //
     // For each OutputType, We expect 2 UTXOs in our wallet following the self transfer:
@@ -87,20 +88,6 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, AvailableCoinsTestingSetup)
     AddTx(CRecipient{{GetScriptForDestination(*dest)}, 2 * COIN, /*fSubtractFeeFromAmount=*/true});
     available_coins = AvailableCoins(*wallet);
     BOOST_CHECK_EQUAL(available_coins.coins[OutputType::BECH32].size(), 2U);
-
-    // P2SH-SEGWIT
-    dest = wallet->GetNewDestination(OutputType::P2SH_SEGWIT, "");
-    BOOST_ASSERT(dest);
-    AddTx(CRecipient{{GetScriptForDestination(*dest)}, 3 * COIN, /*fSubtractFeeFromAmount=*/true});
-    available_coins = AvailableCoins(*wallet);
-    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::P2SH_SEGWIT].size(), 2U);
-
-    // Legacy (P2PKH)
-    dest = wallet->GetNewDestination(OutputType::LEGACY, "");
-    BOOST_ASSERT(dest);
-    AddTx(CRecipient{{GetScriptForDestination(*dest)}, 4 * COIN, /*fSubtractFeeFromAmount=*/true});
-    available_coins = AvailableCoins(*wallet);
-    BOOST_CHECK_EQUAL(available_coins.coins[OutputType::LEGACY].size(), 2U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

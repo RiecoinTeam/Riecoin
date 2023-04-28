@@ -42,7 +42,7 @@ class KeypoolRestoreTest(BitcoinTestFramework):
         self.connect_nodes(0, 2)
         self.connect_nodes(0, 3)
 
-        for i, output_type in enumerate(["legacy", "p2sh-segwit", "bech32"]):
+        for i, output_type in enumerate(["bech32", "bech32m"]):
 
             self.log.info("Generate keys for wallet with address type: {}".format(output_type))
             idx = i+1
@@ -54,11 +54,9 @@ class KeypoolRestoreTest(BitcoinTestFramework):
             # Make sure we're creating the outputs we expect
             address_details = self.nodes[idx].validateaddress(addr_extpool)
             if i == 0:
-                assert not address_details["isscript"] and not address_details["iswitness"]
-            elif i == 1:
-                assert address_details["isscript"] and not address_details["iswitness"]
-            else:
                 assert not address_details["isscript"] and address_details["iswitness"]
+            else:
+                assert address_details["isscript"] and address_details["iswitness"]
 
 
             self.log.info("Send funds to wallet")

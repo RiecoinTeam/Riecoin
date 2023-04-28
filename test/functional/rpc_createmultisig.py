@@ -51,7 +51,7 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
         self.moved = 0
         for self.nkeys in [3, 5]:
             for self.nsigs in [2, 3]:
-                for self.output_type in ["bech32", "p2sh-segwit", "legacy"]:
+                for self.output_type in ["bech32"]:
                     self.get_keys()
                     self.do_multisig()
 
@@ -67,13 +67,13 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
 
         # Check all permutations of keys because order matters apparently
         for keys in itertools.permutations([pk0, pk1, pk2]):
-            # Results should be the same as this legacy one
-            legacy_addr = node0.createmultisig(2, keys, 'legacy')['address']
+            # Results should be the same as this Bech32 one
+            legacy_addr = node0.createmultisig(2, keys, 'bech32')['address']
 
             # Generate addresses with the segwit types. These should all make legacy addresses
             err_msg = ["Unable to make chosen address type, please ensure no uncompressed public keys are present."]
 
-            for addr_type in ['bech32', 'p2sh-segwit']:
+            for addr_type in ['bech32']:
                 result = self.nodes[0].createmultisig(nrequired=2, keys=keys, address_type=addr_type)
                 assert_equal(legacy_addr, result['address'])
                 assert_equal(result['warnings'], err_msg)
@@ -129,11 +129,7 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
 
         # Construct the expected descriptor
         desc = 'multi({},{})'.format(self.nsigs, ','.join(self.pub))
-        if self.output_type == 'legacy':
-            desc = 'sh({})'.format(desc)
-        elif self.output_type == 'p2sh-segwit':
-            desc = 'sh(wsh({}))'.format(desc)
-        elif self.output_type == 'bech32':
+        if self.output_type == 'bech32':
             desc = 'wsh({})'.format(desc)
         desc = descsum_create(desc)
 

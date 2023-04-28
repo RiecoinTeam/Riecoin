@@ -29,8 +29,8 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
 
     @staticmethod
     def _get_xpub(wallet):
-        """Extract the wallet's xpubs using `listdescriptors` and pick the one from the `pkh` descriptor since it's least likely to be accidentally reused (legacy addresses)."""
-        descriptor = next(filter(lambda d: d["desc"].startswith("pkh"), wallet.listdescriptors()["descriptors"]))
+        """Extract the wallet's xpubs using `listdescriptors` and pick the one from the `wpkh` descriptor."""
+        descriptor = next(filter(lambda d: d["desc"].startswith("wpkh"), wallet.listdescriptors()["descriptors"]))
         return descriptor["desc"].split("]")[-1].split("/")[0]
 
     @staticmethod

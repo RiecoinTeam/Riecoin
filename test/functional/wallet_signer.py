@@ -104,20 +104,6 @@ class WalletSignerTest(BitcoinTestFramework):
         assert_equal(address_info['ismine'], True)
         assert_equal(address_info['hdkeypath'], "m/84'/1'/0'/0/0")
 
-        address2 = hww.getnewaddress(address_type="p2sh-segwit")
-        assert_equal(address2, "tGMnPWAbec9DvEC2ccyai6gLNUcSUDzgvw")
-        address_info = hww.getaddressinfo(address2)
-        assert_equal(address_info['solvable'], True)
-        assert_equal(address_info['ismine'], True)
-        assert_equal(address_info['hdkeypath'], "m/49'/1'/0'/0/0")
-
-        address3 = hww.getnewaddress(address_type="legacy")
-        assert_equal(address3, "rS3xUvSkSMCLfnnoT9TyLhrbScjgpifgYm")
-        address_info = hww.getaddressinfo(address3)
-        assert_equal(address_info['solvable'], True)
-        assert_equal(address_info['ismine'], True)
-        assert_equal(address_info['hdkeypath'], "m/44'/1'/0'/0/0")
-
         self.log.info('Test walletdisplayaddress')
         result = hww.walletdisplayaddress(address1)
         assert_equal(result, {"address": address1})
