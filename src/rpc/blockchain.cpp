@@ -1107,6 +1107,151 @@ static RPCHelpMan verifychain()
     };
 }
 
+static std::vector<std::vector<int32_t>> supportedPatterns{
+	{0},
+	{0, 2},
+	{0, 2, 4},
+	{0, 4, 2},
+	{0, 2, 4, 2},
+	{0, 2, 4, 2, 4},
+	{0, 4, 2, 4, 2},
+	{0, 4, 2, 4, 2, 4},
+	{0, 2, 4, 2, 4, 6, 2},
+	{0, 2, 6, 4, 2, 4, 2},
+	{0, 2, 4, 2, 4, 6, 2, 6},
+	{0, 2, 4, 6, 2, 6, 4, 2},
+	{0, 6, 2, 6, 4, 2, 4, 2},
+	{0, 2, 4, 2, 4, 6, 2, 6, 4},
+	{0, 2, 4, 6, 2, 6, 4, 2, 4},
+	{0, 4, 2, 4, 6, 2, 6, 4, 2},
+	{0, 4, 6, 2, 6, 4, 2, 4, 2},
+	{0, 2, 4, 2, 4, 6, 2, 6, 4, 2},
+	{0, 2, 4, 6, 2, 6, 4, 2, 4, 2},
+	{0, 2, 4, 2, 4, 6, 2, 6, 4, 2, 4},
+	{0, 4, 2, 4, 6, 2, 6, 4, 2, 4, 2},
+	{0, 2, 4, 2, 4, 6, 2, 6, 4, 2, 4, 6},
+	{0, 6, 4, 2, 4, 6, 2, 6, 4, 2, 4, 2},
+};
+static std::vector<int32_t> getOffsets(mpz_class n, uint32_t iterations) {
+	std::vector<int32_t> primeOffsets;
+	for (int32_t offset(-22) ; offset <= 42 ; offset += 2) {
+		if (mpz_probab_prime_p(mpz_class(n + offset).get_mpz_t(), iterations) != 0)
+			primeOffsets.push_back(offset);
+	}
+	if (primeOffsets.size() == 0)
+		return {};
+	for (uint16_t i(supportedPatterns.size() - 1) ; i > 0 ; i--) {
+		if (supportedPatterns[i].size() > primeOffsets.size())
+			continue;
+		bool patternFound(false);
+		int32_t initialOffset(0);
+		for (uint32_t j(0) ; j < primeOffsets.size() - supportedPatterns[i].size() + 1 ; j++) {
+			initialOffset = primeOffsets[j];
+			for (uint32_t k(1) ; k < supportedPatterns[i].size() ; k++) {
+				if (primeOffsets[j + k] - primeOffsets[j + k - 1] != supportedPatterns[i][k])
+					break;
+				if (k + 1 == supportedPatterns[i].size())
+					patternFound = true;
+			}
+		}
+		if (patternFound) {
+			std::vector<int32_t> offsets;
+			int32_t offset(initialOffset);
+			for (const auto &o : supportedPatterns[i]) {
+				offset += o;
+				offsets.push_back(offset);
+			}
+			return offsets;
+		}
+	}
+	return {primeOffsets[0]};
+}
+
+static RPCHelpMan getresult()
+{
+    return RPCHelpMan{"getresult",
+                "\nReturns the PoW result of the provided block.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The block hash"},
+                    {"detailed", RPCArg::Type::BOOL, RPCArg::Default{false}, "Set to true to get more detailed PoW information"},
+                },
+                {
+                    RPCResult{"for detailed = false", RPCResult::Type::STR, "", "The PoW result in an human readable format"},
+                    RPCResult{"for detailed = true",
+                        RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "type", "type of PoW"},
+                        {RPCResult::Type::STR, "...", "various fields depending on the PoW type"},
+                        {RPCResult::Type::NUM, "...", "..."},
+                    }},
+                },
+                RPCExamples{
+                    "\nGet the base prime of the block 1323777\n"
+                    + HelpExampleCli("getresult", "3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f") +
+                    "\nAs a JSON-RPC call\n"
+                    + HelpExampleRpc("getresult", "\"3d46e0b9e6cf61165c66f3ac5ad6cd483a44f11efd1bb9df0c5e49cb645e7d7f\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    uint256 hash(ParseHashV(request.params[0], "blockhash"));
+    CBlock block;
+    const CBlockIndex* pblockindex;
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    {
+        LOCK(cs_main);
+        pblockindex = chainman.m_blockman.LookupBlockIndex(hash);
+        if (!pblockindex) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        block = GetBlockChecked(chainman.m_blockman, pblockindex);
+    }
+
+    uint256 nNonce = ArithToUint256(block.nNonce);
+    int32_t powVersion;
+    if ((nNonce.GetUint64(0) & 1) == 1)
+        powVersion = -1;
+    else if ((nNonce.GetUint64(0) & 65535) == 2)
+        powVersion = 1;
+    else
+        return "0";
+
+    mpz_class target, offset;
+    GenerateTarget(target, block.GetHashForPoW(), block.nBits, powVersion);
+    if (powVersion == -1)
+        mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, nNonce.begin()); // [31-0 Offset]
+    else if (powVersion == 1)
+    {
+        const uint8_t* rawOffset(nNonce.begin()); // [31-30 Primorial Number|29-14 Primorial Factor|13-2 Primorial Offset|1-0 Reserved/Version]
+        const uint16_t primorialNumber(reinterpret_cast<const uint16_t*>(&rawOffset[30])[0]);
+        mpz_class primorial(1), primorialFactor, primorialOffset;
+        for (uint16_t i(0) ; i < primorialNumber ; i++)
+            mpz_mul_ui(primorial.get_mpz_t(), primorial.get_mpz_t(), primeTable[i]);
+        mpz_import(primorialFactor.get_mpz_t(), 16, -1, sizeof(uint8_t), 0, 0, &rawOffset[14]);
+        mpz_import(primorialOffset.get_mpz_t(), 12, -1, sizeof(uint8_t), 0, 0, &rawOffset[2]);
+        offset = primorial - (target % primorial) + primorialFactor*primorial + primorialOffset;
+    }
+    const mpz_class result(target + offset);
+
+    bool detailed(false);
+    if (!request.params[1].isNull())
+        detailed = request.params[1].get_bool();
+    if (!detailed)
+        return result.get_str();
+
+    std::vector<int32_t> offsets(getOffsets(result, 32));
+    UniValue offsetsUV(UniValue::VARR);
+    for (const auto &offset : offsets)
+        offsetsUV.push_back(offset);
+    UniValue rv(UniValue::VOBJ);
+    rv.pushKV("type", "prime constellation");
+    rv.pushKV("n", result.get_str());
+    rv.pushKV("offsets", offsetsUV);
+    rv.pushKV("length", offsets.size());
+    return rv;
+},
+    };
+}
+
 static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softforks, const ChainstateManager& chainman, Consensus::BuriedDeployment dep)
 {
     // For buried deployments.
@@ -2414,6 +2559,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &gettxoutsetinfo},
         {"blockchain", &pruneblockchain},
         {"blockchain", &verifychain},
+        {"blockchain", &getresult},
         {"blockchain", &preciousblock},
         {"blockchain", &scantxoutset},
         {"blockchain", &getblockfilter},

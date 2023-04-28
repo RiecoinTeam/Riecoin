@@ -13,6 +13,7 @@ Test the following RPCs:
     - getblockheader
     - getdifficulty
     - getnetworkhashps
+    - getresult
     - waitforblockheight
     - getblock
     - getblockhash
@@ -37,6 +38,7 @@ from test_framework.messages import (
     CBlockHeader,
     from_hex,
     msg_block,
+    is_fermat_prime
 )
 from test_framework.p2p import P2PInterface
 from test_framework.script import hash256
@@ -86,6 +88,7 @@ class BlockchainTest(BitcoinTestFramework):
         self._test_getblockheader()
         self._test_getdifficulty()
         self._test_getnetworkminingpower()
+        self._test_getresult()
         self._test_stopatheight()
         self._test_waitforblockheight()
         self._test_getblock()
@@ -420,6 +423,12 @@ class BlockchainTest(BitcoinTestFramework):
         mining_power = self.nodes[0].getnetworkminingpower()
         # Mining 1 block every 150 s at Difficulty 304, by definition, corresponds to a Mining Power of 1
         assert abs(mining_power - 1.) < 0.0001
+
+    def _test_getresult(self):
+        result = self.nodes[0].getresult(self.nodes[0].getblockhash(100))
+        # Just test that the result is in the allowed range for Difficulty 304 (2^303 to ~(2^303 + 2^295)) and is prime
+        assert int(result) - 2**303 < 2**295
+        assert is_fermat_prime(int(result))
 
     def _test_stopatheight(self):
         self.log.info("Test stopping at height")

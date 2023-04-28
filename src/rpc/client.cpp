@@ -89,6 +89,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getblock", 1, "verbosity" },
     { "getblock", 1, "verbose" },
     { "getblockheader", 1, "verbose" },
+    { "getresult", 1, "detailed" },
     { "getchaintxstats", 0, "nblocks" },
     { "gettransaction", 1, "verbose" },
     { "getrawtransaction", 1, "verbose" },
