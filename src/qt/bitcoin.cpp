@@ -339,11 +339,6 @@ void BitcoinApplication::parameterSetup()
     InitParameterInteraction(gArgs);
 }
 
-void BitcoinApplication::InitPruneSetting(int64_t prune_MiB)
-{
-    optionsModel->SetPruneTargetGB(PruneMiBtoGB(prune_MiB));
-}
-
 void BitcoinApplication::requestInitialize()
 {
     qDebug() << __func__ << ": Requesting initialize";
@@ -610,9 +605,8 @@ int GuiMain(int argc, char* argv[])
     /// 5. Now that settings and translations are available, ask user for data directory
     // User language is set up: pick a data directory
     bool did_show_intro = false;
-    int64_t prune_MiB = 0;  // Intro dialog prune configuration
     // Gracefully exit if the user cancels
-    if (!Intro::showIfNeeded(did_show_intro, prune_MiB)) return EXIT_SUCCESS;
+    if (!Intro::showIfNeeded(did_show_intro)) return EXIT_SUCCESS;
 
     /// 6-7. Parse riecoin.conf, determine network, switch to network specific
     /// options, and create datadir and settings.json.
@@ -686,11 +680,6 @@ int GuiMain(int argc, char* argv[])
     // Load GUI settings from QSettings
     if (!app.createOptionsModel(gArgs.GetBoolArg("-resetguisettings", false))) {
         return EXIT_FAILURE;
-    }
-
-    if (did_show_intro) {
-        // Store intro dialog settings other than datadir (network specific)
-        app.InitPruneSetting(prune_MiB);
     }
 
     try
