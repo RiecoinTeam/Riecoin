@@ -21,7 +21,7 @@
  * for both bitcoind and bitcoin-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("Dev");
+const std::string CLIENT_NAME("Stella");
 
 
 #ifdef HAVE_BUILD_INFO
@@ -94,7 +94,7 @@ std::string LicenseInfo()
     const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
 
     return CopyrightHolders("(C) ") + "" +
-           "\n Riecoin Core 24.04 is based on Bitcoin Core (Master 2024-04/~27.0).\n" +
+           "\n Riecoin Core 24.04 is based on Bitcoin Core (Master 2024-04-11/~27.0).\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software.").translated, PACKAGE_NAME, "<" PACKAGE_URL ">") +
            "\n" +
