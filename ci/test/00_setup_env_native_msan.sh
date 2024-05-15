@@ -17,7 +17,8 @@ export CONTAINER_NAME="ci_native_msan"
 export PACKAGES="ninja-build"
 export DEP_OPTS="DEBUG=1 NO_QT=1 CC=clang CXX=clang++ CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}'"
 export GOAL="install"
-export BITCOIN_CONFIG="--with-sanitizers=memory --disable-hardening"
+# _FORTIFY_SOURCE is not compatible with MSAN.
+export BITCOIN_CONFIG="--with-sanitizers=memory CPPFLAGS='-U_FORTIFY_SOURCE'"
 export USE_MEMORY_SANITIZER="true"
 export RUN_FUNCTIONAL_TESTS="false"
 export CCACHE_MAXSIZE=250M
