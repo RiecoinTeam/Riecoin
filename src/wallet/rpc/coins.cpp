@@ -193,9 +193,7 @@ RPCHelpMan getbalance()
 
     LOCK(pwallet->cs_wallet);
 
-    int min_depth = 0;
-    if (!request.params[0].isNull())
-        min_depth = request.params[0].getInt<int>();
+    const auto min_depth{self.Arg<int>("minconf")};
     bool avoid_reuse = GetAvoidReuseFlag(*pwallet, request.params[1]);
     const auto bal = GetBalance(*pwallet, min_depth, avoid_reuse);
     return ValueFromAmount(bal.m_mine_trusted);
