@@ -14,8 +14,6 @@ The assumeutxo value generated and used here is committed to in
 
 Interesting test cases could be loading an assumeutxo snapshot file with:
 
-- TODO: Valid hash but invalid snapshot file (bad coin height or
-      bad other serialization)
 - TODO: Valid snapshot file, but referencing a snapshot block that turns out to be
       invalid, or has an invalid parent
 - TODO: Valid snapshot file and snapshot block, but the block is not on the
@@ -99,18 +97,23 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         self.log.info("  - snapshot file with alternated UTXO data")
         cases = [
-            [b"\xff" * 32, 0, "bbdef9f6420e9f4a2766535559e7ffffa44d844811786ac41c1c13f65420bbfc"],  # wrong outpoint hash
-            [(1).to_bytes(4, "little"), 32, "7c935bdd776daf7425bfb9df387101ac2328a530fef469e653bf032803cb5c1d"],  # wrong outpoint index
-            [b"\x81", 36, "bb26b06d0b856c27ac6e6290f3e83d4e83dbe06df8151c04258642cb0462088a"],  # wrong coin code VARINT((coinbase ? 1 : 0) | (height << 1))
-            [b"\x80", 36, "a82c7cf3d3febd38a56bdec9f7653bc2487b70499ed14d2a3ec24067bb14b18e"],  # another wrong coin code
+            # (content, offset, wrong_hash, custom_message)
+            [b"\xff" * 32, 0, "bbdef9f6420e9f4a2766535559e7ffffa44d844811786ac41c1c13f65420bbfc", None],  # wrong outpoint hash
+            [(1).to_bytes(4, "little"), 32, "7c935bdd776daf7425bfb9df387101ac2328a530fef469e653bf032803cb5c1d", None],  # wrong outpoint index
+            [b"\x81", 36, "bb26b06d0b856c27ac6e6290f3e83d4e83dbe06df8151c04258642cb0462088a", None],  # wrong coin code VARINT
+            [b"\x80", 36, "a82c7cf3d3febd38a56bdec9f7653bc2487b70499ed14d2a3ec24067bb14b18e", None],  # another wrong coin code
+            [b"\x84\x58", 36, None, "[snapshot] bad snapshot data after deserializing 0 coins"],  # wrong coin case with height 364 and coinbase 0
+            [b"\xCA\xD2\x8F\x5A", 41, None, "[snapshot] bad snapshot data after deserializing 0 coins - bad tx out value"],  # Amount exceeds MAX_MONEY
         ]
 
-        for content, offset, wrong_hash in cases:
+        for content, offset, wrong_hash, custom_message in cases:
             with open(bad_snapshot_path, "wb") as f:
                 f.write(valid_snapshot_contents[:(32 + 8 + offset)])
                 f.write(content)
                 f.write(valid_snapshot_contents[(32 + 8 + offset + len(content)):])
-            expected_error(log_msg=f"[snapshot] bad snapshot content hash: expected 030663cfbd01e69df8bd572086b45c7e242212a6c36b3386bd39f3d40a8dfb3b, got {wrong_hash}")
+
+            log_msg = custom_message if custom_message is not None else f"[snapshot] bad snapshot content hash: expected 030663cfbd01e69df8bd572086b45c7e242212a6c36b3386bd39f3d40a8dfb3b, got {wrong_hash}"
+            expected_error(log_msg=log_msg)
 
     def test_headers_not_synced(self, valid_snapshot_path):
         for node in self.nodes[1:]:
