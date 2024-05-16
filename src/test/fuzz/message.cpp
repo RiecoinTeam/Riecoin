@@ -20,7 +20,7 @@
 
 void initialize_message()
 {
-    ECC_Start();
+    static ECC_Context ecc_context{};
     SelectParams(ChainType::REGTEST);
 }
 
