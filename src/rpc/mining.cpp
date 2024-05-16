@@ -40,7 +40,6 @@
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <warnings.h>
 
 #include <memory>
 #include <stdint.h>
@@ -422,7 +421,10 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "networkminingpower", "The network mining power"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
                         {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
-                        {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
+                        RPCResult{RPCResult::Type::ARR, "warnings", "any network and blockchain warnings",
+                        {
+                            {RPCResult::Type::STR, "", "warning"},
+                        }},
                     }},
                 RPCExamples{
                     HelpExampleCli("getmininginfo", "")
@@ -444,7 +446,7 @@ static RPCHelpMan getmininginfo()
     obj.pushKV("networkminingpower", getnetworkminingpower().HandleRequest(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain", chainman.GetParams().GetChainTypeString());
-    obj.pushKV("warnings",         GetWarnings(false).original);
+    obj.pushKV("warnings", GetNodeWarnings());
     return obj;
 },
     };

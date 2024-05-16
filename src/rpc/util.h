@@ -513,4 +513,6 @@ private:
 void PushWarnings(const UniValue& warnings, UniValue& obj);
 void PushWarnings(const std::vector<bilingual_str>& warnings, UniValue& obj);
 
+UniValue GetNodeWarnings();
+
 #endif // BITCOIN_RPC_UTIL_H

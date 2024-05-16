@@ -30,7 +30,6 @@
 #include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
-#include <warnings.h>
 
 #include <optional>
 
@@ -658,7 +657,10 @@ static RPCHelpMan getnetworkinfo()
                                 {RPCResult::Type::NUM, "score", "relative score"},
                             }},
                         }},
-                        {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
+                        RPCResult{RPCResult::Type::ARR, "warnings", "any network and blockchain warnings",
+                        {
+                            {RPCResult::Type::STR, "", "warning"},
+                        }},
                     }
                 },
                 RPCExamples{
@@ -708,7 +710,7 @@ static RPCHelpMan getnetworkinfo()
         }
     }
     obj.pushKV("localaddresses", localAddresses);
-    obj.pushKV("warnings",       GetWarnings(false).original);
+    obj.pushKV("warnings", GetNodeWarnings());
     return obj;
 },
     };
