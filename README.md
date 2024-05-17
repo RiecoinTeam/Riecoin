@@ -4,7 +4,7 @@
 
 This repository hosts the Riecoin Core source code. Riecoin Core connects to the Bitcoin peer-to-peer network to download and fully validate blocks and transactions. It also includes a wallet and graphical user interface, which can be optionally built.
 
-Guides and release notes are available on the [project's page on Riecoin.xyz](https://riecoin.xyz/RiecoinCore).
+Guides and release notes are available on the [project's page on Riecoin.xyz](https://riecoin.xyz/Core/).
 
 ## Riecoin Introduction
 
