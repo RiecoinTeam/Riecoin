@@ -844,7 +844,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     // The mempool holds txs for the next block, so pass height+1 to CheckTxInputs
-    const bool enforceMinFee((args.m_chainparams.GetChainType() == ChainType::MAIN && m_active_chainstate.m_chain.Height() + 1 > 2135642) || args.m_chainparams.GetChainType() == ChainType::TESTNET);
+    const bool enforceMinFee(args.m_chainparams.GetChainType() != ChainType::REGTEST); // A few Functional Tests need to be adjusted
     if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, ws.m_base_fees, enforceMinFee)) {
         return false; // state filled in by CheckTxInputs
     }
@@ -2358,7 +2358,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            const bool enforceMinFee((m_chainman.GetParams().GetChainType() == ChainType::MAIN && pindex->nHeight > 2135642) || m_chainman.GetParams().GetChainType() == ChainType::TESTNET);
+            // Latest Block with Transactions Fees lower than the absolute minimum: 1564856.
+            // Note that its Timestamp was before TestNet and RegTest Genesis, allowing a simpler check.
+            const bool enforceMinFee(pindex->nTime > 1629298530 && m_chainman.GetParams().GetChainType() != ChainType::REGTEST); // A few Functional Tests need to be adjusted.
             if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, enforceMinFee)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
@@ -2427,7 +2429,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<MillisecondsDouble>(time_connect) / num_blocks_total);
 
     CAmount blockReward = GetBlockSubsidy(pindex->nHeight, params.GetConsensus()) + nFees/2; // At least half of Fees must be Burnt.
-    if (params.GetConsensus().fork2Height == 1482768 && pindex->nTime < 1715731200) // Only effective about 1 month after 24.04 Release in MainNet.
+    if (params.GetConsensus().fork2Height == 1482768 && pindex->nHeight < 2142898) // Only effective about 1 month after 24.04 Release in MainNet.
         blockReward = nFees + GetBlockSubsidy(pindex->nHeight, params.GetConsensus());
     if (block.vtx[0]->GetValueOut() > blockReward) {
         LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
@@ -3763,12 +3765,10 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     // checks that use witness data may be performed here.
 
     // Size limits
-    unsigned int maxBlockWeight(MAX_BLOCK_WEIGHT);
-    int64_t maxBlockSigopsCost(MAX_BLOCK_SIGOPS_COST);
-    if (consensusParams.fork2Height == 1482768 && block.GetBlockHeader().nTime < 1715731200) { // Block Limits were higher and reduced to current in MainNet, effective about 1 month after 24.04 Release.
-        maxBlockWeight = 8000000;
-        maxBlockSigopsCost = 320000;
-    }
+    unsigned int maxBlockWeight(MAX_BLOCK_WEIGHT); // Weight Limit was higher in MainNet before 24.04.
+    // No need to check which Chain we are in since the last Block over Weight 2M was before TestNet and RegTest Genesis.
+    if (block.GetBlockHeader().nTime <= 1706630867) // Latest Block larger than current Weight Limit, 2082094
+        maxBlockWeight = 7663464; // Heaviest Block, 2082092
     if (block.vtx.empty() || block.vtx.size() * WITNESS_SCALE_FACTOR > maxBlockWeight || ::GetSerializeSize(TX_NO_WITNESS(block)) * WITNESS_SCALE_FACTOR > maxBlockWeight)
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-length", "size limits failed");
 
@@ -3796,7 +3796,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     {
         nSigOps += GetLegacySigOpCount(*tx);
     }
-    if (nSigOps * WITNESS_SCALE_FACTOR > maxBlockSigopsCost)
+    if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops", "out-of-bounds SigOpCount");
 
     if (fCheckPOW && fCheckMerkleRoot)
@@ -4008,9 +4008,10 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     // large by filling up the coinbase witness, which doesn't change
     // the block hash, so we couldn't mark the block as permanently
     // failed).
-    unsigned int maxBlockWeight(MAX_BLOCK_WEIGHT);
-    if (chainman.GetParams().GetChainType() == ChainType::MAIN && block.GetBlockHeader().nTime < 1715731200) // Block Limits Reduced in MainNet, effective about 1 month after 24.04 Release.
-        maxBlockWeight = 8000000;
+    unsigned int maxBlockWeight(MAX_BLOCK_WEIGHT); // Weight Limit was higher in MainNet before 24.04.
+    // No need to check which Chain we are in since the last Block over Weight 2M was before TestNet and RegTest Genesis.
+    if (block.GetBlockHeader().nTime <= 1706630867) // Latest Block larger than current Weight Limit, 2082094
+        maxBlockWeight = 7663464; // Heaviest Block, 2082092
     if (GetBlockWeight(block) > maxBlockWeight) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-weight", strprintf("%s : weight limit failed", __func__));
     }
