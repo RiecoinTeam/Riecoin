@@ -3881,12 +3881,16 @@ bool IsBlockMutated(const CBlock& block, bool check_witness_root)
     return false;
 }
 
-arith_uint256 CalculateClaimedHeadersWork(const std::vector<CBlockHeader>& headers)
+arith_uint256 CalculateClaimedHeadersWork(const std::vector<CBlockHeader>& headers, const uint32_t start_height)
 {
     arith_uint256 total_work{0};
+
+    uint32_t current_height(start_height);
     for (const CBlockHeader& header : headers) {
         CBlockIndex dummy(header);
+        dummy.nHeight = current_height;
         total_work += GetBlockProof(dummy);
+        current_height++;
     }
     return total_work;
 }
