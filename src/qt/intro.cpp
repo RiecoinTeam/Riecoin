@@ -3,9 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
+#include <bitcoin-build-config.h> // IWYU pragma: keep
 
 #include <chainparams.h>
 #include <qt/intro.h>
@@ -112,57 +110,23 @@ void FreespaceChecker::check()
     Q_EMIT reply(replyStatus, replyMessage, freeBytesAvailable);
 }
 
-namespace {
-//! Return pruning size that will be used if automatic pruning is enabled.
-int GetPruneTargetGB()
-{
-    int64_t prune_target_mib = gArgs.GetIntArg("-prune", 0);
-    // >1 means automatic pruning is enabled by config, 1 means manual pruning, 0 means no pruning.
-    return prune_target_mib > 1 ? PruneMiBtoGB(prune_target_mib) : DEFAULT_PRUNE_TARGET_GB;
-}
-} // namespace
-
 Intro::Intro(QWidget *parent, int64_t blockchain_size_gb, int64_t chain_state_size_gb) :
     QDialog(parent, GUIUtil::dialog_flags),
     ui(new Ui::Intro),
     m_blockchain_size_gb(blockchain_size_gb),
-    m_chain_state_size_gb(chain_state_size_gb),
-    m_prune_target_gb{GetPruneTargetGB()}
+    m_chain_state_size_gb(chain_state_size_gb)
 {
     ui->setupUi(this);
-    ui->welcomeLabel->setText(ui->welcomeLabel->text().arg(PACKAGE_NAME));
-    ui->storageLabel->setText(ui->storageLabel->text().arg(PACKAGE_NAME));
+    ui->welcomeLabel->setText(ui->welcomeLabel->text().arg(CLIENT_NAME));
+    ui->storageLabel->setText(ui->storageLabel->text().arg(CLIENT_NAME));
 
     ui->lblExplanation1->setText(ui->lblExplanation1->text()
-        .arg(PACKAGE_NAME)
+        .arg(CLIENT_NAME)
         .arg(m_blockchain_size_gb)
         .arg(2014)
         .arg(tr("Riecoin"))
     );
-    ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(PACKAGE_NAME));
-
-    const int min_prune_target_GB = std::ceil(MIN_DISK_SPACE_FOR_BLOCK_FILES / 1e9);
-    ui->pruneGB->setRange(min_prune_target_GB, std::numeric_limits<int>::max());
-    if (gArgs.IsArgSet("-prune")) {
-        m_prune_checkbox_is_default = false;
-        ui->prune->setChecked(gArgs.GetIntArg("-prune", 0) >= 1);
-        ui->prune->setEnabled(false);
-    }
-    ui->pruneGB->setValue(m_prune_target_gb);
-    ui->pruneGB->setToolTip(ui->prune->toolTip());
-    ui->lblPruneSuffix->setToolTip(ui->prune->toolTip());
-    UpdatePruneLabels(ui->prune->isChecked());
-
-    connect(ui->prune, &QCheckBox::toggled, [this](bool prune_checked) {
-        m_prune_checkbox_is_default = false;
-        UpdatePruneLabels(prune_checked);
-        UpdateFreeSpaceLabel();
-    });
-    connect(ui->pruneGB, qOverload<int>(&QSpinBox::valueChanged), [this](int prune_GB) {
-        m_prune_target_gb = prune_GB;
-        UpdatePruneLabels(ui->prune->isChecked());
-        UpdateFreeSpaceLabel();
-    });
+    ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(CLIENT_NAME));
 
     startThread();
 }
@@ -195,17 +159,7 @@ void Intro::setDataDirectory(const QString &dataDir)
     }
 }
 
-int64_t Intro::getPruneMiB() const
-{
-    switch (ui->prune->checkState()) {
-    case Qt::Checked:
-        return PruneGBtoMiB(m_prune_target_gb);
-    case Qt::Unchecked: default:
-        return 0;
-    }
-}
-
-bool Intro::showIfNeeded(bool& did_show_intro, int64_t& prune_MiB)
+bool Intro::showIfNeeded(bool& did_show_intro)
 {
     did_show_intro = false;
 
@@ -249,14 +203,11 @@ bool Intro::showIfNeeded(bool& did_show_intro, int64_t& prune_MiB)
                 }
                 break;
             } catch (const fs::filesystem_error&) {
-                QMessageBox::critical(nullptr, PACKAGE_NAME,
+                QMessageBox::critical(nullptr, CLIENT_NAME,
                     tr("Error: Specified data directory \"%1\" cannot be created.").arg(dataDir));
                 /* fall through, back to choosing screen */
             }
         }
-
-        // Additional preferences:
-        prune_MiB = intro.getPruneMiB();
 
         settings.setValue("strDataDir", dataDir);
         settings.setValue("fReset", false);
@@ -290,9 +241,6 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         ui->freeSpace->setText("");
     } else {
         m_bytes_available = bytesAvailable;
-        if (ui->prune->isEnabled() && m_prune_checkbox_is_default) {
-            ui->prune->setChecked(m_bytes_available < (m_blockchain_size_gb + m_chain_state_size_gb + 10) * GB_BYTES);
-        }
         UpdateFreeSpaceLabel();
     }
     /* Don't allow confirm in ERROR state */
@@ -373,28 +321,4 @@ QString Intro::getPathToCheck()
     signalled = false; /* new request can be queued now */
     mutex.unlock();
     return retval;
-}
-
-void Intro::UpdatePruneLabels(bool prune_checked)
-{
-    m_required_space_gb = m_blockchain_size_gb + m_chain_state_size_gb;
-    QString storageRequiresMsg = tr("At least %1 GB of data will be stored in this directory, and it will grow over time.");
-    if (prune_checked && m_prune_target_gb <= m_blockchain_size_gb) {
-        m_required_space_gb = m_prune_target_gb + m_chain_state_size_gb;
-        storageRequiresMsg = tr("Approximately %1 GB of data will be stored in this directory.");
-    }
-    ui->lblExplanation3->setVisible(prune_checked);
-    ui->pruneGB->setEnabled(prune_checked);
-    static constexpr uint64_t nPowTargetSpacing = 150;  // from chainparams, which we don't have at this stage
-    static constexpr uint32_t expected_block_data_size = 1125000;  // includes undo data
-    const uint64_t expected_backup_days = m_prune_target_gb * 1e9 / (uint64_t(expected_block_data_size) * 86400 / nPowTargetSpacing);
-    ui->lblPruneSuffix->setText(
-        //: Explanatory text on the capability of the current prune target.
-        tr("(sufficient to restore backups %n day(s) old)", "", expected_backup_days));
-    ui->sizeWarningLabel->setText(
-        tr("%1 will download and store a copy of the Riecoin block chain.").arg(PACKAGE_NAME) + " " +
-        storageRequiresMsg.arg(m_required_space_gb) + " " +
-        tr("The wallet will also be stored in this directory.")
-    );
-    this->adjustSize();
 }

@@ -11,6 +11,7 @@
 enum HTTPStatusCode
 {
     HTTP_OK                    = 200,
+    HTTP_NO_CONTENT            = 204,
     HTTP_BAD_REQUEST           = 400,
     HTTP_UNAUTHORIZED          = 401,
     HTTP_FORBIDDEN             = 403,
@@ -46,13 +47,12 @@ enum RPCErrorCode
     RPC_DESERIALIZATION_ERROR       = -22, //!< Error parsing or validating structure in raw format
     RPC_VERIFY_ERROR                = -25, //!< General error during transaction or block submission
     RPC_VERIFY_REJECTED             = -26, //!< Transaction or block was rejected by network rules
-    RPC_VERIFY_ALREADY_IN_CHAIN     = -27, //!< Transaction already in chain
+    RPC_VERIFY_ALREADY_IN_UTXO_SET  = -27, //!< Transaction already in utxo set
     RPC_IN_WARMUP                   = -28, //!< Client still warming up
 
     //! Aliases for backward compatibility
     RPC_TRANSACTION_ERROR           = RPC_VERIFY_ERROR,
     RPC_TRANSACTION_REJECTED        = RPC_VERIFY_REJECTED,
-    RPC_TRANSACTION_ALREADY_IN_CHAIN= RPC_VERIFY_ALREADY_IN_CHAIN,
 
     //! P2P client errors
     RPC_CLIENT_NOT_CONNECTED        = -9,  //!< Bitcoin is not connected

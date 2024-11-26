@@ -100,4 +100,4 @@ class WalletEncryptionTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    WalletEncryptionTest().main()
+    WalletEncryptionTest(__file__).main()

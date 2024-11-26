@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from getpass import getpass
 from secrets import token_hex, token_urlsafe
 import hmac
+import json
 
 def generate_salt(size):
     """Create size byte hex salt"""
@@ -25,6 +26,7 @@ def main():
     parser = ArgumentParser(description='Create login credentials for a JSON-RPC user')
     parser.add_argument('username', help='the username for authentication')
     parser.add_argument('password', help='leave empty to generate a random password or specify "-" to prompt for password', nargs='?')
+    parser.add_argument("-j", "--json", help="output to json instead of plain-text", action='store_true')
     args = parser.parse_args()
 
     if not args.password:
@@ -36,9 +38,13 @@ def main():
     salt = generate_salt(16)
     password_hmac = password_to_hmac(salt, args.password)
 
-    print('String to be appended to riecoin.conf:')
-    print(f'rpcauth={args.username}:{salt}${password_hmac}')
-    print(f'Your password:\n{args.password}')
+    if args.json:
+        odict={'username':args.username, 'password':args.password, 'rpcauth':f'{args.username}:{salt}${password_hmac}'}
+        print(json.dumps(odict))
+    else:
+        print('String to be appended to riecoin.conf:')
+        print(f'rpcauth={args.username}:{salt}${password_hmac}')
+        print(f'Your password:\n{args.password}')
 
 if __name__ == '__main__':
     main()

@@ -56,4 +56,4 @@ class WalletStartupTest(BitcoinTestFramework):
         assert_equal(set(self.nodes[0].listwallets()), set(('w2', 'w3')))
 
 if __name__ == '__main__':
-    WalletStartupTest().main()
+    WalletStartupTest(__file__).main()

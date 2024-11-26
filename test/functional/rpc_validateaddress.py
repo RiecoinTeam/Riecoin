@@ -167,6 +167,11 @@ VALID_DATA = [
         "ric1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqdd8504",
         "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
     ),
+    # PayToAnchor(P2A)
+    (
+        "ric1pfees6jykan",
+        "51024e73",
+    ),
 ]
 
 
@@ -201,4 +206,4 @@ class ValidateAddressMainTest(BitcoinTestFramework):
 
 
 if __name__ == "__main__":
-    ValidateAddressMainTest().main()
+    ValidateAddressMainTest(__file__).main()

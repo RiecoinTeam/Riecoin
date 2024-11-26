@@ -182,6 +182,10 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
                 return tap;
             }
 
+            if (CScript::IsPayToAnchor(version, data)) {
+                return PayToAnchor();
+            }
+
             if (version > 16) {
                 error_str = "Invalid Bech32 address witness version";
                 return CNoDestination();
@@ -266,6 +270,9 @@ CExtKey DecodeExtKey(const std::string& str)
         if (data.size() == BIP32_EXTKEY_SIZE + prefix.size() && std::equal(prefix.begin(), prefix.end(), data.begin())) {
             key.Decode(data.data() + prefix.size());
         }
+    }
+    if (!data.empty()) {
+        memory_cleanse(data.data(), data.size());
     }
     return key;
 }

@@ -10,6 +10,7 @@
 #include <util/fs.h>
 #include <wallet/db.h>
 
+#include <algorithm>
 #include <exception>
 #include <fstream>
 #include <string>
@@ -17,9 +18,12 @@
 #include <vector>
 
 namespace wallet {
-std::vector<fs::path> ListDatabases(const fs::path& wallet_dir)
+bool operator<(BytePrefix a, Span<const std::byte> b) { return std::ranges::lexicographical_compare(a.prefix, b.subspan(0, std::min(a.prefix.size(), b.size()))); }
+bool operator<(Span<const std::byte> a, BytePrefix b) { return std::ranges::lexicographical_compare(a.subspan(0, std::min(a.size(), b.prefix.size())), b.prefix); }
+
+std::vector<std::pair<fs::path, std::string>> ListDatabases(const fs::path& wallet_dir)
 {
-    std::vector<fs::path> paths;
+    std::vector<std::pair<fs::path, std::string>> paths;
     std::error_code ec;
 
     for (auto it = fs::recursive_directory_iterator(wallet_dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
@@ -35,9 +39,11 @@ std::vector<fs::path> ListDatabases(const fs::path& wallet_dir)
 
         try {
             const fs::path path{it->path().lexically_relative(wallet_dir)};
-            if (it->status().type() == fs::file_type::directory && IsSQLiteFile(SQLiteDataFile(it->path()))) {
-                // Found a directory which contains wallet.dat btree file, add it as a wallet.
-                paths.emplace_back(path);
+            if (it->status().type() == fs::file_type::directory) {
+                if (IsSQLiteFile(SQLiteDataFile(it->path()))) {
+                    // Found a directory which contains wallet.dat sqlite file, add it as a wallet with SQLITE format.
+                    paths.emplace_back(path, "sqlite");
+                }
             }
         } catch (const std::exception& e) {
             LogPrintf("%s: Error scanning %s: %s\n", __func__, fs::PathToString(it->path()), e.what());

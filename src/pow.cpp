@@ -11,6 +11,7 @@
 #include <logging.h>
 #include <primitives/block.h>
 #include <uint256.h>
+#include <util/check.h>
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
 {
@@ -125,7 +126,9 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
         if (newDifficulty < minDifficulty)
             newDifficulty = minDifficulty;
 
-        arith_uint256 newDifficultyU256(UintToArith256(uint256S(newDifficulty.get_str(16))));
+        std::string newDifficultyStr(newDifficulty.get_str(16));
+        newDifficultyStr = std::string(64U - newDifficultyStr.length(), '0') + newDifficultyStr;
+        arith_uint256 newDifficultyU256(UintToArith256(uint256::FromHex(newDifficultyStr).value()));
         return newDifficultyU256.GetCompact();
     }
 }
@@ -227,7 +230,14 @@ static std::vector<uint64_t> GeneratePrimeTable(const uint64_t limit) // Using S
 }
 const std::vector<uint64_t> primeTable(GeneratePrimeTable(821641)); // Used to calculate the Primorial when checking
 
+// Bypasses the actual proof of work check during fuzz testing .
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256 nOnce, const Consensus::Params& params)
+{
+    if constexpr (G_FUZZING) return true;
+    return CheckProofOfWorkImpl(hash, nBits, nOnce, params);
+}
+
+bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nOnce, const Consensus::Params& params)
 {
     if (hash == params.hashGenesisBlockForPoW)
         return true;

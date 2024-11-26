@@ -1,21 +1,14 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <test/util/setup_common.h>
-
-#include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
 #include <banman.h>
 #include <chainparams.h>
 #include <common/system.h>
-#include <common/url.h>
 #include <consensus/consensus.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
@@ -34,10 +27,9 @@
 #include <node/mempool_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
-#include <node/validation_cache_args.h>
+#include <node/warnings.h>
 #include <noui.h>
 #include <policy/fees.h>
-#include <policy/fees_args.h>
 #include <pow.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -70,8 +62,8 @@
 #include <functional>
 #include <stdexcept>
 
+using namespace util::hex_literals;
 using kernel::BlockTreeDB;
-using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
 using node::BlockManager;
@@ -82,16 +74,15 @@ using node::RegenerateCommitments;
 using node::VerifyLoadedChainstate;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
-UrlDecodeFn* const URL_DECODE = nullptr;
 
-/** Random context to get unique temp data dirs. Separate from g_insecure_rand_ctx, which can be seeded from a const env var */
-static FastRandomContext g_insecure_rand_ctx_temp_path;
-
-std::ostream& operator<<(std::ostream& os, const uint256& num)
-{
-    os << num.ToString();
-    return os;
-}
+constexpr inline auto TEST_DIR_PATH_ELEMENT{"test_common bitcoin"}; // Includes a space to catch possible path escape issues.
+/** Random context to get unique temp data dirs. Separate from m_rng, which can be seeded from a const env var */
+static FastRandomContext g_rng_temp_path;
+static const bool g_rng_temp_path_init{[] {
+    // Must be initialized before any SeedRandomForTest
+    (void)g_rng_temp_path.rand64();
+    return true;
+}()};
 
 struct NetworkSetup
 {
@@ -102,10 +93,9 @@ struct NetworkSetup
 };
 static NetworkSetup g_networksetup_instance;
 
-/** Register test-only arguments */
-static void SetupUnitTestArgs(ArgsManager& argsman)
+void SetupCommonTestArgs(ArgsManager& argsman)
 {
-    argsman.AddArg("-testdatadir", strprintf("Custom data directory (default: %s<random_string>)", fs::PathToString(fs::temp_directory_path() / "test_common_" PACKAGE_NAME / "")),
+    argsman.AddArg("-testdatadir", strprintf("Custom data directory (default: %s<random_string>)", fs::PathToString(fs::temp_directory_path() / TEST_DIR_PATH_ELEMENT / "")),
                    ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
 }
 
@@ -116,10 +106,11 @@ static void ExitFailure(std::string_view str_err)
     exit(EXIT_FAILURE);
 }
 
-BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vector<const char*>& extra_args)
+BasicTestingSetup::BasicTestingSetup(const ChainType chainType, TestOpts opts)
     : m_args{}
 {
-    m_node.shutdown = &m_interrupt;
+    m_node.shutdown_signal = &m_interrupt;
+    m_node.shutdown_request = [this]{ return m_interrupt(); };
     m_node.args = &gArgs;
     std::vector<const char*> arguments = Cat(
         {
@@ -133,7 +124,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
             "-debugexclude=libevent",
             "-debugexclude=leveldb",
         },
-        extra_args);
+        opts.extra_args);
     if (G_TEST_COMMAND_LINE_ARGUMENTS) {
         arguments = Cat(arguments, G_TEST_COMMAND_LINE_ARGUMENTS());
     }
@@ -141,7 +132,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     gArgs.ClearPathCache();
     {
         SetupServerArgs(*m_node.args);
-        SetupUnitTestArgs(*m_node.args);
+        SetupCommonTestArgs(*m_node.args);
         std::string error;
         if (!m_node.args->ParseParameters(arguments.size(), arguments.data(), error)) {
             m_node.args->ClearArgs();
@@ -149,10 +140,16 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         }
     }
 
+    SeedRandomForTest(SeedRand::FIXED_SEED);
+
+    const std::string test_name{G_TEST_GET_FULL_NAME ? G_TEST_GET_FULL_NAME() : ""};
     if (!m_node.args->IsArgSet("-testdatadir")) {
-        // By default, the data directory has a random name
-        const auto rand_str{g_insecure_rand_ctx_temp_path.rand256().ToString()};
-        m_path_root = fs::temp_directory_path() / "test_common_" PACKAGE_NAME / rand_str;
+        // To avoid colliding with a leftover prior datadir, and to allow
+        // tests, such as the fuzz tests to run in several processes at the
+        // same time, add a random element to the path. Keep it small enough to
+        // avoid a MAX_PATH violation on Windows.
+        const auto rand{HexStr(g_rng_temp_path.randbytes(10))};
+        m_path_root = fs::temp_directory_path() / TEST_DIR_PATH_ELEMENT / test_name / rand;
         TryCreateDirectories(m_path_root);
     } else {
         // Custom data directory
@@ -161,8 +158,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         if (root_dir.empty()) ExitFailure("-testdatadir argument is empty, please specify a path");
 
         root_dir = fs::absolute(root_dir);
-        const std::string test_path{G_TEST_GET_FULL_NAME ? G_TEST_GET_FULL_NAME() : ""};
-        m_path_lock = root_dir / "test_common_" PACKAGE_NAME / fs::PathFromString(test_path);
+        m_path_lock = root_dir / TEST_DIR_PATH_ELEMENT / fs::PathFromString(test_name);
         m_path_root = m_path_lock / "datadir";
 
         // Try to obtain the lock; if unsuccessful don't disturb the existing test.
@@ -182,18 +178,14 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     gArgs.ForceSetArg("-datadir", fs::PathToString(m_path_root));
 
     SelectParams(chainType);
-    SeedInsecureRand();
     if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
     InitLogging(*m_node.args);
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
+    m_node.warnings = std::make_unique<node::Warnings>();
     m_node.kernel = std::make_unique<kernel::Context>();
+    m_node.ecc_context = std::make_unique<ECC_Context>();
     SetupEnvironment();
-
-    ValidationCacheSizes validation_cache_sizes{};
-    ApplyArgsManOptions(*m_node.args, validation_cache_sizes);
-    Assert(InitSignatureCache(validation_cache_sizes.signature_cache_bytes));
-    Assert(InitScriptExecutionCache(validation_cache_sizes.script_execution_cache_bytes));
 
     m_node.chain = interfaces::MakeChain(m_node);
     static bool noui_connected = false;
@@ -205,6 +197,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
 
 BasicTestingSetup::~BasicTestingSetup()
 {
+    m_node.ecc_context.reset();
     m_node.kernel.reset();
     SetMockTime(0s); // Reset mocktime for following tests
     LogInstance().DisconnectTestLogger();
@@ -218,55 +211,69 @@ BasicTestingSetup::~BasicTestingSetup()
     gArgs.ClearArgs();
 }
 
-ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vector<const char*>& extra_args)
-    : BasicTestingSetup(chainType, extra_args)
+ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
+    : BasicTestingSetup(chainType, opts)
 {
     const CChainParams& chainparams = Params();
 
     // We have to run a scheduler thread to prevent ActivateBestChain
     // from blocking due to queue overrun.
-    m_node.scheduler = std::make_unique<CScheduler>();
-    m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
-    m_node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
+    if (opts.setup_validation_interface) {
+        m_node.scheduler = std::make_unique<CScheduler>();
+        m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
+        m_node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
+    }
 
-    m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
-    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+    bilingual_str error{};
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node), error);
+    Assert(error.empty());
+    m_node.warnings = std::make_unique<node::Warnings>();
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.notifications = std::make_unique<KernelNotifications>(*Assert(m_node.shutdown), m_node.exit_status);
+    m_node.notifications = std::make_unique<KernelNotifications>(Assert(m_node.shutdown_request), m_node.exit_status, *Assert(m_node.warnings));
 
-    const ChainstateManager::Options chainman_opts{
-        .chainparams = chainparams,
-        .datadir = m_args.GetDataDirNet(),
-        .check_block_index = true,
-        .notifications = *m_node.notifications,
-        .signals = m_node.validation_signals.get(),
-        .worker_threads_num = 2,
+    m_make_chainman = [this, &chainparams, opts] {
+        Assert(!m_node.chainman);
+        ChainstateManager::Options chainman_opts{
+            .chainparams = chainparams,
+            .datadir = m_args.GetDataDirNet(),
+            .check_block_index = 1,
+            .notifications = *m_node.notifications,
+            .signals = m_node.validation_signals.get(),
+            .worker_threads_num = 2,
+        };
+        if (opts.min_validation_cache) {
+            chainman_opts.script_execution_cache_bytes = 0;
+            chainman_opts.signature_cache_bytes = 0;
+        }
+        const BlockManager::Options blockman_opts{
+            .chainparams = chainman_opts.chainparams,
+            .blocks_dir = m_args.GetBlocksDirPath(),
+            .notifications = chainman_opts.notifications,
+        };
+        m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown_signal), chainman_opts, blockman_opts);
+        LOCK(m_node.chainman->GetMutex());
+        m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<BlockTreeDB>(DBParams{
+            .path = m_args.GetDataDirNet() / "blocks" / "index",
+            .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),
+            .memory_only = true,
+        });
     };
-    const BlockManager::Options blockman_opts{
-        .chainparams = chainman_opts.chainparams,
-        .blocks_dir = m_args.GetBlocksDirPath(),
-        .notifications = chainman_opts.notifications,
-    };
-    m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown), chainman_opts, blockman_opts);
-    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<BlockTreeDB>(DBParams{
-        .path = m_args.GetDataDirNet() / "blocks" / "index",
-        .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),
-        .memory_only = true});
+    m_make_chainman();
 }
 
 ChainTestingSetup::~ChainTestingSetup()
 {
     if (m_node.scheduler) m_node.scheduler->stop();
-    m_node.validation_signals->FlushBackgroundCallbacks();
+    if (m_node.validation_signals) m_node.validation_signals->FlushBackgroundCallbacks();
     m_node.connman.reset();
     m_node.banman.reset();
     m_node.addrman.reset();
     m_node.netgroupman.reset();
     m_node.args = nullptr;
     m_node.mempool.reset();
-    m_node.fee_estimator.reset();
+    Assert(!m_node.fee_estimator); // Each test must create a local object, if they wish to use the fee_estimator
     m_node.chainman.reset();
     m_node.validation_signals.reset();
     m_node.scheduler.reset();
@@ -279,8 +286,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
     options.mempool = Assert(m_node.mempool.get());
     options.block_tree_db_in_memory = m_block_tree_db_in_memory;
     options.coins_db_in_memory = m_coins_db_in_memory;
-    options.reindex = node::fReindex;
-    options.reindex_chainstate = m_args.GetBoolArg("-reindex-chainstate", false);
+    options.wipe_block_tree_db = m_args.GetBoolArg("-reindex", false);
+    options.wipe_chainstate_db = m_args.GetBoolArg("-reindex", false) || m_args.GetBoolArg("-reindex-chainstate", false);
     options.prune = chainman.m_blockman.IsPruneMode();
     options.check_blocks = m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
     options.check_level = m_args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL);
@@ -299,18 +306,18 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
 
 TestingSetup::TestingSetup(
     const ChainType chainType,
-    const std::vector<const char*>& extra_args,
-    const bool coins_db_in_memory,
-    const bool block_tree_db_in_memory)
-    : ChainTestingSetup(chainType, extra_args)
+    TestOpts opts)
+    : ChainTestingSetup(chainType, opts)
 {
-    m_coins_db_in_memory = coins_db_in_memory;
-    m_block_tree_db_in_memory = block_tree_db_in_memory;
+    m_coins_db_in_memory = opts.coins_db_in_memory;
+    m_block_tree_db_in_memory = opts.block_tree_db_in_memory;
     // Ideally we'd move all the RPC tests to the functional testing framework
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
 
     LoadVerifyActivateChainstate();
+
+    if (!opts.setup_net) return;
 
     m_node.netgroupman = std::make_unique<NetGroupManager>(/*asmap=*/std::vector<bool>());
     m_node.addrman = std::make_unique<AddrMan>(*m_node.netgroupman,
@@ -323,7 +330,8 @@ TestingSetup::TestingSetup(
     peerman_opts.deterministic_rng = true;
     m_node.peerman = PeerManager::make(*m_node.connman, *m_node.addrman,
                                        m_node.banman.get(), *m_node.chainman,
-                                       *m_node.mempool, peerman_opts);
+                                       *m_node.mempool, *m_node.warnings,
+                                       peerman_opts);
 
     {
         CConnman::Options options;
@@ -333,11 +341,9 @@ TestingSetup::TestingSetup(
 }
 
 TestChain100Setup::TestChain100Setup(
-        const ChainType chain_type,
-        const std::vector<const char*>& extra_args,
-        const bool coins_db_in_memory,
-        const bool block_tree_db_in_memory)
-    : TestingSetup{ChainType::REGTEST, extra_args, coins_db_in_memory, block_tree_db_in_memory}
+    const ChainType chain_type,
+    TestOpts opts)
+    : TestingSetup{ChainType::REGTEST, opts}
 {
     SetMockTime(1710190154);
     constexpr std::array<unsigned char, 32> vchKey = {
@@ -370,7 +376,8 @@ CBlock TestChain100Setup::CreateBlock(
     const CScript& scriptPubKey,
     Chainstate& chainstate)
 {
-    CBlock block = BlockAssembler{chainstate, nullptr}.CreateNewBlock(scriptPubKey)->block;
+    BlockAssembler::Options options;
+    CBlock block = BlockAssembler{chainstate, nullptr, options}.CreateNewBlock(scriptPubKey)->block;
 
     Assert(block.vtx.size() == 1);
     for (const CMutableTransaction& tx : txns) {
@@ -378,7 +385,7 @@ CBlock TestChain100Setup::CreateBlock(
     }
     RegenerateCommitments(block, *Assert(m_node.chainman));
 
-    block.nNonce = UintToArith256(uint256S("0x0000000000000000000000000000000000000000000000000000000000000002"));
+    block.nNonce = UintToArith256(uint256{"0000000000000000000000000000000000000000000000000000000000000002"});
     while (!CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nNonce), m_node.chainman->GetConsensus())) block.nNonce += 131072;
 
     return block;
@@ -432,9 +439,8 @@ std::pair<CMutableTransaction, CAmount> TestChain100Setup::CreateValidTransactio
     std::map<COutPoint, Coin> input_coins;
     CAmount inputs_amount{0};
     for (const auto& outpoint_to_spend : inputs) {
-        // - Use GetCoin to properly populate utxo_to_spend,
-        Coin utxo_to_spend;
-        assert(coins_cache.GetCoin(outpoint_to_spend, utxo_to_spend));
+        // Use GetCoin to properly populate utxo_to_spend
+        auto utxo_to_spend{coins_cache.GetCoin(outpoint_to_spend).value()};
         input_coins.insert({outpoint_to_spend, utxo_to_spend});
         inputs_amount += utxo_to_spend.out.nValue;
     }
@@ -539,9 +545,11 @@ std::vector<CTransactionRef> TestChain100Setup::PopulateMempool(FastRandomContex
         if (submit) {
             LOCK2(cs_main, m_node.mempool->cs);
             LockPoints lp;
-            m_node.mempool->addUnchecked(CTxMemPoolEntry(ptx, /*fee=*/(total_in - num_outputs * amount_per_output),
-                                                         /*time=*/0, /*entry_height=*/1, /*entry_sequence=*/0,
-                                                         /*spends_coinbase=*/false, /*sigops_cost=*/4, lp));
+            auto changeset = m_node.mempool->GetChangeSet();
+            changeset->StageAddition(ptx, /*fee=*/(total_in - num_outputs * amount_per_output),
+                    /*time=*/0, /*entry_height=*/1, /*entry_sequence=*/0,
+                    /*spends_coinbase=*/false, /*sigops_cost=*/4, lp);
+            changeset->Apply();
         }
         --num_transactions;
     }
@@ -555,23 +563,27 @@ void TestChain100Setup::MockMempoolMinFee(const CFeeRate& target_feerate)
     assert(m_node.mempool->size() == 0);
     // The target feerate cannot be too low...
     // ...otherwise the transaction's feerate will need to be negative.
-    assert(target_feerate > m_node.mempool->m_incremental_relay_feerate);
+    assert(target_feerate > m_node.mempool->m_opts.incremental_relay_feerate);
     // ...otherwise this is not meaningful. The feerate policy uses the maximum of both feerates.
-    assert(target_feerate > m_node.mempool->m_min_relay_feerate);
+    assert(target_feerate > m_node.mempool->m_opts.min_relay_feerate);
 
     // Manually create an invalid transaction. Manually set the fee in the CTxMemPoolEntry to
     // achieve the exact target feerate.
     CMutableTransaction mtx = CMutableTransaction();
-    mtx.vin.emplace_back(COutPoint{Txid::FromUint256(g_insecure_rand_ctx.rand256()), 0});
+    mtx.vin.emplace_back(COutPoint{Txid::FromUint256(m_rng.rand256()), 0});
     mtx.vout.emplace_back(1 * COIN, GetScriptForDestination(WitnessV0ScriptHash(CScript() << OP_TRUE)));
     const auto tx{MakeTransactionRef(mtx)};
     LockPoints lp;
     // The new mempool min feerate is equal to the removed package's feerate + incremental feerate.
     const auto tx_fee = target_feerate.GetFee(GetVirtualTransactionSize(*tx)) -
-        m_node.mempool->m_incremental_relay_feerate.GetFee(GetVirtualTransactionSize(*tx));
-    m_node.mempool->addUnchecked(CTxMemPoolEntry(tx, /*fee=*/tx_fee,
-                                                 /*time=*/0, /*entry_height=*/1, /*entry_sequence=*/0,
-                                                 /*spends_coinbase=*/true, /*sigops_cost=*/1, lp));
+        m_node.mempool->m_opts.incremental_relay_feerate.GetFee(GetVirtualTransactionSize(*tx));
+    {
+        auto changeset = m_node.mempool->GetChangeSet();
+        changeset->StageAddition(tx, /*fee=*/tx_fee,
+                /*time=*/0, /*entry_height=*/1, /*entry_sequence=*/0,
+                /*spends_coinbase=*/true, /*sigops_cost=*/1, lp);
+        changeset->Apply();
+    }
     m_node.mempool->TrimToSize(0);
     assert(m_node.mempool->GetMinFee() == target_feerate);
 }
@@ -583,8 +595,23 @@ CBlock getBlock5564f()
 {
     CBlock block;
     DataStream stream{
-        ParseHex("000000208faded5983fd5bb5d23ca0b039b2cf91d4ca1d4db5a3b02c01b5c08a0d410a980bf3ee62c22d90bc2299352d1862f320c7e05cccabd6c643c3675664bdef8970d2c2f45e00000000009f0402059c1b2530726d8247879274fada96b3f3b9834edfb0f3d8805a5a7546638d7d06010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0c03b633142f724d2f8617407affffffff02a7270395000000001600140ad73d094eca6d83cbcb7f921c6d0b70d36cbd720000000000000000266a24aa21a9ed6ef1aad21082ac1fb190c61e06f019640e7be548ec228625b3b782b2b51bb1ed01200000000000000000000000000000000000000000000000000000000000000000000000000100000001079abb2b2723515ff6cdb74f292a5c498332e99c2a86a5a0150563f4da5334b2000000006a47304402204b6db43519c851f422a73a89cd4ee94495b93c17caac1bacbba87a4dcc943bfe02201b645409a1d69034d2f56973b574114731b5bbdb3b9ffd3a08042785486ee54401210399f145c396c4940e346a11db221fedbf0228ee37242af39f2f60757a5f8510f1feffffff02abdc4f2f000000001976a914b54bfe1a783c71c02f3441d2e5eb102c60532db888ac7c67f741000000001976a914e4781b5c9370fe713fede1d89792b022608ed83288acb533140001000000010efb6b79553bb6fe3b51f7219ae600f9865213e3f06f4e23b30f225e5b9f4f49010000006a47304402203da145cbe6891a2244a7b8eff513d3311d0dd1db1b5d6bda8d70b323a9b9939402207e2354226e3823171d08cbb4f3ceb1eaaaca8eab7ceb3620ea11090c8bd50c77012102902c7cd4a14daeac63b9c075c4f43913b823f49350d15374017e0c283161c3defeffffff02d4b3d834000000001976a914081b1e2c58cb246341f73c15fbc2451022d96b8a88ace8d6230d000000001976a9144ac409c80bca26cdec87817dc0c6956f123eea0588acb53314000100000001c402acc13df1f4331f70434ff32da501f0d7f6c53fe823c081cc594953abd035010000006a473044022051f1ff30170a75d9b1cc70ad5eb097fbf8d88d247992d67f97ba0c7451003c320220705537f41fb4ce6e031ad1a0f7710fdc793e6faf127891e75252ec8cf9c0ad6a012103a4ffadecf271cf62ebf6cbc1ec9fa1dfb36146d62dbc88ddd7a8075d44b8ceccfeffffff0256fa947e000000001976a914e1b9572d307a8c1158c507589dd21328e562142788ac6af66d16000000001976a914bced4c4a28579dfd2edba27995954fc6e7f492b588acb53314000100000002436785bb90c8463ef78048311c0c25533e837c31c673b87b3f971fdf95980553010000006a47304402203bb68e43eb881e9953d1b49cfa93b3376f6498913b541f7996e8adf47f9e045402204335ca43f9ad165b59e1b037f9cfd602827f746bbfd703459076605f06cb1e4501210329da5b40a0fa877f2e1a3fd2296144b6f6b74bb636feef242fc5a20116b7ac44feffffffc9c80505b16ef9da1751b5bcf9bfaeee9128622cd452e28ac4291cfb7ea41a0d000000006b483045022100af48d711e4efab9e1f52df17281664cdca5e7b9f43b77f827951e560112b8ced02203f4931f94f922fc3ae4f02fa368f9d2eeb0b612744af66d0cef8911981bf7823012102157f5deb06c50045e9fa0724e4bb5c05a696fb3ba446fdf353c28d47cbaf70d8feffffff020fc3375e000000001976a91475f87a6fc2562cf6096313030b170da38f8c635588acf3031f00000000001976a9148633750417127ce58ff40bfe0e966cb82b07f48988acb53314000100000001ce66ebc2beeb5a4c6feb40bf375ab644a0576695cdbde31a4e974d0d16794e69010000006b483045022100933749d80ed779aea9bdd0857f885b65c66cf3ee2a71ea90aac02f71f6c543e80220659a4b864696ddb7c5da9201c22518605ea2f71d2faaf2e8c8d02100e3cff1600121035be414af5ea7081e8fc313ce8a7c42247ba5e4c659dd16af9ee71d496f2dff81feffffff02a4bbbc1e000000001976a9148ddfb0eb2aaa5aec31a501ecd68d9748cf87cbd988ac82f65d6b000000001976a9147f2171e3d70b1227823eb9453db1807be7e304c388acb5331400"),
+        "000000208faded5983fd5bb5d23ca0b039b2cf91d4ca1d4db5a3b02c01b5c08a0d410a980bf3ee62c22d90bc2299352d1862f320c7e05cccabd6c643c3675664bdef8970d2c2f45e00000000009f0402059c1b2530726d8247879274fada96b3f3b9834edfb0f3d8805a5a7546638d7d06010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0c03b633142f724d2f8617407affffffff02a7270395000000001600140ad73d094eca6d83cbcb7f921c6d0b70d36cbd720000000000000000266a24aa21a9ed6ef1aad21082ac1fb190c61e06f019640e7be548ec228625b3b782b2b51bb1ed01200000000000000000000000000000000000000000000000000000000000000000000000000100000001079abb2b2723515ff6cdb74f292a5c498332e99c2a86a5a0150563f4da5334b2000000006a47304402204b6db43519c851f422a73a89cd4ee94495b93c17caac1bacbba87a4dcc943bfe02201b645409a1d69034d2f56973b574114731b5bbdb3b9ffd3a08042785486ee54401210399f145c396c4940e346a11db221fedbf0228ee37242af39f2f60757a5f8510f1feffffff02abdc4f2f000000001976a914b54bfe1a783c71c02f3441d2e5eb102c60532db888ac7c67f741000000001976a914e4781b5c9370fe713fede1d89792b022608ed83288acb533140001000000010efb6b79553bb6fe3b51f7219ae600f9865213e3f06f4e23b30f225e5b9f4f49010000006a47304402203da145cbe6891a2244a7b8eff513d3311d0dd1db1b5d6bda8d70b323a9b9939402207e2354226e3823171d08cbb4f3ceb1eaaaca8eab7ceb3620ea11090c8bd50c77012102902c7cd4a14daeac63b9c075c4f43913b823f49350d15374017e0c283161c3defeffffff02d4b3d834000000001976a914081b1e2c58cb246341f73c15fbc2451022d96b8a88ace8d6230d000000001976a9144ac409c80bca26cdec87817dc0c6956f123eea0588acb53314000100000001c402acc13df1f4331f70434ff32da501f0d7f6c53fe823c081cc594953abd035010000006a473044022051f1ff30170a75d9b1cc70ad5eb097fbf8d88d247992d67f97ba0c7451003c320220705537f41fb4ce6e031ad1a0f7710fdc793e6faf127891e75252ec8cf9c0ad6a012103a4ffadecf271cf62ebf6cbc1ec9fa1dfb36146d62dbc88ddd7a8075d44b8ceccfeffffff0256fa947e000000001976a914e1b9572d307a8c1158c507589dd21328e562142788ac6af66d16000000001976a914bced4c4a28579dfd2edba27995954fc6e7f492b588acb53314000100000002436785bb90c8463ef78048311c0c25533e837c31c673b87b3f971fdf95980553010000006a47304402203bb68e43eb881e9953d1b49cfa93b3376f6498913b541f7996e8adf47f9e045402204335ca43f9ad165b59e1b037f9cfd602827f746bbfd703459076605f06cb1e4501210329da5b40a0fa877f2e1a3fd2296144b6f6b74bb636feef242fc5a20116b7ac44feffffffc9c80505b16ef9da1751b5bcf9bfaeee9128622cd452e28ac4291cfb7ea41a0d000000006b483045022100af48d711e4efab9e1f52df17281664cdca5e7b9f43b77f827951e560112b8ced02203f4931f94f922fc3ae4f02fa368f9d2eeb0b612744af66d0cef8911981bf7823012102157f5deb06c50045e9fa0724e4bb5c05a696fb3ba446fdf353c28d47cbaf70d8feffffff020fc3375e000000001976a91475f87a6fc2562cf6096313030b170da38f8c635588acf3031f00000000001976a9148633750417127ce58ff40bfe0e966cb82b07f48988acb53314000100000001ce66ebc2beeb5a4c6feb40bf375ab644a0576695cdbde31a4e974d0d16794e69010000006b483045022100933749d80ed779aea9bdd0857f885b65c66cf3ee2a71ea90aac02f71f6c543e80220659a4b864696ddb7c5da9201c22518605ea2f71d2faaf2e8c8d02100e3cff1600121035be414af5ea7081e8fc313ce8a7c42247ba5e4c659dd16af9ee71d496f2dff81feffffff02a4bbbc1e000000001976a9148ddfb0eb2aaa5aec31a501ecd68d9748cf87cbd988ac82f65d6b000000001976a9147f2171e3d70b1227823eb9453db1807be7e304c388acb5331400"_hex,
     };
     stream >> TX_WITH_WITNESS(block);
     return block;
+}
+
+std::ostream& operator<<(std::ostream& os, const arith_uint256& num)
+{
+    return os << num.ToString();
+}
+
+std::ostream& operator<<(std::ostream& os, const uint160& num)
+{
+    return os << num.ToString();
+}
+
+std::ostream& operator<<(std::ostream& os, const uint256& num)
+{
+    return os << num.ToString();
 }

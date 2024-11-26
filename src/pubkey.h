@@ -233,6 +233,11 @@ private:
     uint256 m_keydata;
 
 public:
+    /** Nothing Up My Sleeve point H
+     *  Used as an internal key for provably disabling the key path spend
+     *  see BIP341 for more details */
+    static const XOnlyPubKey NUMS_H;
+
     /** Construct an empty x-only pubkey. */
     XOnlyPubKey() = default;
 
@@ -249,7 +254,7 @@ public:
     bool IsNull() const { return m_keydata.IsNull(); }
 
     /** Construct an x-only pubkey from exactly 32 bytes. */
-    explicit XOnlyPubKey(Span<const unsigned char> bytes);
+    constexpr explicit XOnlyPubKey(std::span<const unsigned char> bytes) : m_keydata{bytes} {}
 
     /** Construct an x-only pubkey from a normal pubkey. */
     explicit XOnlyPubKey(const CPubKey& pubkey) : XOnlyPubKey(Span{pubkey}.subspan(1, 32)) {}

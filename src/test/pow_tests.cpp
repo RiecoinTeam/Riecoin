@@ -86,8 +86,8 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_too_easy_target)
     const auto consensus = CreateChainParams(*m_node.args, ChainType::REGTEST)->GetConsensus();
     uint256 hash, offset;
     unsigned int nBits(287*256); // 287 (minimum is 288)
-    hash.SetHex("0x0");
-    offset.SetHex("0x0000000000000000000000000000000000000000000000000000000000220002"); // 2^287 + 35 is prime
+    hash = uint256{0};
+    offset = uint256{"0000000000000000000000000000000000000000000000000000000000220002"}; // 2^287 + 35 is prime
     BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
@@ -96,8 +96,8 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_biger_hash_than_target)
     const auto consensus = CreateChainParams(*m_node.args, ChainType::REGTEST)->GetConsensus();
     uint256 hash, offset;
     unsigned int nBits(288*256); // 288
-    hash.SetHex("0x0");
-    offset.SetHex("0x00000000000000000000000000000000000000000000000000000100003a0002"); // 2^288 + 16777275 is prime, but 16777275 >= 2^24
+    hash = uint256{0};
+    offset = uint256{"00000000000000000000000000000000000000000000000000000100003a0002"}; // 2^288 + 16777275 is prime, but 16777275 >= 2^24
     BOOST_CHECK(!CheckProofOfWork(hash, nBits, offset, consensus));
 }
 
@@ -105,8 +105,8 @@ BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_zero_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, ChainType::REGTEST)->GetConsensus();
     uint256 hash, offset;
-    hash.SetHex("0x0");
-    offset.SetHex("0x0000000000000000000000000000000000000000000000000000000000010002"); // 2 is prime
+    hash = uint256{0};
+    offset = uint256{"0000000000000000000000000000000000000000000000000000000000010002"}; // 2 is prime
     BOOST_CHECK(!CheckProofOfWork(hash, 0, offset, consensus));
 }
 
@@ -123,9 +123,9 @@ BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
     }
 
     for (int j = 0; j < 1000; j++) {
-        CBlockIndex *p1 = &blocks[InsecureRandRange(10000)];
-        CBlockIndex *p2 = &blocks[InsecureRandRange(10000)];
-        CBlockIndex *p3 = &blocks[InsecureRandRange(10000)];
+        CBlockIndex *p1 = &blocks[m_rng.randrange(10000)];
+        CBlockIndex *p2 = &blocks[m_rng.randrange(10000)];
+        CBlockIndex *p3 = &blocks[m_rng.randrange(10000)];
 
         int64_t tdiff = GetBlockProofEquivalentTime(*p1, *p2, *p3, chainParams->GetConsensus());
         BOOST_CHECK_EQUAL(tdiff, p1->GetBlockTime() - p2->GetBlockTime());

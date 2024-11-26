@@ -188,4 +188,4 @@ class KeyPoolTest(BitcoinTestFramework):
         assert_equal("psbt" in res, True)
 
 if __name__ == '__main__':
-    KeyPoolTest().main()
+    KeyPoolTest(__file__).main()

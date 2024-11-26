@@ -153,8 +153,8 @@ Most autotools projects can be properly staged using:
 ## Build outputs:
 
 In general, the output of a depends package should not contain any libtool
-archives. Instead, the package should output `.pc` (`pkg-config`) files where
-possible.
+archives or `.pc` (`pkg-config`) files. Instead, the package should output
+`.cmake` (CMake) files where possible.
 
 From the [Gentoo Wiki entry](https://wiki.gentoo.org/wiki/Project:Quality_Assurance/Handling_Libtool_Archives):
 
@@ -162,7 +162,7 @@ From the [Gentoo Wiki entry](https://wiki.gentoo.org/wiki/Project:Quality_Assura
 >  creates. This leads to massive overlinking, which is toxic to the Gentoo
 >  ecosystem, as it leads to a massive number of unnecessary rebuilds.
 
-Where possible, packages are built with Position Independant Code. Either using
+Where possible, packages are built with Position Independent Code. Either using
 the Autotools `--with-pic` flag, or `CMAKE_POSITION_INDEPENDENT_CODE` with CMake.
 
 ## Secondary dependencies:

@@ -51,7 +51,7 @@ std::vector<std::shared_ptr<CBlock>> CreateBlockChain(size_t total_height, const
         block.hashMerkleRoot = BlockMerkleRoot(block);
         block.nTime = ++time;
         block.nBits = params.GenesisBlock().nBits;
-        block.nNonce = UintToArith256(uint256S("0x0000000000000000000000000000000000000000000000000000000000000002"));
+        block.nNonce = UintToArith256(uint256{"0000000000000000000000000000000000000000000000000000000000000002"});
 
         while (!CheckProofOfWork(block.GetHashForPoW(), block.nBits, ArithToUint256(block.nNonce), params.GetConsensus()))
             block.nNonce += 131072;
@@ -85,7 +85,7 @@ protected:
 
 COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
 {
-    block->nNonce = UintToArith256(uint256S("0x0000000000000000000000000000000000000000000000000000000000000002"));
+    block->nNonce = UintToArith256(uint256{"0000000000000000000000000000000000000000000000000000000000000002"});
     while (!CheckProofOfWork(block->GetHashForPoW(), block->nBits, ArithToUint256(block->nNonce), Params().GetConsensus()))
         block->nNonce += 131072;
 

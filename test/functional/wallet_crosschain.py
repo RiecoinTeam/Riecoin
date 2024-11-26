@@ -46,4 +46,4 @@ class WalletCrossChain(BitcoinTestFramework):
         assert_raises_rpc_error(-18, 'Wallet file verification failed.', self.nodes[1].restorewallet, 'w', node0_wallet_backup)
 
 if __name__ == '__main__':
-    WalletCrossChain().main()
+    WalletCrossChain(__file__).main()

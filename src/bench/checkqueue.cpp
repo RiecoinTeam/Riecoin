@@ -7,9 +7,11 @@
 #include <common/system.h>
 #include <key.h>
 #include <prevector.h>
-#include <pubkey.h>
 #include <random.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 static const size_t BATCHES = 101;
@@ -25,7 +27,7 @@ static void CCheckQueueSpeedPrevectorJob(benchmark::Bench& bench)
     // We shouldn't ever be running with the checkqueue on a single core machine.
     if (GetNumCores() <= 1) return;
 
-    ECC_Start();
+    ECC_Context ecc_context{};
 
     struct PrevectorJob {
         prevector<PREVECTOR_SIZE, uint8_t> p;
@@ -62,6 +64,5 @@ static void CCheckQueueSpeedPrevectorJob(benchmark::Bench& bench)
         // it is done explicitly here for clarity
         control.Wait();
     });
-    ECC_Stop();
 }
 BENCHMARK(CCheckQueueSpeedPrevectorJob, benchmark::PriorityLevel::HIGH);

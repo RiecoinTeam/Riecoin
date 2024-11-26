@@ -37,9 +37,13 @@ class ToolWalletTest(BitcoinTestFramework):
     def assert_raises_tool_error(self, error, *args):
         p = self.bitcoin_wallet_process(*args)
         stdout, stderr = p.communicate()
-        assert_equal(p.poll(), 1)
         assert_equal(stdout, '')
-        assert_equal(stderr.strip(), error)
+        if isinstance(error, tuple):
+            assert_equal(p.poll(), error[0])
+            assert error[1] in stderr.strip()
+        else:
+            assert_equal(p.poll(), 1)
+            assert error in stderr.strip()
 
     def assert_tool_output(self, output, *args):
         p = self.bitcoin_wallet_process(*args)
@@ -143,7 +147,7 @@ class ToolWalletTest(BitcoinTestFramework):
         self.assert_raises_tool_error('No method provided. Run `riecoin-wallet -help` for valid methods.')
         self.assert_raises_tool_error('Wallet name must be provided when creating a new wallet.', 'create')
         locked_dir = self.nodes[0].wallets_path
-        error = f"SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['PACKAGE_NAME']}?"
+        error = f"SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['CLIENT_NAME']}?"
         self.assert_raises_tool_error(
             error,
             '-wallet=' + self.default_wallet_name,
@@ -397,4 +401,4 @@ class ToolWalletTest(BitcoinTestFramework):
         self.test_chainless_conflicts()
 
 if __name__ == '__main__':
-    ToolWalletTest().main()
+    ToolWalletTest(__file__).main()

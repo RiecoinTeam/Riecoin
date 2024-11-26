@@ -16,8 +16,10 @@ For a description of arguments recognized by test scripts, see
 import argparse
 from collections import deque
 import configparser
+import csv
 import datetime
 import os
+import pathlib
 import platform
 import time
 import shutil
@@ -27,7 +29,13 @@ import sys
 import tempfile
 import re
 import logging
-import unittest
+
+# Minimum amount of space to run the tests.
+MIN_FREE_SPACE = 1.1 * 1024 * 1024 * 1024
+# Additional space to run an extra job.
+ADDITIONAL_SPACE_PER_JOB = 100 * 1024 * 1024
+# Minimum amount of space required for --nocleanup
+MIN_NO_CLEANUP_SPACE = 12 * 1024 * 1024 * 1024
 
 # Formatting. Default colors to empty strings.
 DEFAULT, BOLD, GREEN, RED = ("", ""), ("", ""), ("", ""), ("", "")
@@ -69,22 +77,7 @@ if platform.system() != 'Windows' or sys.getwindowsversion() >= (10, 0, 14393): 
 TEST_EXIT_PASSED = 0
 TEST_EXIT_SKIPPED = 77
 
-# List of framework modules containing unit tests. Should be kept in sync with
-# the output of `git grep unittest.TestCase ./test/functional/test_framework`
-TEST_FRAMEWORK_MODULES = [
-    "address",
-    "crypto.bip324_cipher",
-    "blocktools",
-    "crypto.chacha20",
-    "crypto.ellswift",
-    "key",
-    "messages",
-    "crypto.muhash",
-    "crypto.poly1305",
-    "crypto.ripemd160",
-    "script",
-    "segwit_addr",
-]
+TEST_FRAMEWORK_UNIT_TESTS = 'feature_framework_unit_tests.py'
 
 EXTENDED_SCRIPTS = [
     # These tests are not run by default.
@@ -101,10 +94,13 @@ BASE_SCRIPTS = [
     'feature_fee_estimation.py',
     'feature_taproot.py',
     'feature_block.py',
+    'p2p_node_network_limited.py --v1transport',
+    'p2p_node_network_limited.py --v2transport',
     # vv Tests less than 2m vv
     'mining_getblocktemplate_longpoll.py',
     'p2p_segwit.py',
     # 'feature_maxuploadtarget.py', # Fails after altering Block Limits.
+    'feature_assumeutxo.py',
     'mempool_updatefromblock.py',
     'mempool_persist.py',
     # vv Tests less than 60s vv
@@ -148,6 +144,7 @@ BASE_SCRIPTS = [
     'wallet_signer.py',
     'mempool_limit.py',
     'rpc_txoutproof.py',
+    'rpc_orphans.py',
     'wallet_listreceivedby.py',
     'wallet_abandonconflict.py',
     'feature_reindex.py',
@@ -173,6 +170,8 @@ BASE_SCRIPTS = [
     'wallet_txn_clone.py --segwit',
     'rpc_getchaintips.py',
     'rpc_misc.py',
+    'p2p_1p1c_network.py',
+    'p2p_opportunistic_1p1c.py',
     'interface_rest.py',
     'mempool_spend_coinbase.py',
     'wallet_avoid_mixing_output_types.py', # Fails intermittenttly
@@ -218,6 +217,7 @@ BASE_SCRIPTS = [
     'wallet_keypool.py',
     'wallet_descriptor.py',
     'p2p_nobloomfilter_messages.py',
+    TEST_FRAMEWORK_UNIT_TESTS,
     'p2p_filter.py',
     'rpc_setban.py --v1transport',
     'rpc_setban.py --v2transport',
@@ -230,9 +230,9 @@ BASE_SCRIPTS = [
     'p2p_invalid_tx.py --v2transport',
     'p2p_v2_transport.py',
     'p2p_v2_encrypted.py',
-    'p2p_v2_earlykeyresponse.py',
+    'p2p_v2_misbehaving.py',
     'example_test.py',
-    'mempool_accept_v3.py',
+    'mempool_truc.py',
     'wallet_multisig_descriptor_psbt.py',
     'wallet_txn_doublespend.py',
     # 'wallet_txn_clone.py --mineblock', # Test might not work with Bech32/Bech32M.
@@ -245,12 +245,15 @@ BASE_SCRIPTS = [
     'mempool_packages.py',
     'mempool_package_onemore.py',
     'mempool_package_limits.py',
+    'mempool_package_rbf.py',
     'feature_versionbits_warning.py',
+    'feature_blocksxor.py',
     'rpc_preciousblock.py',
     'wallet_importprunedfunds.py',
     'p2p_leak_tx.py --v1transport',
     'p2p_leak_tx.py --v2transport',
     'p2p_eviction.py',
+    'p2p_outbound_eviction.py',
     'p2p_ibd_stalling.py --v1transport',
     'p2p_ibd_stalling.py --v2transport',
     'p2p_net_deadlock.py --v1transport',
@@ -297,7 +300,6 @@ BASE_SCRIPTS = [
     'wallet_coinbase_category.py',
     'feature_filelock.py',
     'feature_loadblock.py',
-    'feature_assumeutxo.py',
     'wallet_assumeutxo.py',
     'p2p_dos_header_tree.py',
     'p2p_add_connections.py',
@@ -308,6 +310,7 @@ BASE_SCRIPTS = [
     'feature_addrman.py',
     'feature_asmap.py',
     'feature_fastprune.py',
+    'feature_framework_miniwallet.py',
     'mempool_unbroadcast.py',
     'mempool_accept_wtxid.py',
     'mempool_dust.py',
@@ -325,8 +328,6 @@ BASE_SCRIPTS = [
     'feature_coinstatsindex.py',
     'wallet_orphanedreward.py',
     'wallet_timelock.py',
-    'p2p_node_network_limited.py --v1transport',
-    'p2p_node_network_limited.py --v2transport',
     'p2p_permissions.py',
     'feature_blocksdir.py',
     'wallet_startup.py',
@@ -338,12 +339,14 @@ BASE_SCRIPTS = [
     'rpc_getdescriptorinfo.py',
     'rpc_mempool_info.py',
     'rpc_help.py',
+    'mempool_ephemeral_dust.py',
     # 'p2p_handshake.py', # Fails due to the Stricter Timestamp Check post Fork 2, succeeds without it.
     # 'p2p_handshake.py --v2transport',
     'feature_dirsymlinks.py',
     'feature_help.py',
     'feature_shutdown.py',
     'p2p_ibd_txrelay.py',
+    'p2p_seednode.py',
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time
 ]
@@ -379,10 +382,12 @@ def main():
     parser.add_argument('--tmpdirprefix', '-t', default=tempfile.gettempdir(), help="Root directory for datadirs")
     parser.add_argument('--failfast', '-F', action='store_true', help='stop execution after the first test failure')
     parser.add_argument('--filter', help='filter scripts to run by regular expression')
-    parser.add_argument('--skipunit', '-u', action='store_true', help='skip unit tests for the test framework')
-
+    parser.add_argument("--nocleanup", dest="nocleanup", default=False, action="store_true",
+                        help="Leave bitcoinds and test.* datadir on exit or error")
+    parser.add_argument('--resultsfile', '-r', help='store test results (as CSV) to the provided file')
 
     args, unknown_args = parser.parse_known_args()
+    fail_on_warn = args.ci
     if not args.ansi:
         global DEFAULT, BOLD, GREEN, RED
         DEFAULT = ("", "")
@@ -412,11 +417,18 @@ def main():
 
     logging.debug("Temporary test directory at %s" % tmpdir)
 
+    results_filepath = None
+    if args.resultsfile:
+        results_filepath = pathlib.Path(args.resultsfile)
+        # Stop early if the parent directory doesn't exist
+        assert results_filepath.parent.exists(), "Results file parent directory does not exist"
+        logging.debug("Test results will be written to " + str(results_filepath))
+
     enable_bitcoind = config["components"].getboolean("ENABLE_BITCOIND")
 
     if not enable_bitcoind:
         print("No functional tests to run.")
-        print("Rerun ./configure with --with-daemon and then make")
+        print("Re-compile with the -DBUILD_DAEMON=ON build option")
         sys.exit(1)
 
     # Build list of tests
@@ -450,15 +462,28 @@ def main():
         test_list += BASE_SCRIPTS
 
     # Remove the test cases that the user has explicitly asked to exclude.
+    # The user can specify a test case with or without the .py extension.
     if args.exclude:
-        exclude_tests = [test.split('.py')[0] for test in args.exclude.split(',')]
-        for exclude_test in exclude_tests:
-            # Remove <test_name>.py and <test_name>.py --arg from the test list
-            exclude_list = [test for test in test_list if test.split('.py')[0] == exclude_test]
+
+        def print_warning_missing_test(test_name):
+            print("{}WARNING!{} Test '{}' not found in current test list. Check the --exclude list.".format(BOLD[1], BOLD[0], test_name))
+            if fail_on_warn:
+                sys.exit(1)
+
+        def remove_tests(exclude_list):
+            if not exclude_list:
+                print_warning_missing_test(exclude_test)
             for exclude_item in exclude_list:
                 test_list.remove(exclude_item)
-            if not exclude_list:
-                print("{}WARNING!{} Test '{}' not found in current test list.".format(BOLD[1], BOLD[0], exclude_test))
+
+        exclude_tests = [test.strip() for test in args.exclude.split(",")]
+        for exclude_test in exclude_tests:
+            # A space in the name indicates it has arguments such as "wallet_basic.py --descriptors"
+            if ' ' in exclude_test:
+                remove_tests([test for test in test_list if test.replace('.py', '') == exclude_test.replace('.py', '')])
+            else:
+                # Exclude all variants of a test
+                remove_tests([test for test in test_list if test.split('.py')[0] == exclude_test.split('.py')[0]])
 
     if args.filter:
         test_list = list(filter(re.compile(args.filter).search, test_list))
@@ -474,7 +499,14 @@ def main():
         subprocess.check_call([sys.executable, os.path.join(config["environment"]["SRCDIR"], 'test', 'functional', test_list[0].split()[0]), '-h'])
         sys.exit(0)
 
-    check_script_list(src_dir=config["environment"]["SRCDIR"], fail_on_warn=args.ci)
+    # Warn if there is not enough space on tmpdir to run the tests with --nocleanup
+    if args.nocleanup:
+        if shutil.disk_usage(tmpdir).free < MIN_NO_CLEANUP_SPACE:
+            print(f"{BOLD[1]}WARNING!{BOLD[0]} There may be insufficient free space in {tmpdir} to run the functional test suite with --nocleanup. "
+                  f"A minimum of {MIN_NO_CLEANUP_SPACE // (1024 * 1024 * 1024)} GB of free space is required.")
+        passon_args.append("--nocleanup")
+
+    check_script_list(src_dir=config["environment"]["SRCDIR"], fail_on_warn=fail_on_warn)
     check_script_prefixes()
 
     if not args.keepcache:
@@ -482,7 +514,6 @@ def main():
 
     run_tests(
         test_list=test_list,
-        src_dir=config["environment"]["SRCDIR"],
         build_dir=config["environment"]["BUILDDIR"],
         tmpdir=tmpdir,
         jobs=args.jobs,
@@ -491,10 +522,10 @@ def main():
         combined_logs_len=args.combinedlogslen,
         failfast=args.failfast,
         use_term_control=args.ansi,
-        skipunit=args.skipunit,
+        results_filepath=results_filepath,
     )
 
-def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, skipunit=False):
+def run_tests(*, test_list, build_dir, tmpdir, jobs=1, enable_coverage=False, args=None, combined_logs_len=0, failfast=False, use_term_control, results_filepath=None):
     args = args or []
 
     # Warn if bitcoind is already running
@@ -511,20 +542,16 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, enable_coverage=
     if os.path.isdir(cache_dir):
         print("%sWARNING!%s There is a cache directory here: %s. If tests fail unexpectedly, try deleting the cache directory." % (BOLD[1], BOLD[0], cache_dir))
 
+    # Warn if there is not enough space on the testing dir
+    min_space = MIN_FREE_SPACE + (jobs - 1) * ADDITIONAL_SPACE_PER_JOB
+    if shutil.disk_usage(tmpdir).free < min_space:
+        print(f"{BOLD[1]}WARNING!{BOLD[0]} There may be insufficient free space in {tmpdir} to run the Bitcoin functional test suite. "
+              f"Running the test suite with fewer than {min_space // (1024 * 1024)} MB of free space might cause tests to fail.")
 
-    tests_dir = src_dir + '/test/functional/'
+    tests_dir = f"{build_dir}/test/functional/"
     # This allows `test_runner.py` to work from an out-of-source build directory using a symlink,
     # a hard link or a copy on any platform. See https://github.com/bitcoin/bitcoin/pull/27561.
     sys.path.append(tests_dir)
-
-    if not skipunit:
-        print("Running Unit Tests for Test Framework Modules")
-        test_framework_tests = unittest.TestSuite()
-        for module in TEST_FRAMEWORK_MODULES:
-            test_framework_tests.addTest(unittest.TestLoader().loadTestsFromName("test_framework.{}".format(module)))
-        result = unittest.TextTestRunner(verbosity=1, failfast=True).run(test_framework_tests)
-        if not result.wasSuccessful():
-            sys.exit("Early exiting after failure in TestFramework unit tests")
 
     flags = ['--cachedir={}'.format(cache_dir)] + args
 
@@ -589,7 +616,15 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, enable_coverage=
                     logging.debug("Early exiting after test failure")
                     break
 
-    print_results(test_results, max_len_name, (int(time.time() - start_time)))
+                if "[Errno 28] No space left on device" in stdout:
+                    sys.exit(f"Early exiting after test failure due to insufficient free space in {tmpdir}\n"
+                             f"Test execution data left in {tmpdir}.\n"
+                             f"Additional storage is needed to execute testing.")
+
+    runtime = int(time.time() - start_time)
+    print_results(test_results, max_len_name, runtime)
+    if results_filepath:
+        write_results(test_results, results_filepath, runtime)
 
     if coverage:
         coverage_passed = coverage.report_rpc_coverage()
@@ -635,6 +670,17 @@ def print_results(test_results, max_len_name, runtime):
         results += RED[0]
     results += "Runtime: %s s\n" % (runtime)
     print(results)
+
+
+def write_results(test_results, filepath, total_runtime):
+    with open(filepath, mode="w", encoding="utf8") as results_file:
+        results_writer = csv.writer(results_file)
+        results_writer.writerow(['test', 'status', 'duration(seconds)'])
+        all_passed = True
+        for test_result in test_results:
+            all_passed = all_passed and test_result.was_successful
+            results_writer.writerow([test_result.name, test_result.status, str(test_result.time)])
+        results_writer.writerow(['ALL', ("Passed" if all_passed else "Failed"), str(total_runtime)])
 
 class TestHandler:
     """
@@ -769,7 +815,6 @@ def check_script_list(*, src_dir, fail_on_warn):
     if len(missed_tests) != 0:
         print("%sWARNING!%s The following scripts are not being run: %s. Check the test lists in test_runner.py. Some may be commented out because they need to be adjusted for Riecoin, you are welcomed to help fix them!" % (BOLD[1], BOLD[0], str(missed_tests)))
         if fail_on_warn:
-            # On CI this warning is an error to prevent merging incomplete commits into master
             sys.exit(1)
 
 

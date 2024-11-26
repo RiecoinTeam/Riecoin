@@ -45,8 +45,10 @@ public:
 
     base_uint& operator=(const base_uint& b)
     {
-        for (int i = 0; i < WIDTH; i++)
-            pn[i] = b.pn[i];
+        if (this != &b) {
+            for (int i = 0; i < WIDTH; i++)
+                pn[i] = b.pn[i];
+        }
         return *this;
     }
 
@@ -196,6 +198,7 @@ public:
         return ret;
     }
 
+    /** Numeric ordering (unlike \ref base_blob::Compare) */
     int CompareTo(const base_uint& b) const;
     bool EqualTo(uint64_t b) const;
 
@@ -218,6 +221,7 @@ public:
     friend inline bool operator==(const base_uint& a, uint64_t b) { return a.EqualTo(b); }
     friend inline bool operator!=(const base_uint& a, uint64_t b) { return !a.EqualTo(b); }
 
+    /** Hex encoding of the number (with the most significant digits first). */
     std::string GetHex() const;
     std::string ToString() const;
 
@@ -254,7 +258,7 @@ public:
 /** 256-bit unsigned big integer. */
 class arith_uint256 : public base_uint<256> {
 public:
-    arith_uint256() {}
+    arith_uint256() = default;
     arith_uint256(const base_uint<256>& b) : base_uint<256>(b) {}
     arith_uint256(uint64_t b) : base_uint<256>(b) {}
 

@@ -22,6 +22,8 @@
 #include <stdexcept>
 #include <vector>
 
+using util::SplitString;
+
 void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
 {
     if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;

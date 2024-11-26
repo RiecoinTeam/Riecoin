@@ -129,4 +129,4 @@ class WalletHDTest(BitcoinTestFramework):
         assert_equal(keypath[0:14], "m/86h/1h/0h/1/")
 
 if __name__ == '__main__':
-    WalletHDTest().main()
+    WalletHDTest(__file__).main()

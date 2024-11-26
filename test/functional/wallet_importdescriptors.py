@@ -17,6 +17,7 @@ variants.
   and test the values returned."""
 
 import concurrent.futures
+import time
 
 from test_framework.authproxy import JSONRPCException
 from test_framework.blocktools import COINBASE_MATURITY
@@ -685,7 +686,7 @@ class ImportDescriptorsTest(BitcoinTestFramework):
 
         encrypted_wallet.walletpassphrase("passphrase", 99999)
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as thread:
-            with self.nodes[0].assert_debug_log(expected_msgs=["Rescan started from block 0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206... (slow variant inspecting all blocks)"], timeout=5):
+            with self.nodes[0].assert_debug_log(expected_msgs=["Rescan started from block 0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206... (slow variant inspecting all blocks)"], timeout=10):
                 importing = thread.submit(encrypted_wallet.importdescriptors, requests=[descriptor])
 
             # Set the passphrase timeout to 1 to test that the wallet remains unlocked during the rescan
@@ -705,5 +706,56 @@ class ImportDescriptorsTest(BitcoinTestFramework):
 
         assert_equal(temp_wallet.getbalance(), encrypted_wallet.getbalance())
 
+        self.log.info("Multipath descriptors")
+        self.nodes[1].createwallet(wallet_name="multipath", descriptors=True, blank=True)
+        w_multipath = self.nodes[1].get_wallet_rpc("multipath")
+        self.nodes[1].createwallet(wallet_name="multipath_split", descriptors=True, blank=True)
+        w_multisplit = self.nodes[1].get_wallet_rpc("multipath_split")
+        timestamp = int(time.time())
+
+        self.test_importdesc({"desc": descsum_create(f"wpkh({xpriv}/<10;20>/0/*)"),
+                              "active": True,
+                              "range": 10,
+                              "timestamp": "now",
+                              "label": "some label"},
+                              success=False,
+                              error_code=-8,
+                              error_message="Multipath descriptors should not have a label",
+                              wallet=w_multipath)
+        self.test_importdesc({"desc": descsum_create(f"wpkh({xpriv}/<10;20>/0/*)"),
+                              "active": True,
+                              "range": 10,
+                              "timestamp": timestamp,
+                              "internal": True},
+                              success=False,
+                              error_code=-5,
+                              error_message="Cannot have multipath descriptor while also specifying \'internal\'",
+                              wallet=w_multipath)
+
+        self.test_importdesc({"desc": descsum_create(f"wpkh({xpriv}/<10;20>/0/*)"),
+                              "active": True,
+                              "range": 10,
+                              "timestamp": timestamp},
+                              success=True,
+                              wallet=w_multipath)
+
+        self.test_importdesc({"desc": descsum_create(f"wpkh({xpriv}/10/0/*)"),
+                              "active": True,
+                              "range": 10,
+                              "timestamp": timestamp},
+                              success=True,
+                              wallet=w_multisplit)
+        self.test_importdesc({"desc": descsum_create(f"wpkh({xpriv}/20/0/*)"),
+                              "active": True,
+                              "range": 10,
+                              "internal": True,
+                              "timestamp": timestamp},
+                              success=True,
+                              wallet=w_multisplit)
+        for _ in range(0, 10):
+            assert_equal(w_multipath.getnewaddress(address_type="bech32"), w_multisplit.getnewaddress(address_type="bech32"))
+            assert_equal(w_multipath.getrawchangeaddress(address_type="bech32"), w_multisplit.getrawchangeaddress(address_type="bech32"))
+        assert_equal(sorted(w_multipath.listdescriptors()["descriptors"], key=lambda x: x["desc"]), sorted(w_multisplit.listdescriptors()["descriptors"], key=lambda x: x["desc"]))
+
 if __name__ == '__main__':
-    ImportDescriptorsTest().main()
+    ImportDescriptorsTest(__file__).main()

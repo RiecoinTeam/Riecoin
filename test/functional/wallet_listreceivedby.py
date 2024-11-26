@@ -261,4 +261,4 @@ class ReceivedByTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    ReceivedByTest().main()
+    ReceivedByTest(__file__).main()

@@ -2,16 +2,25 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <bench/bench.h>
-#include <node/context.h>
+#include <bitcoin-build-config.h> // IWYU pragma: keep
 #include <random.h>
+#include <support/allocators/secure.h>
 #include <test/util/setup_common.h>
+#include <uint256.h>
+#include <util/fs.h>
+#include <util/translation.h>
 #include <wallet/context.h>
+#include <wallet/db.h>
 #include <wallet/wallet.h>
+#include <wallet/walletutil.h>
+
+#include <cassert>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace wallet {
 static void WalletCreate(benchmark::Bench& bench, bool encrypted)
@@ -35,14 +44,15 @@ static void WalletCreate(benchmark::Bench& bench, bool encrypted)
     bilingual_str error_string;
     std::vector<bilingual_str> warnings;
 
-    fs::path wallet_path = test_setup->m_path_root / strprintf("test_wallet_%d", random.rand32()).c_str();
+    auto wallet_path = fs::PathToString(test_setup->m_path_root / "test_wallet");
     bench.run([&] {
-        auto wallet = CreateWallet(context, wallet_path.utf8string(), /*load_on_start=*/std::nullopt, options, status, error_string, warnings);
+        auto wallet = CreateWallet(context, wallet_path, /*load_on_start=*/std::nullopt, options, status, error_string, warnings);
         assert(status == DatabaseStatus::SUCCESS);
         assert(wallet != nullptr);
 
-        // Cleanup
-        wallet.reset();
+        // Release wallet
+        RemoveWallet(context, wallet, /*load_on_start=*/ std::nullopt);
+        WaitForDeleteWallet(std::move(wallet));
         fs::remove_all(wallet_path);
     });
 }

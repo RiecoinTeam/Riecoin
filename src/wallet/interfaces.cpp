@@ -9,6 +9,7 @@
 #include <consensus/amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
+#include <node/types.h>
 #include <policy/fees.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
@@ -35,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+using common::PSBTError;
 using interfaces::Chain;
 using interfaces::FoundBlock;
 using interfaces::Handler;
@@ -239,7 +241,7 @@ public:
         return value.empty() ? m_wallet->EraseAddressReceiveRequest(batch, dest, id)
                              : m_wallet->SetAddressReceiveRequest(batch, dest, id, value);
     }
-    bool displayAddress(const CTxDestination& dest) override
+    util::Result<void> displayAddress(const CTxDestination& dest) override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->DisplayAddress(dest);
@@ -278,7 +280,7 @@ public:
         if (!res) return util::Error{util::ErrorString(res)};
         const auto& txr = *res;
         fee = txr.fee;
-        change_pos = txr.change_pos ? *txr.change_pos : -1;
+        change_pos = txr.change_pos ? int(*txr.change_pos) : -1;
 
         return txr.tx;
     }
@@ -381,7 +383,7 @@ public:
         }
         return {};
     }
-    TransactionError fillPSBT(int sighash_type,
+    std::optional<PSBTError> fillPSBT(int sighash_type,
         bool sign,
         bool bip32derivs,
         size_t* n_signed,
@@ -622,11 +624,11 @@ public:
     {
         return fs::PathToString(GetWalletDir());
     }
-    std::vector<std::string> listWalletDir() override
+    std::vector<std::pair<std::string, std::string>> listWalletDir() override
     {
-        std::vector<std::string> paths;
-        for (auto& path : ListDatabases(GetWalletDir())) {
-            paths.push_back(fs::PathToString(path));
+        std::vector<std::pair<std::string, std::string>> paths;
+        for (auto& [path, format] : ListDatabases(GetWalletDir())) {
+            paths.emplace_back(fs::PathToString(path), format);
         }
         return paths;
     }

@@ -28,6 +28,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 extern const std::vector<uint64_t> primeTable;
 /** Check whether a Nonce satisfies the proof-of-work requirement */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256 nNonce, const Consensus::Params&);
+bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nNonce, const Consensus::Params&);
 
 /**
  * Return false if the proof-of-work requirement specified by new_nbits at a

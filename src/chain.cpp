@@ -144,7 +144,9 @@ arith_uint256 GetBlockProof(const CBlockIndex& block)
     double difficulty(GetDifficulty(block)),
            constellationSize(consensusParams.GetPowAcceptedPatternsAtHeight(block.nHeight)[0].size());
     double proof(std::pow(difficulty, constellationSize + 2.3));
-    arith_uint256 proofAU256(UintToArith256(uint256S(mpz_class(proof).get_str(16))));
+    std::string proofStr(mpz_class(proof).get_str(16));
+    proofStr = std::string(64U - proofStr.length(), '0') + proofStr;
+    arith_uint256 proofAU256(UintToArith256(uint256::FromHex(proofStr).value()));
     return proofAU256;
 }
 

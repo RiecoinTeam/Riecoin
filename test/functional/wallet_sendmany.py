@@ -36,4 +36,4 @@ class SendmanyTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    SendmanyTest().main()
+    SendmanyTest(__file__).main()

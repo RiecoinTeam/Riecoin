@@ -302,4 +302,4 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         assert template != new_template
 
 if __name__ == '__main__':
-    PrioritiseTransactionTest().main()
+    PrioritiseTransactionTest(__file__).main()

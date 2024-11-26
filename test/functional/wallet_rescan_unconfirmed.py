@@ -78,4 +78,4 @@ class WalletRescanUnconfirmed(BitcoinTestFramework):
         assert_equal(w1.gettransaction(tx_child_unconfirmed_sweep["txid"])["confirmations"], 0)
 
 if __name__ == '__main__':
-    WalletRescanUnconfirmed().main()
+    WalletRescanUnconfirmed(__file__).main()

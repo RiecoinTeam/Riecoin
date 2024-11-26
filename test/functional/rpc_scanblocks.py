@@ -137,4 +137,4 @@ class ScanblocksTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    ScanblocksTest().main()
+    ScanblocksTest(__file__).main()

@@ -29,7 +29,7 @@ struct HeadersGeneratorSetup : public RegTestingSetup {
 
 void HeadersGeneratorSetup::FindProofOfWork(CBlockHeader& starting_header)
 {
-    starting_header.nNonce = UintToArith256(uint256S("0x0000000000000000000000000000000000000000000000000000000000000002"));
+    starting_header.nNonce = UintToArith256(uint256{"0000000000000000000000000000000000000000000000000000000000000002"});
     while (!CheckProofOfWork(starting_header.GetHashForPoW(), starting_header.nBits, ArithToUint256(starting_header.nNonce), Params().GetConsensus()))
         starting_header.nNonce += 131072;
 }

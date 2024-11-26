@@ -170,4 +170,4 @@ class CreateWalletTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, 'Passphrase provided but private keys are disabled. A passphrase is only used to encrypt private keys, so cannot be used for wallets with private keys disabled.', self.nodes[0].createwallet, wallet_name='w9', disable_private_keys=True, passphrase='thisisapassphrase')
 
 if __name__ == '__main__':
-    CreateWalletTest().main()
+    CreateWalletTest(__file__).main()

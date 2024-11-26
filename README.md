@@ -4,7 +4,7 @@
 
 This repository hosts the Riecoin Core source code. Riecoin Core connects to the Bitcoin peer-to-peer network to download and fully validate blocks and transactions. It also includes a wallet and graphical user interface, which can be optionally built.
 
-Guides and release notes are available on the [project's page on Riecoin.xyz](https://riecoin.xyz/RiecoinCore).
+Guides and release notes are available on the [project's page on Riecoin.xyz](https://riecoin.xyz/Core/).
 
 ## Riecoin Introduction
 
@@ -25,8 +25,8 @@ Here are basic build instructions to generate the Riecoin Core binaries, includi
 First, get the build tools and dependencies, which can be done by running as root the following commands.
 
 ```bash
-apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3
-apt install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libgmp-dev libsqlite3-dev libqrencode-dev
+apt install build-essential cmake pkg-config bsdmainutils python3
+apt install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libgmp-dev libsqlite3-dev libqrencode-dev
 ```
 
 Get the source code.
@@ -39,10 +39,19 @@ Then,
 
 ```bash
 cd Riecoin
-./autogen.sh ; ./configure ; make
+cmake -B build -DBUILD_GUI=ON
+cmake --build build
 ```
 
-The Riecoin-Qt binary is located in `src/qt`. You can run `strip riecoin-qt` to reduce its size a lot.
+The Riecoin-Qt binary is located in `build/src/qt`. You can run `strip riecoin-qt` to reduce its size a lot, or build without the Qt Gui with
+
+```bash
+cd Riecoin
+cmake -B build
+cmake --build build
+```
+
+The build can be speed up by appending `-j N` to the last command, which runs N parallel jobs.
 
 #### Guix Build
 
@@ -81,6 +90,27 @@ It will be very long, do not be surprised if it takes an hour or more, even with
 ### Other OSes
 
 Either build using Guix as explained above in a spare physical or virtual machine, or refer to the [Bitcoin's Documentation (build-... files)](https://github.com/bitcoin/bitcoin/tree/master/doc) and adapt the instructions for Riecoin if needed.
+
+## Testing
+
+Most Boost and Python Bitcoin Tests were ported for Riecoin. These should all pass after every code change, unless it is precised in the `test_runner.py` file that a particular Test may fail. In order to run them,
+
+```bash
+build/src/test/test_riecoin # Boost Test Suite
+build/test/functional/test_runner.py # Python Functional Tests, use -j N for N jobs
+```
+
+Here are examples in order to run a particular test (check the Source Code regarding the names of the Boost Tests),
+
+```bash
+build/src/test/test_riecoin --run_test=getarg_tests
+build/src/test/test_riecoin --run_test=getarg_tests/doubledash
+build/src/test/test_riecoin --log_level=all --run_test=getarg_tests/doubledash
+
+build/test/functional/mining_basic.py
+```
+
+Currently, the Cirrus Ci was not ported, and Fuzz Tests are not checked beyond being able to compile. Given the current very limited development resources, successfully running the Tests above and not encountering major issues in normal use of Riecoin Core is deemed sufficient.
 
 ## License
 

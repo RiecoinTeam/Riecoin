@@ -5,9 +5,7 @@
 #ifndef BITCOIN_QT_BITCOIN_H
 #define BITCOIN_QT_BITCOIN_H
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
+#include <bitcoin-build-config.h> // IWYU pragma: keep
 
 #include <interfaces/node.h>
 #include <qt/initexecutor.h>
@@ -48,8 +46,6 @@ public:
     void parameterSetup();
     /// Create options model
     [[nodiscard]] bool createOptionsModel(bool resetSettings);
-    /// Initialize prune setting
-    void InitPruneSetting(int64_t prune_MiB);
     /// Create main window
     void createWindow(const NetworkStyle *networkStyle);
     /// Create splash screen

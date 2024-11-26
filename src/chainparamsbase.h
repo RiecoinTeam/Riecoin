@@ -8,6 +8,7 @@
 
 #include <util/chaintype.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -52,5 +53,8 @@ const CBaseChainParams& BaseParams();
 
 /** Sets the params returned by Params() to those for the given chain. */
 void SelectBaseParams(const ChainType chain);
+
+/** List of possible chain / network names  */
+#define LIST_CHAIN_NAMES "main, test, regtest"
 
 #endif // BITCOIN_CHAINPARAMSBASE_H

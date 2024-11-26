@@ -309,7 +309,7 @@ class MiningTest(BitcoinTestFramework):
 
         # Should ask for the block from a p2p node, if they announce the header as well:
         peer = node.add_p2p_connection(P2PDataStore())
-        peer.wait_for_getheaders(timeout=5)  # Drop the first getheaders
+        peer.wait_for_getheaders(timeout=5, block_hash=block.hashPrevBlock)
         peer.send_blocks_and_test(blocks=[block], node=node)
         # Must be active now:
         assert chain_tip(block.hash, status='active', branchlen=0) in node.getchaintips()
@@ -326,4 +326,4 @@ class MiningTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    MiningTest().main()
+    MiningTest(__file__).main()

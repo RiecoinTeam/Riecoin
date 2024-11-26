@@ -11,8 +11,9 @@
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
 
+#include <common/signmessage.h> // For MessageSign(), MessageVerify()
+#include <bitcoin-build-config.h> // IWYU pragma: keep
 #include <key_io.h>
-#include <util/message.h> // For MessageSign(), MessageVerify()
 #include <wallet/wallet.h>
 
 #include <vector>

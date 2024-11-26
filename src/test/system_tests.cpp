@@ -3,27 +3,18 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
+#include <bitcoin-build-config.h> // IWYU pragma: keep
 #include <test/util/setup_common.h>
 #include <common/run_command.h>
 #include <univalue.h>
 
 #ifdef ENABLE_EXTERNAL_SIGNER
-#include <boost/process.hpp>
+#include <util/subprocess.h>
 #endif // ENABLE_EXTERNAL_SIGNER
 
 #include <boost/test/unit_test.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(system_tests, BasicTestingSetup)
-
-// At least one test is required (in case ENABLE_EXTERNAL_SIGNER is not defined).
-// Workaround for https://github.com/bitcoin/bitcoin/issues/19128
-BOOST_AUTO_TEST_CASE(dummy)
-{
-    BOOST_CHECK(true);
-}
 
 #ifdef ENABLE_EXTERNAL_SIGNER
 
@@ -34,20 +25,16 @@ BOOST_AUTO_TEST_CASE(run_command)
         BOOST_CHECK(result.isNull());
     }
     {
-        const UniValue result = RunCommandParseJSON("echo \"{\"success\": true}\"");
+        const UniValue result = RunCommandParseJSON("echo {\"success\": true}");
         BOOST_CHECK(result.isObject());
         const UniValue& success = result.find_value("success");
         BOOST_CHECK(!success.isNull());
         BOOST_CHECK_EQUAL(success.get_bool(), true);
     }
     {
-        // An invalid command is handled by Boost
-        const int expected_error{2};
-        BOOST_CHECK_EXCEPTION(RunCommandParseJSON("invalid_command"), boost::process::process_error, [&](const boost::process::process_error& e) {
-            BOOST_CHECK(std::string(e.what()).find("RunCommandParseJSON error:") == std::string::npos);
-            BOOST_CHECK_EQUAL(e.code().value(), expected_error);
-            return true;
-        });
+        // An invalid command is handled by cpp-subprocess
+        const std::string expected{"execve failed: "};
+        BOOST_CHECK_EXCEPTION(RunCommandParseJSON("invalid_command"), subprocess::CalledProcessError, HasReason(expected));
     }
     {
         // Return non-zero exit code, no output to stderr
@@ -60,8 +47,8 @@ BOOST_AUTO_TEST_CASE(run_command)
     }
     {
         // Return non-zero exit code, with error message for stderr
-        const std::string command{"ls nosuchfile"};
-        const std::string expected{"No such file or directory"};
+        const std::string command{"sh -c 'echo err 1>&2 && false'"};
+        const std::string expected{"err"};
         BOOST_CHECK_EXCEPTION(RunCommandParseJSON(command), std::runtime_error, [&](const std::runtime_error& e) {
             const std::string what(e.what());
             BOOST_CHECK(what.find(strprintf("RunCommandParseJSON error: process(%s) returned", command)) != std::string::npos);
