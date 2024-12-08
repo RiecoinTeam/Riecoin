@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Bitcoin Core developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the wallet."""
@@ -528,13 +528,13 @@ class WalletTest(BitcoinTestFramework):
         # Verify nothing new in wallet
         assert_equal(total_txs, len(self.nodes[0].listtransactions("*", 99999)))
 
-        # Test getaddressinfo on external address. Note that these addresses are taken from disablewallet.py
-        assert_raises_rpc_error(-5, "Invalid or unsupported Base58-encoded address", self.nodes[0].getaddressinfo, "TSRKxXQ6qNucGP8cPtdjxKJvH8FS683fL6")
-        address_info = self.nodes[0].getaddressinfo("rDNBJxnigtqkkjyfk3ci3R9vtQ1DP4DhxL")
-        assert_equal(address_info['address'], "rDNBJxnigtqkkjyfk3ci3R9vtQ1DP4DhxL")
-        assert_equal(address_info["scriptPubKey"], "76a9144e3854046c7bd1594ac904e4793b6a45b36dea0988ac")
+        # Test getaddressinfo on external address.
+        assert_raises_rpc_error(-5, "Invalid or unsupported Segwit (Bech32) encoding or Script.", self.nodes[0].getaddressinfo, "ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn")
+        address_info = self.nodes[0].getaddressinfo("rric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrs8rqekw")
+        assert_equal(address_info['address'], "rric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrs8rqekw")
+        assert_equal(address_info["scriptPubKey"], "512082f3fff434a733ab65115f54077cc37de8746b496f895cf7c7b8ad288ebf82c7")
         assert not address_info["ismine"]
-        assert not address_info["isscript"]
+        assert address_info["isscript"]
         assert not address_info["ischange"]
 
         # Test getaddressinfo 'ischange' field on change address.

@@ -28,20 +28,6 @@ private:
 public:
     explicit DestinationEncoder(const CChainParams& params) : m_params(params) {}
 
-    std::string operator()(const PKHash& id) const
-    {
-        std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
-        data.insert(data.end(), id.begin(), id.end());
-        return EncodeBase58Check(data);
-    }
-
-    std::string operator()(const ScriptHash& id) const
-    {
-        std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::SCRIPT_ADDRESS);
-        data.insert(data.end(), id.begin(), id.end());
-        return EncodeBase58Check(data);
-    }
-
     std::string operator()(const WitnessV0KeyHash& id) const
     {
         std::vector<unsigned char> data = {0};
@@ -80,6 +66,20 @@ public:
 
     std::string operator()(const CNoDestination& no) const { return {}; }
     std::string operator()(const PubKeyDestination& pk) const { return {}; }
+
+    std::string operator()(const PKHash& id) const
+    {
+        std::vector<unsigned char> data;
+        data.insert(data.end(), id.begin(), id.end());
+        return std::string("76a914") + HexStr(data) + std::string("88ac");
+    }
+
+    std::string operator()(const ScriptHash& id) const
+    {
+        std::vector<unsigned char> data;
+        data.insert(data.end(), id.begin(), id.end());
+        return std::string("a914") + HexStr(data) + std::string("87");
+    }
 };
 
 CTxDestination DecodeDestination(const std::string& str, const CChainParams& params, std::string& error_str, std::vector<int>* error_locations)
@@ -87,44 +87,30 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
     std::vector<unsigned char> data;
     uint160 hash;
     error_str = "";
-
     // Note this will be false if it is a valid Bech32 address for a different network
     bool is_bech32 = (ToLower(str.substr(0, params.Bech32HRP().size())) == params.Bech32HRP());
 
-    if (!is_bech32 && DecodeBase58Check(str, data, 21)) {
-        // base58-encoded Riecoin addresses.
-        // Public-key-hash-addresses have version 0 (or 111 testnet).
-        // The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.
-        const std::vector<unsigned char>& pubkey_prefix = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
-        if (data.size() == hash.size() + pubkey_prefix.size() && std::equal(pubkey_prefix.begin(), pubkey_prefix.end(), data.begin())) {
-            std::copy(data.begin() + pubkey_prefix.size(), data.end(), hash.begin());
-            return PKHash(hash);
+    if (!is_bech32) {
+        std::vector<unsigned char> data;
+        if (str.size() == 50) {
+            if (str.substr(0, 6) == "76a914" && str.substr(46, 4) == "88ac") {
+                data = ParseHex(str.substr(6, 40));
+                if (data.size() == 20) {
+                    std::copy(data.begin(), data.end(), hash.begin());
+                    return PKHash(hash);
+                }
+            }
         }
-        // Script-hash-addresses have version 5 (or 196 testnet).
-        // The data vector contains RIPEMD160(SHA256(cscript)), where cscript is the serialized redemption script.
-        const std::vector<unsigned char>& script_prefix = params.Base58Prefix(CChainParams::SCRIPT_ADDRESS);
-        if (data.size() == hash.size() + script_prefix.size() && std::equal(script_prefix.begin(), script_prefix.end(), data.begin())) {
-            std::copy(data.begin() + script_prefix.size(), data.end(), hash.begin());
-            return ScriptHash(hash);
+        else if (str.size() == 46) {
+            if (str.substr(0, 4) == "a914" && str.substr(44, 2) == "87") {
+                data = ParseHex(str.substr(4, 40));
+                if (data.size() == 20) {
+                    std::copy(data.begin(), data.end(), hash.begin());
+                    return ScriptHash(hash);
+                }
+            }
         }
-
-        // If the prefix of data matches either the script or pubkey prefix, the length must have been wrong
-        if ((data.size() >= script_prefix.size() &&
-                std::equal(script_prefix.begin(), script_prefix.end(), data.begin())) ||
-            (data.size() >= pubkey_prefix.size() &&
-                std::equal(pubkey_prefix.begin(), pubkey_prefix.end(), data.begin()))) {
-            error_str = "Invalid length for Base58 address (P2PKH or P2SH)";
-        } else {
-            error_str = "Invalid or unsupported Base58-encoded address.";
-        }
-        return CNoDestination();
-    } else if (!is_bech32) {
-        // Try Base58 decoding without the checksum, using a much larger max length
-        if (!DecodeBase58(str, data, 100)) {
-            error_str = "Invalid or unsupported Segwit (Bech32) or Base58 encoding.";
-        } else {
-            error_str = "Invalid checksum or length of Base58 address (P2PKH or P2SH)";
-        }
+        error_str = "Invalid or unsupported Segwit (Bech32) encoding or Script.";
         return CNoDestination();
     }
 
@@ -217,7 +203,7 @@ CKey DecodeSecret(const std::string& str)
     std::vector<unsigned char> data;
     if (str.size() == 67) {
         if (str.substr(0, 3) == "prv") { // Compressed: prv . 64 hex
-            data = ParseHex(str.substr(3, 67));
+            data = ParseHex(str.substr(3, 64));
             if (data.size() == 32)
                 key.Set(data.begin(), data.begin() + 32, true);
         }

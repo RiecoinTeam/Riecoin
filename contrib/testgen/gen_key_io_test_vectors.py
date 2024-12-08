@@ -4,7 +4,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
-Generate valid and invalid base58/bech32m address and private key test vectors.
+Generate valid and invalid legacy/bech32m address and private key test vectors.
 '''
 
 from itertools import islice
@@ -14,17 +14,8 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../test/functional'))
 
-from test_framework.address import base58_to_byte, byte_to_base58, b58chars  # noqa: E402
 from test_framework.script import OP_0, OP_1, OP_2, OP_3, OP_16, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_HASH160, OP_CHECKSIG  # noqa: E402
 from test_framework.segwit_addr import bech32_encode, decode_segwit_address, convertbits, CHARSET, Encoding  # noqa: E402
-
-# key types
-PUBKEY_ADDRESS = 60
-SCRIPT_ADDRESS = 65
-PUBKEY_ADDRESS_TEST = 122
-SCRIPT_ADDRESS_TEST = 127
-PUBKEY_ADDRESS_REGTEST = 122
-SCRIPT_ADDRESS_REGTEST = 127
 
 # script
 pubkey_prefix = (OP_DUP, OP_HASH160, 20)
@@ -40,15 +31,9 @@ metadata_keys = ['isPrivkey', 'chain', 'isCompressed', 'tryCaseFlip']
 templates = [
   # prefix, payload_size, suffix, metadata, output_prefix, output_suffix
   #                                  None = N/A
-  ((PUBKEY_ADDRESS,),         20, (),   (False, 'main',    None,  None), pubkey_prefix, pubkey_suffix),
-  ((SCRIPT_ADDRESS,),         20, (),   (False, 'main',    None,  None), script_prefix, script_suffix),
-  ((PUBKEY_ADDRESS_TEST,),    20, (),   (False, 'test',    None,  None), pubkey_prefix, pubkey_suffix),
-  ((SCRIPT_ADDRESS_TEST,),    20, (),   (False, 'test',    None,  None), script_prefix, script_suffix),
-  ((PUBKEY_ADDRESS_REGTEST,), 20, (),   (False, 'regtest', None,  None), pubkey_prefix, pubkey_suffix),
-  ((SCRIPT_ADDRESS_REGTEST,), 20, (),   (False, 'regtest', None,  None), script_prefix, script_suffix),
-  ('prv',                     32, (1,), (True,  'main',    True,  None), (),            ()),
-  ('prv',                     32, (1,), (True,  'test',    True,  None), (),            ()),
-  ('prv',                     32, (1,), (True,  'regtest', True,  None), (),            ())
+  ('',    20, (), (False, 'main',    None,  None), pubkey_prefix, pubkey_suffix),
+  ('',    20, (), (False, 'main',    None,  None), script_prefix, script_suffix),
+  ('prv', 32, (), (True,  'main',    True,  None), (),            ())
 ]
 # templates for valid bech32 sequences
 bech32_templates = [
@@ -90,25 +75,13 @@ bech32_ng_templates = [
 def is_valid(v):
     '''Check vector v for validity'''
     if len(v) == 67:
-        if v[:3] == 'prv':
+        return v[:3] == 'prv'
+    if len(v) == 46:
+        if v[:4] == 'a914' and v[44:46] == '87':
             return True
-        else:
-            return False
-    if len(set(v) - set(b58chars)) > 0:
-        return is_valid_bech32(v)
-    try:
-        payload, version = base58_to_byte(v)
-        result = bytes([version]) + payload
-    except ValueError:  # thrown if checksum doesn't match
-        return is_valid_bech32(v)
-    for template in templates:
-        if template[0] == 'prv':
-            return False;
-        prefix = bytearray(template[0])
-        suffix = bytearray(template[2])
-        if result.startswith(prefix) and result.endswith(suffix):
-            if (len(result) - len(prefix) - len(suffix)) == template[1]:
-                return True
+    if len(v) == 50:
+        if v[:6] == '76a914' and v[46:50] == '88ac':
+            return True
     return is_valid_bech32(v)
 
 def is_valid_bech32(v):
@@ -118,18 +91,13 @@ def is_valid_bech32(v):
             return True
     return False
 
-def gen_valid_base58_vector(template):
-    '''Generate valid base58 vector'''
+def gen_valid_legacy_vector(template):
+    '''Generate valid legacy vector'''
     prefix = template[0]
     payload = rand_bytes(size=template[1])
-    suffix = bytearray(template[2])
     dst_prefix = bytearray(template[4])
     dst_suffix = bytearray(template[5])
-    if isinstance(prefix[0], int):
-        prefix = bytearray(prefix)
-        rv = byte_to_base58(payload + suffix, prefix[0])
-    else:
-        rv = prefix + payload.hex()
+    rv = prefix + dst_prefix.hex() + payload.hex() + dst_suffix.hex()
     return rv, dst_prefix + payload + dst_suffix
 
 def gen_valid_bech32_vector(template):
@@ -144,7 +112,7 @@ def gen_valid_bech32_vector(template):
 
 def gen_valid_vectors():
     '''Generate valid test vectors'''
-    glist = [gen_valid_base58_vector, gen_valid_bech32_vector]
+    glist = [gen_valid_legacy_vector, gen_valid_bech32_vector]
     tlist = [templates, bech32_templates]
     while True:
         for template, valid_vector_generator in [(t, g) for g, l in zip(glist, tlist) for t in l]:
@@ -154,21 +122,20 @@ def gen_valid_vectors():
             hexrepr = payload.hex()
             yield (rv, hexrepr, metadata)
 
-def gen_invalid_base58_vector(template):
+def gen_invalid_legacy_vector(template):
     '''Generate possibly invalid vector'''
     # kinds of invalid vectors:
     #   invalid prefix
     #   invalid payload length
     #   invalid (randomized) suffix (add random data)
-    #   corrupt checksum
     corrupt_prefix = randbool(0.2)
     randomize_payload_size = randbool(0.2)
     corrupt_suffix = randbool(0.2)
 
     if corrupt_prefix:
-        prefix = rand_bytes(size=len(template[0]))
+        prefix = rand_bytes(size=len(template[0])).hex()
     else:
-        prefix = template[0]
+        prefix = template[0] + bytearray(template[4]).hex()
 
     if randomize_payload_size:
         payload = rand_bytes(size=max(int(random.expovariate(0.5)), 50))
@@ -176,20 +143,17 @@ def gen_invalid_base58_vector(template):
         payload = rand_bytes(size=template[1])
 
     if corrupt_suffix:
-        suffix = rand_bytes(size=len(template[2]))
+        suffix = rand_bytes(size=len(template[2])).hex()
     else:
-        suffix = bytearray(template[2])
+        suffix = bytearray(template[4]).hex()
 
-    if isinstance(prefix[0], int):
-        val = byte_to_base58(payload + suffix, prefix[0])
-    else:
-        val = prefix + payload.hex()
+    val = prefix + payload.hex() + suffix
     if random.randint(0,10)<1: # line corruption
         if randbool(): # add random character to end
-            val += random.choice(b58chars)
+            val += random.choice('0123456789abcdef')
         else: # replace random character in the middle
             n = random.randint(0, len(val))
-            val = val[0:n] + random.choice(b58chars) + val[n+1:]
+            val = val[0:n] + random.choice('0123456789abcdef') + val[n+1:]
 
     return val
 
@@ -237,7 +201,7 @@ def gen_invalid_vectors():
     # start with some manual edge-cases
     yield "",
     yield "x",
-    glist = [gen_invalid_base58_vector, gen_invalid_bech32_vector]
+    glist = [gen_invalid_legacy_vector, gen_invalid_bech32_vector]
     tlist = [templates, bech32_ng_templates]
     while True:
         for template, invalid_vector_generator in [(t, g) for g, l in zip(glist, tlist) for t in l]:

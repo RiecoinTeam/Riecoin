@@ -13,7 +13,7 @@ INVALID_DATA = [
     # BIP 173
     (
         "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # Invalid hrp
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # Invalid hrp
         [],
     ),
     ("ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kn4h7nl", "Invalid Bech32m checksum", [42]),
@@ -39,7 +39,7 @@ INVALID_DATA = [
     ),
     (
         "btc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q8074Mu",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # btc1, Mixed case
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # btc1, Mixed case
         [],
     ),
     (
@@ -54,14 +54,14 @@ INVALID_DATA = [
     ),
     (
         "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # tb1, Non-zero padding in 8-to-5 conversion
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # tb1, Non-zero padding in 8-to-5 conversion
         [],
     ),
     ("ric1tpvwza", "Empty Bech32 data section", []),
     # BIP 350
     (
         "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # Invalid human-readable part
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # Invalid human-readable part
         [],
     ),
     (
@@ -71,7 +71,7 @@ INVALID_DATA = [
     ),
     (
         "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # tb1, Invalid checksum (Bech32 instead of Bech32m)
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # tb1, Invalid checksum (Bech32 instead of Bech32m)
         [],
     ),
     (
@@ -102,7 +102,7 @@ INVALID_DATA = [
     ),
     (
         "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq47Zagq",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # tb1, Mixed case
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # tb1, Mixed case
         [],
     ),
     (
@@ -112,7 +112,7 @@ INVALID_DATA = [
     ),
     (
         "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vpggkg4j",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # tb1, Non-zero padding in 8-to-5 conversion
+        "Invalid or unsupported Segwit (Bech32) encoding or Script.",  # tb1, Non-zero padding in 8-to-5 conversion
         [],
     ),
     ("ric1tpvwza", "Empty Bech32 data section", []),

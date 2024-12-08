@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2022 The Bitcoin Core developers
+// Copyright (c) 2012-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -26,10 +26,10 @@ using util::ToString;
 
 static const std::string strSecret1C = "prv12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747";
 static const std::string strSecret2C = "prvb524c28b61c9b2c49b2c7dd4c2d75887abb78768c054bd7c01af4029f6c0d117";
-static const std::string addr1C = "RX5VwKmAZCytjCf6mhSBP6xWcnspqFiSfK";
-static const std::string addr2C = "RLhv6ordc2L64HXioasqMsJtSdukCn2Tcg";
+static const std::string addr1C = "76a914ef1caef64ee1e2aff877b7e8e9713dc25b2289f288ac";
+static const std::string addr2C = "76a9147d5671f4de5e3d054859e06f20919cc3d882220288ac";
 
-static const std::string strAddressBad = "RRmLR7w9y7NY1jRmDGeJ8fDSXTKaV5ms8X";
+static const std::string strAddressBad = "77a914ef1caef64ee1e2aff877b7e8e9713dc25b2289f288ac";
 
 
 BOOST_FIXTURE_TEST_SUITE(key_tests, BasicTestingSetup)

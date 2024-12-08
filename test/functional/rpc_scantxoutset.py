@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2018-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2018-present The Bitcoin Core developers
+# Copyright (c) 2018-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the scantxoutset rpc call."""
@@ -45,18 +45,18 @@ class ScantxoutsetTest(BitcoinTestFramework):
         self.sendtodestination(spk_BECH32, 0.004)
 
         #send to child keys of tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK
-        self.sendtodestination("rB17qPNU9gjyoEyPqAQdHREw1SdKzPQTTb", 0.008)  # (m/0'/0'/0')
-        self.sendtodestination("r9Y7Gd3Tyi7xrVyt915Q7m8di2e9tc4mTU", 0.016)  # (m/0'/0'/1')
-        self.sendtodestination("rTqFzTvGAp6vG7gqLCmMacEX8pfV5UrQka", 0.032)  # (m/0'/0'/1500')
-        self.sendtodestination("rG9nG1xJbMRozinCEVLkfaneCjiBBFR9cC", 0.064)  # (m/0'/0'/0)
-        self.sendtodestination("rDBJusmgf2xEh47GzvacZcEG2eQD4Hi6N5", 0.128)  # (m/0'/0'/1)
-        self.sendtodestination("rBNX2pNLxTF7eQYfUVVKYgHqDDm61k3hPv", 0.256)  # (m/0'/0'/1500)
-        self.sendtodestination("r9rd6C8kzbjDWJLtU1gJiw4VeM1sozUx7Q", 0.512)  # (m/1/1/0')
-        self.sendtodestination("r6VxeWgQUstMaZkxz9Zrh2P4PbDrheEXK7", 1.024)  # (m/1/1/1')
-        self.sendtodestination("rEcjSNHvPN7RN4sy9Ue1RvRbiAuFa9VRov", 2.048)  # (m/1/1/1500')
-        self.sendtodestination("rKP7dfs7xKAXzHhP6YgJnexAuMe4cVRNVr", 4.096)  # (m/1/1/0)
-        self.sendtodestination("rPXkmK1JEzGU66fQA3guAsvYoc7eqZN3cw", 8.192)  # (m/1/1/1)
-        self.sendtodestination("rF7mh12LWo76AeqMghubnxUReiM7z4XfJ9", 16.384)  # (m/1/1/1500)
+        self.sendtodestination("76a914344c70b5523abdea98aca49635ebccd640f3223188ac", 0.008)  # (m/0'/0'/0')
+        self.sendtodestination("76a91424389ca9564eb5b1464b046297b4e7e8c7c742a488ac", 0.016)  # (m/0'/0'/1')
+        self.sendtodestination("76a914ece93a4a55f278b915efd3e25d2fb9ca20e9df9088ac", 0.032)  # (m/0'/0'/1500')
+        self.sendtodestination("76a9146cc878e0a0a1a28f80faef74746599f880e770a088ac", 0.064)  # (m/0'/0'/0)
+        self.sendtodestination("76a9144c2a19312db43133a803e818c776ee7a48d53c9688ac", 0.128)  # (m/0'/0'/1)
+        self.sendtodestination("76a91438588a173641b5f1938483009afe4b412433ce1f88ac", 0.256)  # (m/0'/0'/1500)
+        self.sendtodestination("76a91427b8fded7fa80553c6213a6b166a3bf4c1b863f088ac", 0.512)  # (m/1/1/0')
+        self.sendtodestination("76a91402e834755a7bd3215fecb9ca13809e990612e74788ac", 1.024)  # (m/1/1/1')
+        self.sendtodestination("76a9145bf118a57ac25c7a283ac5c0c006ce33369f9d9388ac", 2.048)  # (m/1/1/1500')
+        self.sendtodestination("76a91490366dd83b32cef30aa48faba1216f047914e46388ac", 4.096)  # (m/1/1/0)
+        self.sendtodestination("76a914bdb94183d211f9fe272a26936c067f6060bef86088ac", 8.192)  # (m/1/1/1)
+        self.sendtodestination("76a914616f0a0ef6460cfca7492a15ab46c78df77e224b88ac", 16.384)  # (m/1/1/1500)
 
         self.generate(self.nodes[0], 1)
 
@@ -124,7 +124,7 @@ class ScantxoutsetTest(BitcoinTestFramework):
 
         # Check that the blockhash and confirmations fields are correct
         self.generate(self.nodes[0], 2)
-        unspent = self.nodes[0].scantxoutset("start", ["addr(rF7mh12LWo76AeqMghubnxUReiM7z4XfJ9)"])["unspents"][0]
+        unspent = self.nodes[0].scantxoutset("start", ["addr(76a914616f0a0ef6460cfca7492a15ab46c78df77e224b88ac)"])["unspents"][0]
         blockhash = self.nodes[0].getblockhash(info["height"])
         assert_equal(unspent["height"], info["height"])
         assert_equal(unspent["blockhash"], blockhash)

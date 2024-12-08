@@ -1642,7 +1642,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
 
     // LEGACY pubkey type
     auto dest_legacy = GetDestinationForKey(pubkey, OutputType::LEGACY);
-    BOOST_CHECK_EQUAL("RDUd2mXG2e58QWX8bTmR21y7VG5vnH5c2n", EncodeDestination(dest_legacy));
+    BOOST_CHECK_EQUAL("76a9142e09e87a7b176efdeb6b5257be68de547309181688ac", EncodeDestination(dest_legacy));
     auto txs_legacy = BIP322Txs::Create(dest_legacy, message, mvr);
     if (!txs_legacy || mvr != MessageVerificationResult::OK) {
         BOOST_FAIL("Failed to create BIP-322 txs for legacy address");
@@ -1650,7 +1650,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
 
     // P2SH_SEGWIT pubkey type
     auto dest_p2sh_segwit = GetDestinationForKey(pubkey, OutputType::P2SH_SEGWIT);
-    BOOST_CHECK_EQUAL("TEBuopdwfgQmrHMS33m884drYik4SgGadv", EncodeDestination(dest_p2sh_segwit));
+    BOOST_CHECK_EQUAL("a9142e478edaeb1d2583c246fe9379eda73eec80634287", EncodeDestination(dest_p2sh_segwit));
     auto txs_p2sh_segwit = BIP322Txs::Create(dest_p2sh_segwit, message, mvr);
     if (!txs_p2sh_segwit || mvr != MessageVerificationResult::OK) {
         BOOST_FAIL("Failed to create BIP-322 txs for p2sh-segwit address");
@@ -1678,7 +1678,7 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "TKMrVP7oqQHhz6qF7uXjE3uXHSDa7xbDxx",
+            "a914670193af6be67d58ea1bde9a2f150bbd44a20b5487",
             "AA==",
             "message too"),
         MessageVerificationResult::ERR_INVALID /* ERR_ADDRESS_NO_KEY */);
@@ -1752,7 +1752,7 @@ BOOST_AUTO_TEST_CASE(message_verify)
     // BIP322 includes signs from Key2 and Key3
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "TV4jszdYTXn7T3rKL12toMGN7FU8EJB7Kc",
+            "a914d1763eda828dbe7ae8374d2d7fb6c3381970b27287",
              "AAAAAAHNcfHaNfl8f/+ZC2gTr8aF+0KgppYjKM94egaNm/u1ZAAAAAD8AEcwRAIhAJ6hdj61vLDP+aFa30qUZQmrbBfE0kiOObYvt5nqPSxsAh9IrOKFwflfPRUcQ/5e0REkdFHVP2GGdUsMgDet+sNlAUcwRAIgH3eW/VyFDoXvCasd8qxgwj5NDVo0weXvM6qyGXLCR5YCIEwjbEV6fS6RWP6QsKOcMwvlGr1/SgdCC6pW4eH87/YgAUxpUiECKJfGy28imLcuAeNBLHCNv3NRP5jnJwFDNRXCYNY/vJ4hAv1RQtaZs7+vKqQeWl2rb/jd/gMxkEjUnjZdDGPDZkMLIQL65cH2X5O7LujjTLDL2l8Pxy0Y2UUR99u1qCfjdz7dklOuAAAAAAEAAAAAAAAAAAFqAAAAAA==",
             "This will be a p2sh 2-of-3 multisig BIP 322 signed message"),
         MessageVerificationResult::OK);

@@ -46,7 +46,7 @@ class DeriveaddressesTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Range should be greater or equal than 0", self.nodes[0].deriveaddresses, descsum_create("wpkh(tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/1/1/*)"), [-1, 0])
 
         combo_descriptor = descsum_create("combo(tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/1/1/0)")
-        assert_equal(self.nodes[0].deriveaddresses(combo_descriptor), ["rKP7dfs7xKAXzHhP6YgJnexAuMe4cVRNVr", address, "tTbczn6wFPL4F4z28NQHnNjzcwAiNXyvDG"])
+        assert_equal(self.nodes[0].deriveaddresses(combo_descriptor), ["76a91490366dd83b32cef30aa48faba1216f047914e46388ac", address, "a914e2c3879283deb9268570df3e91d7a46a7164aba687"])
 
         # P2PK does not have a valid address
         assert_raises_rpc_error(-5, "Descriptor does not have a corresponding address", self.nodes[0].deriveaddresses, descsum_create("pk(tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK)"))

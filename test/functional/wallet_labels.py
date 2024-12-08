@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2016-present The Bitcoin Core developers
+# Copyright (c) 2016-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test label RPCs.
@@ -80,7 +80,7 @@ class WalletLabelsTest(BitcoinTestFramework):
             linked_addresses.add(address_group[0][0])
 
         # send 50 from each address to a third address not in this wallet
-        common_address = "rJNhM5eBMPRAv9RstsDPUgBSPkrd4K7cMk"
+        common_address = "rric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrs8rqekw"
         node.sendmany(
             amounts={common_address: 100},
             subtractfeefrom=[common_address],

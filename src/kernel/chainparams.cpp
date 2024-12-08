@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -99,8 +99,6 @@ public:
         // release ASAP to avoid it where possible.
         // Todo: make/port Seeder for Riecoin and add Seeders here
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 60); // R
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 65); // R + 2 = T
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x88, 0xB2, 0x1E};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
 
@@ -191,8 +189,6 @@ public:
         // nodes with support for servicebits filtering should be at the top
         // Todo: make/port Seeder for Riecoin and add Seeders here
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,122); // r
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,127); // r + 2 = t
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
@@ -317,8 +313,6 @@ public:
             0
         };
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,122); // r
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,127); // r + 2 = t
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 

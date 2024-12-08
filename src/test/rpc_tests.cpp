@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2022 The Bitcoin Core developers
+// Copyright (c) 2012-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(rpc_rawsign)
       "\"vout\":1,\"scriptPubKey\":\"a914b10c9df5f7edf436c697f02f1efdba4cf399615187\","
       "\"redeemScript\":\"512103debedc17b3df2badbcdd86d5feb4562b86fe182e5998abd8bcd4f122c6155b1b21027e940bb73ab8732bfdf7f9216ecefca5b94d6df834e77e108f68e66f126044c052ae\"}]";
     r = CallRPC(std::string("createrawtransaction ")+prevout+" "+
-      "{\"TS7MifEAy1YMwfiFg9Xhbz87xqw98qQrvs\":11}");
+      "{\"a914b10c9df5f7edf436c697f02f1efdba4cf399615187\":11}");
     std::string notsigned = r.get_str();
     std::string privkey1 = "\"prv6cf864daeb6a276e7bc66466ec624d7e1ca9c5be11155399f37ce7a9f819b641\"";
     std::string privkey2 = "\"prv4a09f53de410732e5e6e82deca3498bf58d23ee079e70b1c06b3cae26bf34d53\"";

@@ -31,11 +31,6 @@ BECH32_INVALID_CHAR = 'rric1q04oldschfnwystcqnsvyfpj23mpsg3jcfjwt5r'
 BECH32_MULTISIG_TWO_ERRORS = 'rric1qdg3myrgvzw7ml8q0ejxhlkyxn7vl9r56yzkfgvzclrf4hkpx9yfqxphemq'
 BECH32_WRONG_VERSION = 'rric1ptmp74ayg7p24uslctssvjm06q5phz4yrkrkxpr'
 
-BASE58_VALID = 'rNXS6ptDbskGGiJSnLZUYBsSqJDAdL3nxL'
-BASE58_INVALID_PREFIX = 'REcZ5EvpB51RVqnrobzTqzK1gcS3JDycpj'
-BASE58_INVALID_CHECKSUM = 'rNXS6ptDbskGGiJSnLZUYBsSqJDAdLAnxL'
-BASE58_INVALID_LENGTH = 'tu45HDTX8ridnq7m5Y7BXw92iAQPSQ9zC1CRtjWaDVhohPHyGy'
-
 INVALID_ADDRESS = 'asfah14i8fajz0123f'
 INVALID_ADDRESS_2 = '1q049ldschfnwystcqnsvyfpj23mpsg3jcedq9xv'
 
@@ -62,7 +57,7 @@ class InvalidAddressErrorMessageTest(BitcoinTestFramework):
     def test_validateaddress(self):
         # Invalid Bech32
         self.check_invalid(BECH32_INVALID_SIZE, "Invalid Bech32 address program size (41 bytes)")
-        self.check_invalid(BECH32_INVALID_PREFIX, 'Invalid or unsupported Segwit (Bech32) or Base58 encoding.')
+        self.check_invalid(BECH32_INVALID_PREFIX, 'Invalid or unsupported Segwit (Bech32) encoding or Script.')
         self.check_invalid(BECH32_INVALID_BECH32, 'Version 1+ witness address must use Bech32m checksum')
         self.check_invalid(BECH32_INVALID_VERSION, 'Invalid Bech32 address witness version')
         self.check_invalid(BECH32_INVALID_V0_SIZE, "Invalid Bech32 v0 address program size (21 bytes), per BIP141")
@@ -81,17 +76,9 @@ class InvalidAddressErrorMessageTest(BitcoinTestFramework):
         self.check_valid(BECH32_VALID_CAPITALS)
         self.check_valid(BECH32_VALID_MULTISIG)
 
-        # Invalid Base58
-        self.check_invalid(BASE58_INVALID_PREFIX, 'Invalid or unsupported Base58-encoded address.')
-        self.check_invalid(BASE58_INVALID_CHECKSUM, 'Invalid checksum or length of Base58 address (P2PKH or P2SH)')
-        self.check_invalid(BASE58_INVALID_LENGTH, 'Invalid checksum or length of Base58 address (P2PKH or P2SH)')
-
-        # Valid Base58
-        self.check_valid(BASE58_VALID)
-
         # Invalid address format
-        self.check_invalid(INVALID_ADDRESS, 'Invalid or unsupported Segwit (Bech32) or Base58 encoding.')
-        self.check_invalid(INVALID_ADDRESS_2, 'Invalid or unsupported Segwit (Bech32) or Base58 encoding.')
+        self.check_invalid(INVALID_ADDRESS, 'Invalid or unsupported Segwit (Bech32) encoding or Script.')
+        self.check_invalid(INVALID_ADDRESS_2, 'Invalid or unsupported Segwit (Bech32) encoding or Script.')
 
         node = self.nodes[0]
 
@@ -104,9 +91,8 @@ class InvalidAddressErrorMessageTest(BitcoinTestFramework):
         node = self.nodes[0]
 
         assert_raises_rpc_error(-5, "Invalid Bech32 address program size (41 bytes)", node.getaddressinfo, BECH32_INVALID_SIZE)
-        assert_raises_rpc_error(-5, "Invalid or unsupported Segwit (Bech32) or Base58 encoding.", node.getaddressinfo, BECH32_INVALID_PREFIX)
-        assert_raises_rpc_error(-5, "Invalid or unsupported Base58-encoded address.", node.getaddressinfo, BASE58_INVALID_PREFIX)
-        assert_raises_rpc_error(-5, "Invalid or unsupported Segwit (Bech32) or Base58 encoding.", node.getaddressinfo, INVALID_ADDRESS)
+        assert_raises_rpc_error(-5, "Invalid or unsupported Segwit (Bech32) encoding or Script.", node.getaddressinfo, BECH32_INVALID_PREFIX)
+        assert_raises_rpc_error(-5, "Invalid or unsupported Segwit (Bech32) encoding or Script.", node.getaddressinfo, INVALID_ADDRESS)
         assert "isscript" not in node.getaddressinfo(BECH32_VALID_UNKNOWN_WITNESS)
 
     def run_test(self):

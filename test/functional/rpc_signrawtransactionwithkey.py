@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2015-present The Bitcoin Core developers
+# Copyright (c) 2015-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test transaction signing using the signrawtransactionwithkey RPC."""
@@ -43,7 +43,7 @@ INPUTS = [
     {'txid': '83a4f6a6b73660e13ee6cb3c6063fa3759c50c9b7521d0536022961898f4fb02', 'vout': 0,
      'scriptPubKey': '76a914669b857c03a5ed269d5d85a1ffac9ed5d663072788ac'},
 ]
-OUTPUTS = {'rF43ZrbGxaCqCFbScvAjqYijHNnWGsr9Bb': 0.1}
+OUTPUTS = {'rric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrs8rqekw': 0.1}
 
 class SignRawTransactionWithKeyTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -116,7 +116,7 @@ class SignRawTransactionWithKeyTest(BitcoinTestFramework):
             'P2PK': key_to_p2pk_script(embedded_pubkey).hex()
         }.get(tx_type, "Invalid tx_type")
         redeem_script = script_to_p2wsh_script(witness_script).hex()
-        addr = script_to_p2sh(redeem_script)
+        addr = script_to_p2sh(bytes.fromhex(redeem_script))
         script_pub_key = address_to_scriptpubkey(addr).hex()
         # Fund that address
         [txid, vout] = self.send_to_address(addr, 10)

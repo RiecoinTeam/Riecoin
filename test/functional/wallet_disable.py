@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2015-present The Bitcoin Core developers
+# Copyright (c) 2015-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test a node with the -disablewallet option.
@@ -22,9 +22,9 @@ class DisableWalletTest (BitcoinTestFramework):
     def run_test (self):
         # Make sure wallet is really disabled
         assert_raises_rpc_error(-32601, 'Method not found', self.nodes[0].getwalletinfo)
-        x = self.nodes[0].validateaddress('TSRKxXQ6qNucGP8cPtdjxKJvH8FS683fL6')
+        x = self.nodes[0].validateaddress('ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn')
         assert x['isvalid'] == False
-        x = self.nodes[0].validateaddress('rDNBJxnigtqkkjyfk3ci3R9vtQ1DP4DhxL')
+        x = self.nodes[0].validateaddress('rric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrs8rqekw')
         assert x['isvalid'] == True
 
 

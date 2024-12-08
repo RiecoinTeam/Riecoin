@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2017-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2017-present The Bitcoin Core developers
+# Copyright (c) 2017-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Class for bitcoind node under test"""
@@ -165,18 +165,18 @@ class TestNode():
     AddressKeyPair = collections.namedtuple('AddressKeyPair', ['address', 'key'])
     PRIV_KEYS = [
             # address , privkey
-            AddressKeyPair('rABPLEVuVxfFjprYz3aNuFq7c8NqnR2H3X', 'prvf5aa8a5961c16ba0eceb0e4b14b1fc7a8b30f4dd6c29d313add97e24d772063f'),
-            AddressKeyPair('rJEjZbp6mhULwow3Hzz9fmrMnPPnV2NoJ5', 'prvdc445665f57dff1c3a80ec77d804b7479de009f47774c2c0cfb3976ad5cda1ad'),
-            AddressKeyPair('rDXR2ZFSxSrosDFzcgojCyGnCdsqv97qtd', 'prvbb402ae3748aada29bfd5f67f8c273dc9c4cfd4ca9bd04171ec61254858ee827'),
-            AddressKeyPair('rG2Yen9J2s8YeeRMVY9Xhf35PgjwVdo28n', 'prvf846843a89aeb49022b0b4f9f55ee35d8d753f7187b3950b211d1f25f4dd4135'),
-            AddressKeyPair('rJGDSJi6S55aksMC3NQVJ5ar8sftkA3ZKM', 'prv4e729c4886bb61fde05f25f1bb3ae7427402f671cd786821c17981c4b23e9438'),
-            AddressKeyPair('rTaRjg579fdUevHhJNQRq984zjPgpoYNvb', 'prv598a35c5a79663684633679fbc55eff58062fe818a757976522333028afe40f7'),
-            AddressKeyPair('rQiYE9i7ge9Zv3XCBc4AeXNJwyWKRmMWvW', 'prv52e1fa4824cadfcadaf2b35f99c08b1afe776d11b5ff15d0358a98ffd3cf7a4c'),
-            AddressKeyPair('rLVaHme4QwL2UeUibnqsPJLoipGG3HaPrh', 'prv93ad57d2dd71de6fdfbcf8cd55be3d7eb4c54bb062c3dbfe4bfe125c00da8875'),
-            AddressKeyPair('rFCkQTisAjPqZT8TNrmDu4rapw87TxSqjm', 'prv9bc9bd88410a210df817020fc56953d00c110c88472fbb6cf4e4e0c2b663dc50'),
-            AddressKeyPair('rFnJ1ZunZFzZXoJg1Ep66VD5o9FYsdeb2P', 'prv0e9967d39758500712c86fd894a212ad05786e9a684c388ac769cc1f93bb37fc'),
-            AddressKeyPair('rExo7R1gvJxHg7aomRZ8sNQRg9nGP1Pc5m', 'prva533d992f90a3008e2b91313790665f455723f8fe7b68a10eadd7dcb8e87380d'),
-            AddressKeyPair('rR9GxbqXUFoi86WTUVJXzLwtBQoQca3zK6', 'prv3fa5a8bfcf3584d80a6c1f069bfd7a04b2e4dcddb3fe2910b99d81218aff490b'),
+            AddressKeyPair('76a9142b4569203694fc997e13f2c0a1383b9e16c77a0d88ac', 'prvf5aa8a5961c16ba0eceb0e4b14b1fc7a8b30f4dd6c29d313add97e24d772063f'),
+            AddressKeyPair('76a91483a88d66f7ac4ace0d24bb6e58b75abb9f6495e788ac', 'prvdc445665f57dff1c3a80ec77d804b7479de009f47774c2c0cfb3976ad5cda1ad'),
+            AddressKeyPair('76a9144ff785b8221dc206314ca12e65773a876dff30ff88ac', 'prvbb402ae3748aada29bfd5f67f8c273dc9c4cfd4ca9bd04171ec61254858ee827'),
+            AddressKeyPair('76a9146b6a3390ffbddf97cb36f7107c0739b1e3e550da88ac', 'prvf846843a89aeb49022b0b4f9f55ee35d8d753f7187b3950b211d1f25f4dd4135'),
+            AddressKeyPair('76a91483f03c8e4cdd34b3a1ef10eeff7d968fded29a8988ac', 'prv4e729c4886bb61fde05f25f1bb3ae7427402f671cd786821c17981c4b23e9438'),
+            AddressKeyPair('76a914ea1b1f7b94bd31796923cb7ac5477ce8047790a488ac', 'prv598a35c5a79663684633679fbc55eff58062fe818a757976522333028afe40f7'),
+            AddressKeyPair('76a914cabb7de109713095e77fea5bb23414e0fe9607f588ac', 'prv52e1fa4824cadfcadaf2b35f99c08b1afe776d11b5ff15d0358a98ffd3cf7a4c'),
+            AddressKeyPair('76a9149c674d7ccd4563a44cfa811468a72cc7a98af70988ac', 'prv93ad57d2dd71de6fdfbcf8cd55be3d7eb4c54bb062c3dbfe4bfe125c00da8875'),
+            AddressKeyPair('76a91462600bda166471c0dc8175c24d3e241943933dab88ac', 'prv9bc9bd88410a210df817020fc56953d00c110c88472fbb6cf4e4e0c2b663dc50'),
+            AddressKeyPair('76a91468b827e2967dd1748f8d186312c79c24aae5ee4f88ac', 'prv0e9967d39758500712c86fd894a212ad05786e9a684c388ac769cc1f93bb37fc'),
+            AddressKeyPair('76a9145fbc7b54c88d5007a37f5c97cc03329201edd50e88ac', 'prva533d992f90a3008e2b91313790665f455723f8fe7b68a10eadd7dcb8e87380d'),
+            AddressKeyPair('76a914cf692545c34087c409b8e02fe6d0ea63ae67c40688ac', 'prv3fa5a8bfcf3584d80a6c1f069bfd7a04b2e4dcddb3fe2910b99d81218aff490b'),
     ]
 
     def get_deterministic_priv_key(self):
