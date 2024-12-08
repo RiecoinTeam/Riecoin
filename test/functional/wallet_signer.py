@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2017-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2017-present The Bitcoin Core developers
+# Copyright (c) 2017-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test external signer.
@@ -96,7 +96,7 @@ class WalletSignerTest(BitcoinTestFramework):
         assert_equal(hww.getwalletinfo()["keypoolsize"], 40)
 
         address1 = hww.getnewaddress(address_type="bech32")
-        assert_equal(address1, "rric1qm90ugl4d48jv8n6e5t9ln6t9zlpm5th6hem848")
+        assert_equal(address1, "rric1qm90ugl4d48jv8n6e5t9ln6t9zlpm5th6z9tts9")
         address_info = hww.getaddressinfo(address1)
         assert_equal(address_info['solvable'], True)
         assert_equal(address_info['ismine'], True)
@@ -123,7 +123,7 @@ class WalletSignerTest(BitcoinTestFramework):
 
         # Returned address MUST match:
         address_fail = hww.getnewaddress(address_type="bech32")
-        assert_equal(address_fail, "rric1ql7zg7ukh3dwr25ex2zn9jse926f27xy2za6fe5")
+        assert_equal(address_fail, "rric1ql7zg7ukh3dwr25ex2zn9jse926f27xy2hp29uk")
         assert_raises_rpc_error(-1, 'Signer echoed unexpected address wrong_address',
             hww.walletdisplayaddress, address_fail
         )

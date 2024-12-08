@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -1603,7 +1603,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
 {
     const std::array<unsigned char, 32> privkey_bytes = {
         // just some random data
-        // derived address from this private key: ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqku3mdd0
+        // derived address from this private key: ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqkfdtpgd
         0xD9, 0x7F, 0x51, 0x08, 0xF1, 0x1C, 0xDA, 0x6E,
         0xEE, 0xBA, 0xAA, 0x42, 0x0F, 0xEF, 0x07, 0x26,
         0xB1, 0xF8, 0x98, 0x06, 0x0B, 0x98, 0x48, 0x9F,
@@ -1658,7 +1658,7 @@ BOOST_AUTO_TEST_CASE(message_sign)
 
     // BECH32
     auto dest_bech32 = GetDestinationForKey(pubkey, OutputType::BECH32);
-    BOOST_CHECK_EQUAL("ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqku3mdd0", EncodeDestination(dest_bech32));
+    BOOST_CHECK_EQUAL("ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqkfdtpgd", EncodeDestination(dest_bech32));
     auto txs_bech32 = BIP322Txs::Create(dest_bech32, message, mvr);
     if (!txs_bech32 || mvr != MessageVerificationResult::OK) {
         BOOST_FAIL("Failed to create BIP-322 txs for bech32 address");
@@ -1685,35 +1685,35 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja",
+            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydaneltpjhl",
             "invalid signature, not in base64 encoding",
             "message should be irrelevant"),
         MessageVerificationResult::ERR_MALFORMED_SIGNATURE);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja",
+            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydaneltpjhl",
             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             "message should be irrelevant"),
         MessageVerificationResult::ERR_INVALID /* ERR_PUBKEY_NOT_RECOVERED */);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja",
+            "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydaneltpjhl",
             "IAwqGTXmrePX+b7bRxwc/Lw6yJcPQeUx1FDS5k3grfpeY3psNdkigJ3SOSFchZKjg5EjwXS7tofhYPpH4GF2aeU=",
             "I never signed this"),
         MessageVerificationResult::ERR_NOT_SIGNED);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqku3mdd0",
+            "ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqkfdtpgd",
             "IAwqGTXmrePX+b7bRxwc/Lw6yJcPQeUx1FDS5k3grfpeY3psNdkigJ3SOSFchZKjg5EjwXS7tofhYPpH4GF2aeU=",
             "Trust no one"),
         MessageVerificationResult::OK);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qgtpmfph00rnj3uqd8m59yns6gpka7jfjd9u330", // PrivKey 568531539eada35fec620f058e293dc170d1b4726c67eb471502221130ccefaa
+            "ric1qgtpmfph00rnj3uqd8m59yns6gpka7jfjceva5d", // PrivKey 568531539eada35fec620f058e293dc170d1b4726c67eb471502221130ccefaa
             "IHEIasmellXSLgVW18M55LQDAMXLJCASTnS0puKySehPKi6T6GupsAiz1HwOnyvhX5ihuTop8U1mUfYZqQBQrew=",
             "Trust me"),
         MessageVerificationResult::OK);
@@ -1724,14 +1724,14 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkcwRAIgM2gBAQqvZX15ZiysmKmQpDrG83avLIT492QBzLnQIxYCIBaTpOaD20qRlEylyxFSeEA2ba9YOixpX8z46TSDtS40ASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             ""),
         MessageVerificationResult::OK);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             "Hello World"),
         MessageVerificationResult::OK);
@@ -1739,7 +1739,7 @@ BOOST_AUTO_TEST_CASE(message_verify)
     // BIP322 signature created using buidl-python library with same parameters as test on line 2596
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkgwRQIhAOzyynlqt93lOKJr+wmmxIens//zPzl9tqIOua93wO6MAiBi5n5EyAcPScOjf1lAqIUIQtr3zKNeavYabHyR8eGhowEhAsfxIAMZZEKUPYWI4BruhAQjzFT8FSFSajuFwrDL1Yhy",
             "Hello World"),
         MessageVerificationResult::OK);
@@ -1764,7 +1764,7 @@ BOOST_AUTO_TEST_CASE(message_verify)
     // Key3 (L1zt9Rw7HrU7jaguMbVzhiX8ffuVkmMis5wLHddXYuHWYf8u8uRj, m/45'/0/0/11)
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qlqtuzpmazp2xmcutlwv0qvggdvem8vahkc333usey4gskug8nutsd0zad5",
+            "ric1qlqtuzpmazp2xmcutlwv0qvggdvem8vahkc333usey4gskug8nutscnj3gk",
             "BQBIMEUCIQDQoXvGKLH58exuujBOta+7+GN7vi0lKwiQxzBpuNuXuAIgIE0XYQlFDOfxbegGYYzlf+tqegleAKE6SXYIa1U+uCcBRzBEAiATegywVl6GWrG9jJuPpNwtgHKyVYCX2yfuSSDRFATAaQIgTLlU6reLQsSIrQSF21z3PtUO2yAUseUWGZqRUIE7VKoBSDBFAiEAgxtpidsU0Z4u/+5RB9cyeQtoCW5NcreLJmWXZ8kXCZMCIBR1sXoEinhZE4CF9P9STGIcMvCuZjY6F5F0XTVLj9SjAWlTIQP3dyWvTZjUENWJowMWBsQrrXCUs20Gu5YF79CG5Ga0XSEDwqI5GVBOuFkFzQOGH5eTExSAj2Z/LDV/hbcvAPQdlJMhA17FuuJd+4wGuj+ZbVxEsFapTKAOwyhfw9qpch52JKxbU64=",
             "This will be a p2wsh 3-of-3 multisig BIP 322 signed message"),
         MessageVerificationResult::OK);
@@ -1790,14 +1790,14 @@ BOOST_AUTO_TEST_CASE(message_verify)
     // wrong address
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qkecg9ly2xwxqgdy9egpuy87qc9x26smpp76eh3",
+            "ric1qkecg9ly2xwxqgdy9egpuy87qc9x26smp5z24jn",
             "AkcwRAIgM2gBAQqvZX15ZiysmKmQpDrG83avLIT492QBzLnQIxYCIBaTpOaD20qRlEylyxFSeEA2ba9YOixpX8z46TSDtS40ASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             ""),
         MessageVerificationResult::ERR_INVALID);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1qkecg9ly2xwxqgdy9egpuy87qc9x26smpp76eh3",
+            "ric1qkecg9ly2xwxqgdy9egpuy87qc9x26smp5z24jn",
             "AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             "Hello World"),
         MessageVerificationResult::ERR_INVALID);
@@ -1806,14 +1806,14 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             ""),
         MessageVerificationResult::ERR_INVALID);
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkcwRAIgM2gBAQqvZX15ZiysmKmQpDrG83avLIT492QBzLnQIxYCIBaTpOaD20qRlEylyxFSeEA2ba9YOixpX8z46TSDtS40ASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
             "Hello World"),
         MessageVerificationResult::ERR_INVALID);
@@ -1831,7 +1831,7 @@ BOOST_AUTO_TEST_CASE(message_verify)
 
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxxc9j7",
+            "ric1q9vza2e8x573nczrlzms0wvx3gsqjx7van6gfhu",
             "AkcwRAIgClVQ8S9yX1h8YThlGElD9lOrQbOwbFDjkYb0ebfiq+oCIDHgb/X9WNalNNtqTXb465ufbv9JuLxcJf8qi7DP6yOXASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI",
             ""),
         MessageVerificationResult::ERR_MALFORMED_SIGNATURE);

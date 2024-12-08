@@ -1,5 +1,5 @@
-// Copyright (c) 2014-2021 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2014-present The Bitcoin Core developers
+// Copyright (c) 2014-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -47,7 +47,7 @@ public:
         std::vector<unsigned char> data = {0};
         data.reserve(33);
         ConvertBits<8, 5, true>([&](unsigned char c) { data.push_back(c); }, id.begin(), id.end());
-        return bech32::Encode(bech32::Encoding::BECH32, m_params.Bech32HRP(), data);
+        return bech32::Encode(bech32::Encoding::BECH32M, m_params.Bech32HRP(), data);
     }
 
     std::string operator()(const WitnessV0ScriptHash& id) const
@@ -55,7 +55,7 @@ public:
         std::vector<unsigned char> data = {0};
         data.reserve(53);
         ConvertBits<8, 5, true>([&](unsigned char c) { data.push_back(c); }, id.begin(), id.end());
-        return bech32::Encode(bech32::Encoding::BECH32, m_params.Bech32HRP(), data);
+        return bech32::Encode(bech32::Encoding::BECH32M, m_params.Bech32HRP(), data);
     }
 
     std::string operator()(const WitnessV1Taproot& tap) const
@@ -141,8 +141,8 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
             return CNoDestination();
         }
         int version = dec.data[0]; // The first 5 bit symbol is the witness version (0-16)
-        if (version == 0 && dec.encoding != bech32::Encoding::BECH32) {
-            error_str = "Version 0 witness address must use Bech32 checksum";
+        if (version == 0 && dec.encoding != bech32::Encoding::BECH32 && dec.encoding != bech32::Encoding::BECH32M) {
+            error_str = "Version 0 witness address must use Bech32 or Bech32m checksum"; // Short term compatibility purpose, to be refactored into a single Bech32M check later.
             return CNoDestination();
         }
         if (version != 0 && dec.encoding != bech32::Encoding::BECH32M) {

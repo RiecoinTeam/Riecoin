@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2023 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2023-present The Bitcoin Core developers
+# Copyright (c) 2023-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test validateaddress for main chain"""
@@ -12,11 +12,11 @@ from test_framework.util import assert_equal
 INVALID_DATA = [
     # BIP 173
     (
-        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh",
         "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # Invalid hrp
         [],
     ),
-    ("ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kxf8jk4", "Invalid Bech32 checksum", [42]),
+    ("ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kn4h7nl", "Invalid Bech32m checksum", [42]),
     (
         "RIC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KEMPD5T",
         "Version 1+ witness address must use Bech32m checksum",
@@ -33,17 +33,17 @@ INVALID_DATA = [
         [],
     ),
     (
-        "RIC1QR508D6QEJXTDG4Y5R3ZARVARYVE2UTWZ",
+        "RIC1QR508D6QEJXTDG4Y5R3ZARVARYVVKV8TQ",
         "Invalid Bech32 v0 address program size (16 bytes), per BIP141",
         [],
     ),
     (
-        "btc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qjnWe77",
+        "btc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q8074Mu",
         "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # btc1, Mixed case
         [],
     ),
     (
-        "RIC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KXF8Jk5",
+        "ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kn4h7Nk",
         "Invalid character or mixed case",  # ric1, Mixed case, not in BIP 173 test vectors
         [41],
     ),
@@ -80,16 +80,6 @@ INVALID_DATA = [
         [],
     ),
     (
-        "ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kn4h7nk",
-        "Version 0 witness address must use Bech32 checksum",  # Invalid checksum (Bech32m instead of Bech32)
-        [],
-    ),
-    (
-        "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
-        "Invalid or unsupported Segwit (Bech32) or Base58 encoding.",  # tb1, Invalid checksum (Bech32m instead of Bech32)
-        [],
-    ),
-    (
         "ric1p38j9r5y49hruaue7wxjce0updqjuyyx0kh56v8s25huc6995vvpqynocl5",
         "Invalid Base 32 character",  # Invalid character in checksum
         [59],
@@ -106,7 +96,7 @@ INVALID_DATA = [
         [],
     ),
     (
-        "RIC1QR508D6QEJXTDG4Y5R3ZARVARYVE2UTWZ",
+        "RIC1QR508D6QEJXTDG4Y5R3ZARVARYVVKV8TQ",
         "Invalid Bech32 v0 address program size (16 bytes), per BIP141",
         [],
     ),
@@ -130,7 +120,7 @@ INVALID_DATA = [
 VALID_DATA = [
     # BIP 350
     (
-        "RIC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KXF8JK5",
+        "RIC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN4H7NK",
         "0014751e76e8199196d454941c45d1b3a323f1433bd6",
     ),
     # (
@@ -138,7 +128,7 @@ VALID_DATA = [
     #   "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
     # ),
     (
-        "ric1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qhr6a3t",
+        "ric1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qzl235f",
         "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
     ),
     (
@@ -152,7 +142,7 @@ VALID_DATA = [
     #   "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
     # ),
     (
-        "ric1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesm4jns3",
+        "ric1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvseswfzl4n",
         "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
     ),
     # (

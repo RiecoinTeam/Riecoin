@@ -1,5 +1,6 @@
 // Copyright (c) 2017, 2021 Pieter Wuille
-// Copyright (c) 2021-2022 The Bitcoin Core developers
+// Copyright (c) 2021-present The Bitcoin Core developers
+// Copyright (c) 2024-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -121,7 +122,7 @@ constexpr const std::array<int16_t, 1024>& GF1024_LOG = tables.second;
 /* Determine the final constant to use for the specified encoding. */
 uint32_t EncodingConstant(Encoding encoding) {
     assert(encoding == Encoding::BECH32 || encoding == Encoding::BECH32M);
-    return encoding == Encoding::BECH32 ? 1 : 0x2bc830a3;
+    return 0x2bc830a3; // We use the same Constant for Bech32 and Bech32M in Riecoin, the distinction is obsolete and should be refactored. But for short term compatibility purposes, we still keep the Bech32/Bech32M logic and consider old Bech32 ric1q Checksums valid for now.
 }
 
 /** This function will compute what 6 5-bit values to XOR into the last 6 input values, in order to
@@ -331,10 +332,13 @@ Encoding VerifyChecksum(const std::string& hrp, const data& values)
     // list of values would result in a new valid list. For that reason, Bech32 requires the
     // resulting checksum to be 1 instead. In Bech32m, this constant was amended. See
     // https://gist.github.com/sipa/14c248c288c3880a3b191f978a34508e for details.
+    // The constant is optimized for bc, but works well for any prefix too.
+    // Since Bech32M was already predominant in Riecoin before the matter was considered, the Bitcoin constant will be kept.
+    // Unlike Bitcoin however, the new constant is applied to older Segwit V0 Addresses as well, simplifying implementations.
     auto enc = PreparePolynomialCoefficients(hrp, values);
     const uint32_t check = PolyMod(enc);
-    if (check == EncodingConstant(Encoding::BECH32)) return Encoding::BECH32;
     if (check == EncodingConstant(Encoding::BECH32M)) return Encoding::BECH32M;
+    if (check == 1) return Encoding::BECH32; // Short term compatibility, to be removed later.
     return Encoding::INVALID;
 }
 
@@ -443,7 +447,7 @@ std::pair<std::string, std::vector<int>> LocateErrors(const std::string& str, Ch
     // We attempt error detection with both bech32 and bech32m, and choose the one with the fewest errors
     // We can't simply use the segwit version, because that may be one of the errors
     std::optional<Encoding> error_encoding;
-    for (Encoding encoding : {Encoding::BECH32, Encoding::BECH32M}) {
+    for (Encoding encoding : {Encoding::BECH32M}) {
         std::vector<int> possible_errors;
         // Recall that (expanded hrp + values) is interpreted as a list of coefficients of a polynomial
         // over GF(32). PolyMod computes the "remainder" of this polynomial modulo the generator G(x).
@@ -565,7 +569,6 @@ std::pair<std::string, std::vector<int>> LocateErrors(const std::string& str, Ch
         }
     }
     std::string error_message = error_encoding == Encoding::BECH32M ? "Invalid Bech32m checksum"
-                              : error_encoding == Encoding::BECH32 ? "Invalid Bech32 checksum"
                               : "Invalid checksum";
 
     return std::make_pair(error_message, std::move(error_locations));

@@ -21,8 +21,8 @@
         "0020eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         {
             "asm": "0 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-            "address": "rric1qamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhqv3yv0e",
-            "desc": "addr(rric1qamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhqv3yv0e)#h37w5gny",
+            "address": "rric1qamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhqed5q2m",
+            "desc": "addr(rric1qamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhqed5q2m)#rvm2us3p",
             "type": "witness_v0_scripthash",
             "p2sh": "tAx8CHN8GjQe3Eb6qBhUU39FQ6yhkfenwh"
         }
@@ -69,9 +69,9 @@
             "p2sh": "tGk6mnEbVJWyxoxbmJqKGXDxzLgSMfY8rk",
             "segwit": {
                 "asm": "0 96c2368fc30514a438a8bd909f93c49a1549d77198ccbdb792043b666cb24f42",
-                "desc": "addr(rric1qjmprdr7rq522gw9ghkgfly7yng25n4m3nrxtmdujqsakvm9jfapqjzjahx)#7vdpzy0e",
+                "desc": "addr(rric1qjmprdr7rq522gw9ghkgfly7yng25n4m3nrxtmdujqsakvm9jfapq87z3jy)#vjrpxpm9",
                 "hex": "002096c2368fc30514a438a8bd909f93c49a1549d77198ccbdb792043b666cb24f42",
-                "address": "rric1qjmprdr7rq522gw9ghkgfly7yng25n4m3nrxtmdujqsakvm9jfapqjzjahx",
+                "address": "rric1qjmprdr7rq522gw9ghkgfly7yng25n4m3nrxtmdujqsakvm9jfapq87z3jy",
                 "type": "witness_v0_scripthash",
                 "p2sh-segwit": "t8V2nk9ju1Re6z9Js3pZSF6keRq1jTgNYG"
             }

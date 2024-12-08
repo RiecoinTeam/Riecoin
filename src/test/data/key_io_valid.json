@@ -75,7 +75,7 @@
         }
     ],
     [
-        "ric1qwsq0fw8qhppl3qxr9kq7jx775pxd0guppnq49v",
+        "ric1qwsq0fw8qhppl3qxr9kq7jx775pxd0gup50seqw",
         "00147400f4b8e0b843f880c32d81e91bdea04cd7a381",
         {
             "chain": "main",
@@ -84,7 +84,7 @@
         }
     ],
     [
-        "ric1qnvezwh7r9x90f3lvsl4spx2j05zpem2uur7dfnjw858rmcy37g2q4ktswr",
+        "ric1qnvezwh7r9x90f3lvsl4spx2j05zpem2uur7dfnjw858rmcy37g2qq2mutp",
         "00209b32275fc3298af4c7ec87eb0099527d041ced5ce0fcd4ce4e3d0e3de091f214",
         {
             "chain": "main",
@@ -111,7 +111,7 @@
         }
     ],
     [
-        "tric1q5e0hpe5ywv0r7wgs2czedrf6jcuqzy442dm4f8",
+        "tric1q5e0hpe5ywv0r7wgs2czedrf6jcuqzy44l3tev9",
         "0014a65f70e684731e3f39105605968d3a96380112b5",
         {
             "chain": "test",
@@ -120,7 +120,7 @@
         }
     ],
     [
-        "tric1q5y8n5y08prw9gy5r83r6klpk3gsmnmlpj2fhj0kg088xsvqcrz5q5jvu4j",
+        "tric1q5y8n5y08prw9gy5r83r6klpk3gsmnmlpj2fhj0kg088xsvqcrz5qpwusss",
         "0020a10f3a11e708dc5412833c47ab7c368a21b9efe19293793ec879ce68301818a8",
         {
             "chain": "test",
@@ -147,7 +147,7 @@
         }
     ],
     [
-        "rric1qahqdj0p2dp78kdkavmns72npqr7xxsld8kyply",
+        "rric1qahqdj0p2dp78kdkavmns72npqr7xxsldj25d6x",
         "0014edc0d93c2a687c7b36dd66e70f2a6100fc6343ed",
         {
             "chain": "regtest",
@@ -156,7 +156,7 @@
         }
     ],
     [
-        "rric1qery8gjtvkt6mhlkg365mwlp8xp9n0acwjj7g5ral2q8qe9t6sr4sasrhzf",
+        "rric1qery8gjtvkt6mhlkg365mwlp8xp9n0acwjj7g5ral2q8qe9t6sr4sgvnm8t",
         "0020c8c874496cb2f5bbfec88ea9b77c27304b37f70e94bc8a0fbf500e0c957a80eb",
         {
             "chain": "regtest",
@@ -258,7 +258,7 @@
         }
     ],
     [
-        "ric1qhrctm09txfwkuy0j4t44f86s48v3lw8xw660an",
+        "ric1qhrctm09txfwkuy0j4t44f86s48v3lw8xmx2rc3",
         "0014b8f0bdbcab325d6e11f2aaeb549f50a9d91fb8e6",
         {
             "chain": "main",
@@ -267,7 +267,7 @@
         }
     ],
     [
-        "ric1qfjq5l2ng2dnmyjudyqckh2hsvxkmleevnkg56euv65qy6jf4dmysz4rptn",
+        "ric1qfjq5l2ng2dnmyjudyqckh2hsvxkmleevnkg56euv65qy6jf4dmyshfndw3",
         "00204c814faa685367b24b8d20316baaf061adbfe72c9d914d678cd5004d49356ec9",
         {
             "chain": "main",
@@ -294,7 +294,7 @@
         }
     ],
     [
-        "tric1qxgjsvze7ldueekwyzf6x4c4pjvcm0vnz85pwkl",
+        "tric1qxgjsvze7ldueekwyzf6x4c4pjvcm0vnzjg3zna",
         "00143225060b3efb799cd9c412746ae2a19331b7b262",
         {
             "chain": "test",
@@ -303,7 +303,7 @@
         }
     ],
     [
-        "tric1q0enrufd8kqq7fsxuch3ph3mv8qkumadjs3mqer3latv37apze4mqdy38xq",
+        "tric1q0enrufd8kqq7fsxuch3ph3mv8qkumadjs3mqer3latv37apze4mqccptrz",
         "00207e663e25a7b001e4c0dcc5e21bc76c382dcdf5b284760c8e3fead91f7422cd76",
         {
             "chain": "test",
@@ -330,7 +330,7 @@
         }
     ],
     [
-        "rric1q3g2zxf3mv2cj0dpkzp4xs4y2wa4q7dx427p7rl",
+        "rric1q3g2zxf3mv2cj0dpkzp4xs4y2wa4q7dx4lz3jxa",
         "00148a1423263b62b127b436106a68548a776a0f34d5",
         {
             "chain": "regtest",
@@ -339,7 +339,7 @@
         }
     ],
     [
-        "rric1qdd3703v472eqtklpcwfkz7sp79dyesrrmtj0f4tt3xlmez7vntjswwf7xc",
+        "rric1qdd3703v472eqtklpcwfkz7sp79dyesrrmtj0f4tt3xlmez7vntjsmjejr6",
         "00206b63e7c595f2b205dbe1c393617a01f15a4cc063dae4f4d56b89bfbc8bcc9ae5",
         {
             "chain": "regtest",
@@ -441,7 +441,7 @@
         }
     ],
     [
-        "ric1qx99n5hpdf5pmtzpqgc9ljrvdf2e0zg9rf38xlw",
+        "ric1qx99n5hpdf5pmtzpqgc9ljrvdf2e0zg9rudh26v",
         "0014314b3a5c2d4d03b58820460bf90d8d4ab2f120a3",
         {
             "chain": "main",
@@ -450,7 +450,7 @@
         }
     ],
     [
-        "ric1qmmq86xklqwfys7r6wptjlacdgrcdc7sa6ggxvlgjjws67rfxym8s50t0yz",
+        "ric1qmmq86xklqwfys7r6wptjlacdgrcdc7sa6ggxvlgjjws67rfxym8spnmrpq",
         "0020dec07d1adf039248787a70572ff70d40f0dc7a1dd210667d1293a1af0d2626cf",
         {
             "chain": "main",
@@ -477,7 +477,7 @@
         }
     ],
     [
-        "tric1q7tpntgpkgw53g2pa9jx3x2qqdpempxrczp0g72",
+        "tric1q7tpntgpkgw53g2pa9jx3x2qqdpempxrchalymg",
         "0014f2c335a03643a914283d2c8d1328006873b09878",
         {
             "chain": "test",
@@ -486,7 +486,7 @@
         }
     ],
     [
-        "tric1qfgyrkjd5fzeacaqj4ua7cs7fe2sfd2wdauexc8vt8xjjd6zy6vjq25llnz",
+        "tric1qfgyrkjd5fzeacaqj4ua7cs7fe2sfd2wdauexc8vt8xjjd6zy6vjqlg0nkq",
         "00204a083b49b448b3dc7412af3bec43c9caa096a9cdef326c1d8b39a526e844d324",
         {
             "chain": "test",
@@ -513,7 +513,7 @@
         }
     ],
     [
-        "rric1qgjfs4s7p93ugffn3afrjalu4d73dql0cf6c7lj",
+        "rric1qgjfs4s7p93ugffn3afrjalu4d73dql0cuxgj6s",
         "001444930ac3c12c7884a671ea472eff956fa2d07df8",
         {
             "chain": "regtest",
@@ -522,7 +522,7 @@
         }
     ],
     [
-        "rric1qzau9j6z422434kef235mzljf48ckd5xz3syhg9jsgpfpm7x9vlwscsdgc9",
+        "rric1qzau9j6z422434kef235mzljf48ckd5xz3syhg9jsgpfpm7x9vlwsdvaya8",
         "0020177859685552ab1adb295469b17e49a9f166d0c28c0974165040521df8c567dd",
         {
             "chain": "regtest",

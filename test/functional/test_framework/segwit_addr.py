@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 # Copyright (c) 2017 Pieter Wuille
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2017-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Reference implementation for Bech32/Bech32m and segwit addresses."""
+"""Reference implementation for Bech32m and segwit addresses."""
 import unittest
 from enum import Enum
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-BECH32_CONST = 1
 BECH32M_CONST = 0x2bc830a3
 
 class Encoding(Enum):
     """Enumeration type to list the various supported encodings."""
-    BECH32 = 1
     BECH32M = 2
 
 
@@ -37,9 +35,7 @@ def bech32_hrp_expand(hrp):
 def bech32_verify_checksum(hrp, data):
     """Verify a checksum given HRP and converted data characters."""
     check = bech32_polymod(bech32_hrp_expand(hrp) + data)
-    if check == BECH32_CONST:
-        return Encoding.BECH32
-    elif check == BECH32M_CONST:
+    if check == BECH32M_CONST:
         return Encoding.BECH32M
     else:
         return None
@@ -47,19 +43,19 @@ def bech32_verify_checksum(hrp, data):
 def bech32_create_checksum(encoding, hrp, data):
     """Compute the checksum values given HRP and data."""
     values = bech32_hrp_expand(hrp) + data
-    const = BECH32M_CONST if encoding == Encoding.BECH32M else BECH32_CONST
+    const = BECH32M_CONST
     polymod = bech32_polymod(values + [0, 0, 0, 0, 0, 0]) ^ const
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
 def bech32_encode(encoding, hrp, data):
-    """Compute a Bech32 or Bech32m string given HRP and data values."""
+    """Compute a Bech32m string given HRP and data values."""
     combined = data + bech32_create_checksum(encoding, hrp, data)
     return hrp + '1' + ''.join([CHARSET[d] for d in combined])
 
 
 def bech32_decode(bech):
-    """Validate a Bech32/Bech32m string, and determine HRP and data."""
+    """Validate a Bech32m string, and determine HRP and data."""
     if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or
             (bech.lower() != bech and bech.upper() != bech)):
         return (None, None, None)
@@ -112,14 +108,14 @@ def decode_segwit_address(hrp, addr):
         return (None, None)
     if data[0] == 0 and len(decoded) != 20 and len(decoded) != 32:
         return (None, None)
-    if (data[0] == 0 and encoding != Encoding.BECH32) or (data[0] != 0 and encoding != Encoding.BECH32M):
+    if encoding != Encoding.BECH32M:
         return (None, None)
     return (data[0], decoded)
 
 
 def encode_segwit_address(hrp, witver, witprog):
     """Encode a segwit address."""
-    encoding = Encoding.BECH32 if witver == 0 else Encoding.BECH32M
+    encoding = Encoding.BECH32M
     ret = bech32_encode(encoding, hrp, [witver] + convertbits(witprog, 8, 5))
     if decode_segwit_address(hrp, ret) == (None, None):
         return None
@@ -134,9 +130,9 @@ class TestFrameworkScript(unittest.TestCase):
             self.assertEqual(encode_segwit_address(hrp, witver, witprog), addr)
 
         # P2WPKH
-        test_python_bech32('rric1qthmht0k2qnh3wy7336z05lu2km7emzfptwqx84')
+        test_python_bech32('rric1qthmht0k2qnh3wy7336z05lu2km7emzfp7js2zh')
         # P2WSH
-        test_python_bech32('rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq46tsvq')
-        test_python_bech32('rric1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsq59230x')
+        test_python_bech32('rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxmufz')
+        test_python_bech32('rric1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsqpe6a2y')
         # P2TR
         test_python_bech32('rric1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqumlj4g')

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2016-present The Bitcoin Core developers
+# Copyright (c) 2016-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPC commands for signing messages with private key."""
@@ -37,7 +37,7 @@ class SignMessagesWithPrivTest(BitcoinTestFramework):
 
         self.log.info('test that verifying with P2PKH address succeeds')
         addresses = self.addresses_from_privkey(priv_key)
-        assert_equal(addresses[2], 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5g9m3ly')
+        assert_equal(addresses[2], 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5aeta6x')
         assert self.nodes[0].verifymessage(addresses[2], signature, message)
 
         self.log.info('test that verifying with non-P2PKH addresses throws error')
@@ -57,7 +57,7 @@ class SignMessagesWithPrivTest(BitcoinTestFramework):
         assert_raises_rpc_error(-5, "Invalid private key", self.nodes[0].signmessagewithprivkey, "invalid_key", message)
         assert_raises_rpc_error(-5, "Invalid address", self.nodes[0].verifymessage, "invalid_addr", signature, message)
         # malformed signature provided
-        assert_raises_rpc_error(-3, "Malformed base64 encoding", self.nodes[0].verifymessage, 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5g9m3ly', "invalid_sig", message)
+        assert_raises_rpc_error(-3, "Malformed base64 encoding", self.nodes[0].verifymessage, 'rric1qvza2pay5kwxw8j2qm6n87wqym3fdr7u5aeta6x', "invalid_sig", message)
 
 
 if __name__ == '__main__':

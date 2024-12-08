@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2016-present The Bitcoin Core developers
+# Copyright (c) 2016-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Encode and decode Riecoin addresses.
@@ -32,10 +32,10 @@ from test_framework.segwit_addr import (
     encode_segwit_address,
 )
 
-ADDRESS_BCRT1_UNSPENDABLE = 'rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq46tsvq'
-ADDRESS_BCRT1_UNSPENDABLE_DESCRIPTOR = 'addr(rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq46tsvq)#29gmrl0g'
+ADDRESS_BCRT1_UNSPENDABLE = 'rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxmufz'
+ADDRESS_BCRT1_UNSPENDABLE_DESCRIPTOR = 'addr(rric1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxmufz)#wznpdauv'
 # Coins sent to this address can be spent with a witness stack of just OP_TRUE
-ADDRESS_BCRT1_P2WSH_OP_TRUE = 'rric1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsq59230x'
+ADDRESS_BCRT1_P2WSH_OP_TRUE = 'rric1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsqpe6a2y'
 
 
 class AddressType(enum.Enum):

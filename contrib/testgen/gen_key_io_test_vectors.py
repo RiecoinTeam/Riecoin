@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# Copyright (c) 2012-2022 The Bitcoin Core developers
+# Copyright (c) 2012-present The Bitcoin Core developers
 # Copyright (c) 2013-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
-Generate valid and invalid base58/bech32(m) address and private key test vectors.
+Generate valid and invalid base58/bech32m address and private key test vectors.
 '''
 
 from itertools import islice
@@ -53,38 +53,38 @@ templates = [
 # templates for valid bech32 sequences
 bech32_templates = [
   # hrp, version, witprog_size, metadata, encoding, output_prefix
-  ('ric',   0, 20, (False, 'main',    None, True), Encoding.BECH32,  p2wpkh_prefix),
-  ('ric',   0, 32, (False, 'main',    None, True), Encoding.BECH32,  p2wsh_prefix),
+  ('ric',   0, 20, (False, 'main',    None, True), Encoding.BECH32M,  p2wpkh_prefix),
+  ('ric',   0, 32, (False, 'main',    None, True), Encoding.BECH32M,  p2wsh_prefix),
   ('ric',   1, 32, (False, 'main',    None, True), Encoding.BECH32M, p2tr_prefix),
   ('ric',   2,  2, (False, 'main',    None, True), Encoding.BECH32M, (OP_2, 2)),
-  ('tric',  0, 20, (False, 'test',    None, True), Encoding.BECH32,  p2wpkh_prefix),
-  ('tric',  0, 32, (False, 'test',    None, True), Encoding.BECH32,  p2wsh_prefix),
+  ('tric',  0, 20, (False, 'test',    None, True), Encoding.BECH32M,  p2wpkh_prefix),
+  ('tric',  0, 32, (False, 'test',    None, True), Encoding.BECH32M,  p2wsh_prefix),
   ('tric',  1, 32, (False, 'test',    None, True), Encoding.BECH32M, p2tr_prefix),
   ('tric',  3, 16, (False, 'test',    None, True), Encoding.BECH32M, (OP_3, 16)),
-  ('rric',  0, 20, (False, 'regtest', None, True), Encoding.BECH32,  p2wpkh_prefix),
-  ('rric',  0, 32, (False, 'regtest', None, True), Encoding.BECH32,  p2wsh_prefix),
+  ('rric',  0, 20, (False, 'regtest', None, True), Encoding.BECH32M,  p2wpkh_prefix),
+  ('rric',  0, 32, (False, 'regtest', None, True), Encoding.BECH32M,  p2wsh_prefix),
   ('rric',  1, 32, (False, 'regtest', None, True), Encoding.BECH32M, p2tr_prefix),
   ('rric', 16, 40, (False, 'regtest', None, True), Encoding.BECH32M, (OP_16, 40))
 ]
 # templates for invalid bech32 sequences
 bech32_ng_templates = [
   # hrp, version, witprog_size, encoding, invalid_bech32, invalid_checksum, invalid_char
-  ('tc',    0, 20, Encoding.BECH32,  False, False, False),
+  ('tc',    0, 20, Encoding.BECH32M, False, False, False),
   ('bt',    1, 32, Encoding.BECH32M, False, False, False),
   ('tric', 17, 32, Encoding.BECH32M, False, False, False),
   ('rric',  3,  1, Encoding.BECH32M, False, False, False),
   ('ric',  15, 41, Encoding.BECH32M, False, False, False),
-  ('tric',  0, 16, Encoding.BECH32,  False, False, False),
-  ('rric',  0, 32, Encoding.BECH32,  True,  False, False),
-  ('ric',   0, 16, Encoding.BECH32,  True,  False, False),
-  ('tric',  0, 32, Encoding.BECH32,  False, True,  False),
-  ('rric',  0, 20, Encoding.BECH32,  False, False, True),
+  ('tric',  0, 16, Encoding.BECH32M, False, False, False),
+  ('rric',  0, 32, Encoding.BECH32M, True,  False, False),
+  ('ric',   0, 16, Encoding.BECH32M, True,  False, False),
+  ('tric',  0, 32, Encoding.BECH32M, False, True,  False),
+  ('rric',  0, 20, Encoding.BECH32M, False, False, True),
   ('ric',   0, 20, Encoding.BECH32M, False, False, False),
   ('tric',  0, 32, Encoding.BECH32M, False, False, False),
   ('rric',  0, 20, Encoding.BECH32M, False, False, False),
-  ('ric',   1, 32, Encoding.BECH32,  False, False, False),
-  ('tric',  2, 16, Encoding.BECH32,  False, False, False),
-  ('rric', 16, 20, Encoding.BECH32,  False, False, False),
+  ('ric',   1, 32, Encoding.BECH32M, False, False, False),
+  ('tric',  2, 16, Encoding.BECH32M, False, False, False),
+  ('rric', 16, 20, Encoding.BECH32M, False, False, False),
 ]
 
 def is_valid(v):
