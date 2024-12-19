@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2022 The Bitcoin Core developers
+// Copyright (c) 2012-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -484,16 +484,11 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTest)
 
     // We will create a self transfer for Bech32 and Bech32M and
     // verify it is put in the correct bucket after running GetAvailablecoins
-    //
-    // For each OutputType, We expect 2 UTXOs in our wallet following the self transfer:
-    //   1. One UTXO as the recipient
-    //   2. One UTXO from the change, due to payment address matching logic
-
-    for (const auto& out_type : OUTPUT_TYPES) {
-        if (out_type == OutputType::UNKNOWN || out_type == OutputType::LEGACY || out_type == OutputType::P2SH_SEGWIT) continue;
-        expected_coins_sizes[out_type] = 2U;
-        TestCoinsResult(*this, out_type, 1 * COIN, expected_coins_sizes);
-    }
+    expected_coins_sizes[OutputType::BECH32] = 1U; // Recipient
+    expected_coins_sizes[OutputType::BECH32M] = 1U; // Change
+    TestCoinsResult(*this, OutputType::BECH32, 1 * COIN, expected_coins_sizes);
+    expected_coins_sizes[OutputType::BECH32M] = 3U; // Recipient, Change, and Change from Previous Test
+    TestCoinsResult(*this, OutputType::BECH32M, 1 * COIN, expected_coins_sizes);
 }
 
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)

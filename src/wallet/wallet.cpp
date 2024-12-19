@@ -2124,31 +2124,13 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
     if (change_type)
         return *change_type;
 
-    bool any_tr{false};
-    bool any_wpkh{false};
-
-    for (const auto& recipient : vecSend) {
-        if (std::get_if<WitnessV1Taproot>(&recipient.dest))
-            any_tr = true;
-        else if (std::get_if<WitnessV0KeyHash>(&recipient.dest))
-            any_wpkh = true;
-    }
-
     const bool has_bech32m_spkman(GetScriptPubKeyMan(OutputType::BECH32M, /*internal=*/true));
-    if (has_bech32m_spkman && any_tr) {
-        // Currently tr is the only type supported by the BECH32M spkman
-        return OutputType::BECH32M;
-    }
     const bool has_bech32_spkman(GetScriptPubKeyMan(OutputType::BECH32, /*internal=*/true));
-    if (has_bech32_spkman && any_wpkh) {
-        // Currently wpkh is the only type supported by the BECH32 spkman
+    if (!has_bech32m_spkman && has_bech32_spkman) {
+        // Old Wallet that might be unable to produce P2TR Addresses.
         return OutputType::BECH32;
     }
 
-    if (has_bech32m_spkman)
-        return OutputType::BECH32M;
-    if (has_bech32_spkman)
-        return OutputType::BECH32;
     // else use m_default_address_type for change
     return m_default_address_type;
 }
