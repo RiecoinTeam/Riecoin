@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -41,6 +41,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
         ui->showRequestButton->setIcon(_platformStyle->SingleColorIcon(":/icons/eye"));
         ui->removeRequestButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
     }
+    ui->addressType->setVisible(false); // Only P2TR Addresses can be generated, but keep the Code for possible future Formats.
 
     // context menu
     contextMenu = new QMenu(this);
@@ -94,9 +95,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             ui->addressType->setItemData(index, tooltip, Qt::ToolTipRole);
             if (model->wallet().getDefaultAddressType() == type) ui->addressType->setCurrentIndex(index);
         };
-        if (model->wallet().taprootEnabled())
-            add_address_type(OutputType::BECH32M, tr("Bech32m (Taproot)"), tr("Bech32m (BIP-350) is an upgrade to Bech32."));
-        add_address_type(OutputType::BECH32, tr("Bech32 (SegWit)"), tr("Generates a native segwit address (BIP-173)."));
+        add_address_type(OutputType::BECH32M, tr("Bech32m"), tr("A ric1p address (P2TR/Taproot)."));
 
         // Set the button to be enabled or disabled based on whether the wallet can give out new addresses.
         ui->receiveButton->setEnabled(model->wallet().canGetAddresses());
@@ -175,7 +174,7 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         break;
     case AddressTableModel::EditStatus::KEY_GENERATION_FAILURE:
         QMessageBox::critical(this, windowTitle(),
-            tr("Could not generate new %1 address").arg(QString::fromStdString(FormatOutputType(address_type))),
+            tr("Could not generate new %1 address.\nYour wallet might be outdated, try creating a new one via File > Create Wallet...").arg(QString::fromStdString(FormatOutputType(address_type))),
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     // These aren't valid return values for our action
