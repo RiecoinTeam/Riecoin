@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2021 The Riecoin developers
+// Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -28,6 +28,8 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
     QTimer *timer;
+    std::string oldAddress;
+    uint64_t lastUpdate;
 
 private Q_SLOTS:
     void on_addressBookButton_clicked();

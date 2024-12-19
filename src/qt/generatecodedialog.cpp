@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2023 The Riecoin developers
+// Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -34,6 +34,8 @@ GenerateCodeDialog::GenerateCodeDialog(const PlatformStyle *_platformStyle, QWid
     connect(timer, &QTimer::timeout, this, &GenerateCodeDialog::refresh);
     timer->setInterval(MODEL_UPDATE_DELAY);
     timer->start();
+    lastUpdate = 0ULL;
+    oldAddress = "";
 }
 
 GenerateCodeDialog::~GenerateCodeDialog()
@@ -70,13 +72,25 @@ void GenerateCodeDialog::on_copyCodeButton_clicked()
 constexpr uint64_t codeRefreshInterval(60ULL);
 void GenerateCodeDialog::refresh()
 {
-    ui->codeQr->setQR("INVALID", "INVALID");
-    CTxDestination destination = DecodeDestination(ui->addressIn->text().toStdString());
+    const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+    const uint64_t codeTimestamp(timestamp - (timestamp % codeRefreshInterval));
+    const std::string address(ui->addressIn->text().toStdString());
+    CTxDestination destination = DecodeDestination(address);
+
     if (!IsValidDestination(destination)) {
-        ui->statusLabel->setText(tr("Please enter a valid Bech32 address."));
+        ui->statusLabel->setText(tr("Please enter a valid address."));
         ui->code->setText(QString::fromStdString("-"));
         return;
     }
+
+    if (lastUpdate - codeTimestamp < 60ULL && address == oldAddress) {
+        ui->statusLabel->setText(tr(("Refresh in " + std::to_string(codeRefreshInterval - (timestamp % codeRefreshInterval)) + " s").c_str()));
+        return;
+    }
+
+    ui->codeQr->setQR("INVALID", "INVALID");
+    lastUpdate = timestamp;
+    oldAddress = address;
 
     WalletModel::UnlockContext ctx(model->requestUnlock());
     if (!ctx.isValid()) {
@@ -84,10 +98,8 @@ void GenerateCodeDialog::refresh()
         return;
     }
 
-    const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-    const std::string& timestampStr(std::to_string(timestamp - (timestamp % codeRefreshInterval)));
     std::string signature;
-    SigningResult res = model->wallet().signMessage(MessageSignatureFormat::SIMPLE, timestampStr, destination, signature);
+    SigningResult res = model->wallet().signMessage(MessageSignatureFormat::SIMPLE, std::to_string(codeTimestamp), destination, signature);
 
     QString error;
     switch (res) {
@@ -108,7 +120,6 @@ void GenerateCodeDialog::refresh()
         ui->code->setText(QString::fromStdString("-"));
     }
     else {
-        ui->statusLabel->setText(tr(("Valid for " + std::to_string(codeRefreshInterval - (timestamp % codeRefreshInterval)) + " s").c_str()));
         ui->code->setText(QString::fromStdString(signature));
         ui->codeQr->setQR(QString::fromStdString(signature), "Riecoin Authentication Code");
     }
