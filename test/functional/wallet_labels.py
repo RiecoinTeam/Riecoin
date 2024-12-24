@@ -84,7 +84,6 @@ class WalletLabelsTest(BitcoinTestFramework):
         node.sendmany(
             amounts={common_address: 100},
             subtractfeefrom=[common_address],
-            minconf=1,
         )
         # there should be 1 address group, with the previously
         # unlinked addresses now linked (they both have 0 balance)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Bitcoin Core developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the listtransactions API."""
@@ -65,7 +65,7 @@ class ListTransactionsTest(BitcoinTestFramework):
                    self.nodes[1].getnewaddress(): 0.22,
                    self.nodes[0].getnewaddress(): 0.33,
                    self.nodes[1].getnewaddress(): 0.44}
-        txid = self.nodes[1].sendmany("", send_to)
+        txid = self.nodes[1].sendmany(send_to)
         self.sync_all()
         assert_array_result(self.nodes[1].listtransactions(),
                             {"category": "send", "amount": Decimal("-0.11")},

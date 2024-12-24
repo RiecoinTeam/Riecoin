@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2018-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2018-present The Bitcoin Core developers
+# Copyright (c) 2018-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -60,7 +60,7 @@ class CreateTxWalletTest(BitcoinTestFramework):
             assert_raises_rpc_error(
                 -6,
                 "Fee exceeds maximum configured by user (e.g. -maxtxfee, maxfeerate)",
-                lambda: self.nodes[0].sendmany(dummy="", amounts=outputs),
+                lambda: self.nodes[0].sendmany(amounts=outputs),
             )
             assert_raises_rpc_error(
                 -4,
@@ -74,7 +74,7 @@ class CreateTxWalletTest(BitcoinTestFramework):
         assert_raises_rpc_error(
             -6,
             "Fee exceeds maximum configured by user (e.g. -maxtxfee, maxfeerate)",
-            lambda: self.nodes[0].sendmany(dummy="", amounts=outputs),
+            lambda: self.nodes[0].sendmany(amounts=outputs),
         )
         assert_raises_rpc_error(
             -4,

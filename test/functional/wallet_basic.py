@@ -258,14 +258,14 @@ class WalletTest(BitcoinTestFramework):
         self.log.info("Test sendmany")
 
         # Sendmany 10 BTC
-        txid = self.nodes[2].sendmany('', {address: 10}, 0, "", [])
+        txid = self.nodes[2].sendmany({address: 10}, "", [])
         self.generate(self.nodes[2], 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))
         node_0_bal += Decimal('10')
         node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), node_2_bal - Decimal('10'), fee_per_byte, self.get_vsize(self.nodes[2].gettransaction(txid)['hex']))
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
         # Sendmany 10 BTC with subtract fee from amount
-        txid = self.nodes[2].sendmany('', {address: 10}, 0, "", [address])
+        txid = self.nodes[2].sendmany({address: 10}, "", [address])
         self.generate(self.nodes[2], 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))
         node_2_bal -= Decimal('10')
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
@@ -274,7 +274,7 @@ class WalletTest(BitcoinTestFramework):
         # Sendmany 5 BTC to two addresses with subtracting fee from both addresses
         a0 = self.nodes[0].getnewaddress()
         a1 = self.nodes[0].getnewaddress()
-        txid = self.nodes[2].sendmany(dummy='', amounts={a0: 5, a1: 5}, subtractfeefrom=[a0, a1])
+        txid = self.nodes[2].sendmany(amounts={a0: 5, a1: 5}, subtractfeefrom=[a0, a1])
         self.generate(self.nodes[2], 1, sync_fun=lambda: self.sync_all(self.nodes[0:3]))
         node_2_bal -= Decimal('10')
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
@@ -586,12 +586,12 @@ class WalletTest(BitcoinTestFramework):
         address = self.nodes[0].getnewaddress("test")
         txid_feeReason_one = self.nodes[2].sendtoaddress(address=address, amount=5, verbose=True)
         assert_equal(txid_feeReason_one["fee_reason"], "Fallback fee")
-        txid_feeReason_two = self.nodes[2].sendmany(dummy='', amounts={address: 5}, verbose=True)
+        txid_feeReason_two = self.nodes[2].sendmany(amounts={address: 5}, verbose=True)
         assert_equal(txid_feeReason_two["fee_reason"], "Fallback fee")
         self.log.info("Test send* RPCs with verbose=False")
         txid_feeReason_three = self.nodes[2].sendtoaddress(address=address, amount=5, verbose=False)
         assert_equal(self.nodes[2].gettransaction(txid_feeReason_three)['txid'], txid_feeReason_three)
-        txid_feeReason_four = self.nodes[2].sendmany(dummy='', amounts={address: 5}, verbose=False)
+        txid_feeReason_four = self.nodes[2].sendmany(amounts={address: 5}, verbose=False)
         assert_equal(self.nodes[2].gettransaction(txid_feeReason_four)['txid'], txid_feeReason_four)
 
         self.log.info("Testing 'listunspent' outputs the parent descriptor(s) of coins")

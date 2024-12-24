@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Bitcoin Core developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the fundrawtransaction RPC."""
@@ -469,7 +469,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         fundedTx = self.nodes[0].fundrawtransaction(rawtx)
 
         # Create same transaction over sendtoaddress.
-        txId = self.nodes[0].sendmany("", outputs)
+        txId = self.nodes[0].sendmany(outputs)
         signedFee = self.nodes[0].getmempoolentry(txId)['fees']['base']
 
         # Compare fee.
@@ -688,7 +688,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         fundedTx = self.nodes[1].fundrawtransaction(rawtx)
 
         # Create same transaction over sendtoaddress.
-        txId = self.nodes[1].sendmany("", outputs)
+        txId = self.nodes[1].sendmany(outputs)
         signedFee = self.nodes[1].getmempoolentry(txId)['fees']['base']
 
         # Compare fee.
@@ -997,7 +997,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         recipient.keypoolrefill(1500)
         for _ in range(1500):
             outputs[recipient.getnewaddress()] = 0.1
-        wallet.sendmany("", outputs)
+        wallet.sendmany(outputs)
         self.generate(self.nodes[0], 10)
         assert_raises_rpc_error(-4, "The inputs size exceeds the maximum weight. "
                                     "Please try sending a smaller amount or manually consolidating your wallet's UTXOs",
@@ -1220,7 +1220,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         outputs = {}
         for _ in range(4):
             outputs[wallet.getnewaddress(address_type="bech32")] = 5
-        self.nodes[0].sendmany("", outputs)
+        self.nodes[0].sendmany(outputs)
         self.generate(self.nodes[0], 1)
 
         # Select the preset inputs
@@ -1439,7 +1439,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Fund the wallet with different chain heights
         for _ in range(2):
-            self.nodes[2].sendmany("", {wallet.getnewaddress():1, wallet.getnewaddress():1})
+            self.nodes[2].sendmany({wallet.getnewaddress():1, wallet.getnewaddress():1})
             self.generate(self.nodes[2], 1)
 
         unconfirmed_txid = wallet.sendtoaddress(wallet.getnewaddress(), 0.5)

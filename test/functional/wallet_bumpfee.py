@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2016-present The Bitcoin Core developers
+# Copyright (c) 2016-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the bumpfee RPC.
@@ -625,7 +625,7 @@ def test_watchonly_psbt(self, peer_node, rbf_node, dest_address):
 
     funding_address1 = watcher.getnewaddress(address_type='bech32')
     funding_address2 = watcher.getnewaddress(address_type='bech32')
-    peer_node.sendmany("", {funding_address1: 0.001, funding_address2: 0.001})
+    peer_node.sendmany({funding_address1: 0.001, funding_address2: 0.001})
     self.generate(peer_node, 1)
 
     # Create single-input PSBT for transaction to be bumped

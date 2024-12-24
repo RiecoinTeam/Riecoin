@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2022-present The Bitcoin Core developers
+# Copyright (c) 2022-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the sendmany RPC command."""
@@ -22,9 +22,9 @@ class SendmanyTest(BitcoinTestFramework):
         addr_3 = self.wallet.getnewaddress()
 
         self.log.info("Test using duplicate address in SFFO argument")
-        self.def_wallet.sendmany(dummy='', amounts={addr_1: 1, addr_2: 1}, subtractfeefrom=[addr_1, addr_1, addr_1])
+        self.def_wallet.sendmany(amounts={addr_1: 1, addr_2: 1}, subtractfeefrom=[addr_1, addr_1, addr_1])
         self.log.info("Test using address not present in tx.vout in SFFO argument")
-        self.def_wallet.sendmany(dummy='', amounts={addr_1: 1, addr_2: 1}, subtractfeefrom=[addr_3])
+        self.def_wallet.sendmany(amounts={addr_1: 1, addr_2: 1}, subtractfeefrom=[addr_3])
 
     def run_test(self):
         self.nodes[0].createwallet("activewallet")

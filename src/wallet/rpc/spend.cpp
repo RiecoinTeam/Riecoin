@@ -306,16 +306,11 @@ RPCHelpMan sendmany()
         "Send multiple times. Amounts are double-precision floating point numbers." +
         HELP_REQUIRING_PASSPHRASE,
                 {
-                    {"dummy", RPCArg::Type::STR, RPCArg::Default{"\"\""}, "Must be set to \"\" for backwards compatibility.",
-                     RPCArgOptions{
-                         .oneline_description = "\"\"",
-                     }},
                     {"amounts", RPCArg::Type::OBJ_USER_KEYS, RPCArg::Optional::NO, "The addresses and amounts",
                         {
                             {"address", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The Riecoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value"},
                         },
                     },
-                    {"minconf", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "Ignored dummy value"},
                     {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment"},
                     {"subtractfeefrom", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "The addresses.\n"
                                        "The fee will be equally deducted from the amount of each selected address.\n"
@@ -348,13 +343,13 @@ RPCHelpMan sendmany()
                 },
                 RPCExamples{
             "\nSend two amounts to two different addresses:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\"") +
+            + HelpExampleCli("sendmany", "\"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\"") +
             "\nSend two amounts to two different addresses setting the confirmation and comment:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\" 6 \"testing\"") +
+            + HelpExampleCli("sendmany", "\"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\" \"testing\"") +
             "\nSend two amounts to two different addresses, subtract fee from amount:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\" 1 \"\" \"[\\\"" + EXAMPLE_ADDRESS[0] + "\\\",\\\"" + EXAMPLE_ADDRESS[1] + "\\\"]\"") +
+            + HelpExampleCli("sendmany", "\"{\\\"" + EXAMPLE_ADDRESS[0] + "\\\":0.01,\\\"" + EXAMPLE_ADDRESS[1] + "\\\":0.02}\" \"\" \"[\\\"" + EXAMPLE_ADDRESS[0] + "\\\",\\\"" + EXAMPLE_ADDRESS[1] + "\\\"]\"") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("sendmany", "\"\", {\"" + EXAMPLE_ADDRESS[0] + "\":0.01,\"" + EXAMPLE_ADDRESS[1] + "\":0.02}, 6, \"testing\"")
+            + HelpExampleRpc("sendmany", "{\"" + EXAMPLE_ADDRESS[0] + "\":0.01,\"" + EXAMPLE_ADDRESS[1] + "\":0.02}, \"testing\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -367,27 +362,24 @@ RPCHelpMan sendmany()
 
     LOCK(pwallet->cs_wallet);
 
-    if (!request.params[0].isNull() && !request.params[0].get_str().empty()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Dummy value must be set to \"\"");
-    }
-    UniValue sendTo = request.params[1].get_obj();
+    UniValue sendTo = request.params[0].get_obj();
 
     mapValue_t mapValue;
-    if (!request.params[3].isNull() && !request.params[3].get_str().empty())
-        mapValue["comment"] = request.params[3].get_str();
+    if (!request.params[1].isNull() && !request.params[1].get_str().empty())
+        mapValue["comment"] = request.params[1].get_str();
 
     CCoinControl coin_control;
-    if (!request.params[5].isNull()) {
-        coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
+    if (!request.params[3].isNull()) {
+        coin_control.m_signal_bip125_rbf = request.params[3].get_bool();
     }
 
-    SetFeeEstimateMode(*pwallet, coin_control, /*conf_target=*/request.params[6], /*estimate_mode=*/request.params[7], /*fee_rate=*/request.params[8], /*override_min_fee=*/false);
+    SetFeeEstimateMode(*pwallet, coin_control, /*conf_target=*/request.params[4], /*estimate_mode=*/request.params[5], /*fee_rate=*/request.params[6], /*override_min_fee=*/false);
 
     std::vector<CRecipient> recipients = CreateRecipients(
             ParseOutputs(sendTo),
-            InterpretSubtractFeeFromOutputInstructions(request.params[4], sendTo.getKeys())
+            InterpretSubtractFeeFromOutputInstructions(request.params[2], sendTo.getKeys())
     );
-    const bool verbose{request.params[9].isNull() ? false : request.params[9].get_bool()};
+    const bool verbose{request.params[7].isNull() ? false : request.params[7].get_bool()};
 
     return SendMoney(*pwallet, coin_control, recipients, std::move(mapValue), verbose);
 },
