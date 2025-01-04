@@ -5,17 +5,14 @@
 #ifndef BITCOIN_CONFIG_H
 #define BITCOIN_CONFIG_H
 
-/* Version Build */
-#define CLIENT_VERSION_BUILD @CLIENT_VERSION_BUILD@
+/* Version Month */
+#define CLIENT_VERSION_MONTH @CLIENT_VERSION_MONTH@
+
+/* Version Revision */
+#define CLIENT_VERSION_REVISION @CLIENT_VERSION_REVISION@
 
 /* Version is release */
 #define CLIENT_VERSION_IS_RELEASE @CLIENT_VERSION_IS_RELEASE@
-
-/* Major version */
-#define CLIENT_VERSION_MAJOR @CLIENT_VERSION_MAJOR@
-
-/* Minor version */
-#define CLIENT_VERSION_MINOR @CLIENT_VERSION_MINOR@
 
 /* Copyright holder(s) before %s replacement */
 #define COPYRIGHT_HOLDERS "@COPYRIGHT_HOLDERS@"

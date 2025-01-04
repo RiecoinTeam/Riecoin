@@ -51,7 +51,7 @@ const std::string UA_NAME("Dev");
 
 static std::string FormatVersion(int nVersion)
 {
-    return strprintf("%d.%d.%d", nVersion / 10000, (nVersion / 100) % 100, nVersion % 100);
+    return nVersion % 100 == 0 ? strprintf("%d", nVersion/100) : strprintf("%d.%d", nVersion/100, nVersion % 100);
 }
 
 std::string FormatFullVersion()
