@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2016-present The Bitcoin Core developers
+# Copyright (c) 2016-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test segwit transactions and blocks on P2P network."""
@@ -209,6 +209,9 @@ class SegWitTest(BitcoinTestFramework):
         self.noban_tx_relay = True
         # This test tests SegWit both pre and post-activation, so use the normal BIP9 activation.
         self.extra_args = [
+            # -par=1 should not affect validation outcome or logging/reported failures. It is kept
+            # here to exercise the code path still (as it is distinct for multithread script
+            # validation).
             ["-acceptnonstdtxn=1", "-par=1"],
             ["-acceptnonstdtxn=0"],
         ]
@@ -788,7 +791,7 @@ class SegWitTest(BitcoinTestFramework):
         tx2.vout.append(CTxOut(tx.vout[0].nValue, CScript([OP_TRUE])))
         tx2.wit.vtxinwit.extend([CTxInWitness(), CTxInWitness()])
         tx2.wit.vtxinwit[0].scriptWitness.stack = [CScript([CScriptNum(1)]), CScript([CScriptNum(1)]), witness_script]
-        tx2.wit.vtxinwit[1].scriptWitness.stack = [CScript([OP_TRUE])]
+        tx2.wit.vtxinwit[1].scriptWitness.stack = []
 
         block = self.build_next_block()
         self.update_witness_block_with_transactions(block, [tx2])

@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2022 The Bitcoin Core developers
+// Copyright (c) 2012-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -82,9 +82,11 @@ std::string LicenseInfo()
     const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
 
     return CopyrightHolders("(C) ") + "" +
-           "\n Riecoin Core 24.05 (Dev) is based on Bitcoin Core (Master 2024-05-15).\n" +
+           "\n Riecoin Core 2501 (Dev) is based on Bitcoin Core (Master).\n" +
            strprintf(_("Please contribute if you find %s useful. "
-                       "Visit %s for further information about the software.").translated, CLIENT_NAME, "<" CLIENT_URL ">") +
+                       "Visit %s for further information about the software."),
+                     CLIENT_NAME, "<" CLIENT_URL ">")
+               .translated +
            "\n" +
            strprintf(_("The source code is available from %s. Support us by starring our repositories!").translated, URL_SOURCE_CODE) +
            "\n\n Riecoin Forum: <https://riecoin.xyz/Forum>" +
@@ -92,6 +94,6 @@ std::string LicenseInfo()
            "\n X: <https://twitter.com/RiecoinDev>" +
            "\n Reddit: <https://www.reddit.com/r/Riecoin/>\n\n" +
            _("This is experimental software.").translated + "\n" +
-           strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s").translated, "COPYING", "<https://opensource.org/licenses/MIT>") +
+           strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s"), "COPYING", "<https://opensource.org/licenses/MIT>").translated +
            "\n";
 }

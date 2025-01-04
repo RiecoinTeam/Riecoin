@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2015-present The Bitcoin Core developers
+# Copyright (c) 2015-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test CSV soft fork activation.
@@ -94,9 +94,6 @@ class BIP68_112_113Test(BitcoinTestFramework):
         self.setup_clean_chain = True
         # whitelist peers to speed up tx relay / mempool sync
         self.noban_tx_relay = True
-        self.extra_args = [[
-            '-par=1',  # Use only one script thread to get the exact reject reason for testing
-        ]]
         self.supports_cli = False
 
     def create_self_transfer_from_utxo(self, input_tx):

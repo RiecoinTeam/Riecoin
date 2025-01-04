@@ -15,7 +15,6 @@ target_sources(test_riecoin
     init_tests.cpp
     ismine_tests.cpp
     psbt_wallet_tests.cpp
-    rpc_util_tests.cpp
     spend_tests.cpp
     wallet_crypto_tests.cpp
     wallet_tests.cpp

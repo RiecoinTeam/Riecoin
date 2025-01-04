@@ -67,7 +67,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     static uint64_t time = Params().GenesisBlock().nTime;
 
     BlockAssembler::Options options;
-    auto ptemplate = BlockAssembler{m_node.chainman->ActiveChainstate(), m_node.mempool.get(), options}.CreateNewBlock(CScript{} << i++ << OP_TRUE);
+    options.coinbase_output_script = CScript{} << i++ << OP_TRUE;
+    auto ptemplate = BlockAssembler{m_node.chainman->ActiveChainstate(), m_node.mempool.get(), options}.CreateNewBlock();
     auto pblock = std::make_shared<CBlock>(ptemplate->block);
     pblock->hashPrevBlock = prev_hash;
     pblock->nTime = ++time;
@@ -182,7 +183,7 @@ BOOST_AUTO_TEST_CASE(processnewblock_signals_ordering)
             bool ignored;
             FastRandomContext insecure;
             for (int i = 0; i < 1000; i++) {
-                auto block = blocks[insecure.randrange(blocks.size() - 1)];
+                const auto& block = blocks[insecure.randrange(blocks.size() - 1)];
                 Assert(m_node.chainman)->ProcessNewBlock(block, true, true, &ignored);
             }
 
@@ -332,7 +333,8 @@ BOOST_AUTO_TEST_CASE(witness_commitment_index)
     CScript pubKey;
     pubKey << 1 << OP_TRUE;
     BlockAssembler::Options options;
-    auto ptemplate = BlockAssembler{m_node.chainman->ActiveChainstate(), m_node.mempool.get(), options}.CreateNewBlock(pubKey);
+    options.coinbase_output_script = pubKey;
+    auto ptemplate = BlockAssembler{m_node.chainman->ActiveChainstate(), m_node.mempool.get(), options}.CreateNewBlock();
     CBlock pblock = ptemplate->block;
 
     CTxOut witness;

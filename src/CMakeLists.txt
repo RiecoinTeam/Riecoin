@@ -74,10 +74,13 @@ if(DEFINED ENV{CFLAGS})
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 add_subdirectory(secp256k1)
+set_target_properties(secp256k1 PROPERTIES
+  EXCLUDE_FROM_ALL TRUE
+)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
 
-add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+add_library(riecoin_consensus STATIC EXCLUDE_FROM_ALL
   arith_uint256.cpp
   consensus/merkle.cpp
   consensus/tx_check.cpp
@@ -90,7 +93,7 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   script/script_error.cpp
   uint256.cpp
 )
-target_link_libraries(bitcoin_consensus
+target_link_libraries(riecoin_consensus
   PRIVATE
     core_interface
     bitcoin_crypto
@@ -157,7 +160,7 @@ add_library(riecoin_common STATIC EXCLUDE_FROM_ALL
 target_link_libraries(riecoin_common
   PRIVATE
     core_interface
-    bitcoin_consensus
+    riecoin_consensus
     riecoin_util
     univalue
     secp256k1
@@ -296,8 +299,8 @@ target_link_libraries(riecoin_node
     minisketch
     univalue
     Boost::headers
-    libevent::core
-    libevent::extra
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
+    $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:GMP::GMP>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>

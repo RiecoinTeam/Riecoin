@@ -71,8 +71,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000b95b784e01fe0c05215f96200000"}; // 2256044
-        consensus.defaultAssumeValid = uint256{"867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5"}; // 2256044
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000c159949feff001e3195f96200000"}; // 2278572
+        consensus.defaultAssumeValid = uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}; // 2278572
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -124,23 +124,24 @@ public:
                 {2122166, uint256{"973ba054bc7371c5e406c170b40c34f9d7c15fc81e5d286bed89bda2d8d58e12"}},
                 {2144042, uint256{"95e0d3078a9b75982b4967591e05b2886298f516220845118284a6a7fcd28be6"}},
                 {2256044, uint256{"867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5"}},
+                {2278572, uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}},
             }
         };
 
         m_assumeutxo_data = {
             {
                 .height = 2256044,
-                .hash_serialized = AssumeutxoHash{uint256{"f934131611dbe985f76d8fa37cc8828b6c5c6e5de83a4d882019b5e255e1d4f8"}},
-                .m_chain_tx_count = 4483461,
-                .blockhash = uint256{"867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5"}
+                .hash_serialized = AssumeutxoHash{uint256{"64bac520bbdb8ad64b2616272bf18fa50ead26ffb5340033868fa97dbadab552"}},
+                .m_chain_tx_count = 4513703,
+                .blockhash = uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5
-            .nTime    = 1732640486,
-            .tx_count = 4483461,
-            .dTxRate  = 0.008751479190843294,
+            // Data from RPC: getchaintxstats 65536 3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899
+            .nTime    = 1736010819,
+            .tx_count = 4513703,
+            .dTxRate  = 0.00891424525464766,
         };
     }
 };
@@ -165,8 +166,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"00000000000000000000000000000000000000000004af1877b9b41b7dbc8000"}; // 81050
-        consensus.defaultAssumeValid = uint256{"e5c64700921f8339bf16e7e3dcea3915f3c3552af93d31ed92ba4f894048d7b3"}; // 81050
+        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000577870f6a52affc9fe000"}; // 92305
+        consensus.defaultAssumeValid = uint256{"39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6"}; // 92305
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -207,18 +208,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 81050,
-                .hash_serialized = AssumeutxoHash{uint256{"ab6ef6205206b6a165bcbde5d93b4993cfee00814796c5e380ad9112795f6031"}},
+                .height = 92305,
+                .hash_serialized = AssumeutxoHash{uint256{"b5347b5519bc531fc77c2c59b73e29af7d3b7dacd205e861c4b8117e7a513487"}},
                 .m_chain_tx_count = 16384,
-                .blockhash = uint256{"e5c64700921f8339bf16e7e3dcea3915f3c3552af93d31ed92ba4f894048d7b3"}
+                .blockhash = uint256{"39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 e5c64700921f8339bf16e7e3dcea3915f3c3552af93d31ed92ba4f894048d7b3
-            .nTime    = 1732641008,
-            .tx_count = 81053,
-            .dTxRate  = 0.003121397480744174,
+            // Data from RPC: getchaintxstats 16384 39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6
+            .nTime    = 1736010668,
+            .tx_count = 92315,
+            .dTxRate  = 0.003271750724970937,
         };
     }
 };

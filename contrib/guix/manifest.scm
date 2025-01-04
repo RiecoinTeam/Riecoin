@@ -14,7 +14,6 @@
              ((gnu packages linux) #:select (linux-libre-headers-6.1))
              (gnu packages llvm)
              (gnu packages mingw)
-             (gnu packages moreutils)
              (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-build) #:select (python-tomli))
@@ -22,6 +21,7 @@
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
              (guix build-system cmake)
+             (guix build-system gnu)
              (guix build-system python)
              (guix build-system trivial)
              (guix download)
@@ -29,7 +29,7 @@
              (guix git-download)
              ((guix licenses) #:prefix license:)
              (guix packages)
-             ((guix utils) #:select (substitute-keyword-arguments)))
+             ((guix utils) #:select (cc-for-target substitute-keyword-arguments)))
 
 (define-syntax-rule (search-our-patches file-name ...)
   "Return the list of absolute file names corresponding to each
@@ -399,6 +399,7 @@ inspecting signatures in Mach-O binaries.")
             ;; https://gcc.gnu.org/install/configure.html
             (list "--enable-threads=posix",
                   "--enable-default-ssp=yes",
+                  "--disable-gcov",
                   building-on)))))))
 
 (define-public linux-base-gcc
@@ -414,6 +415,7 @@ inspecting signatures in Mach-O binaries.")
                   "--enable-default-pie=yes",
                   "--enable-standard-branch-protection=yes",
                   "--enable-cet=yes",
+                  "--disable-gcov",
                   building-on)))
         ((#:phases phases)
           `(modify-phases ,phases
@@ -428,7 +430,7 @@ inspecting signatures in Mach-O binaries.")
                #t))))))))
 
 (define-public glibc-2.31
-  (let ((commit "8e30f03744837a85e33d84ccd34ed3abe30d37c3"))
+  (let ((commit "7b27c450c34563a28e634cccb399cd415e71ebfe"))
   (package
     (inherit glibc) ;; 2.35
     (version "2.31")
@@ -440,7 +442,7 @@ inspecting signatures in Mach-O binaries.")
               (file-name (git-file-name "glibc" commit))
               (sha256
                (base32
-                "1zi0s9yy5zkisw823vivn7zlj8w6g9p3mm7lmlqiixcxdkz4dbn6"))
+                "017qdpr5id7ddb4lpkzj2li1abvw916m3fc6n7nw28z4h5qbv2n0"))
               (patches (search-our-patches "glibc-guix-prefix.patch"))))
     (arguments
       (substitute-keyword-arguments (package-arguments glibc)
@@ -451,6 +453,8 @@ inspecting signatures in Mach-O binaries.")
                   "--enable-cet",
                   "--enable-bind-now",
                   "--disable-werror",
+                  "--disable-timezone-tools",
+                  "--disable-profile",
                   building-on)))
     ((#:phases phases)
         `(modify-phases ,phases
@@ -465,6 +469,36 @@ inspecting signatures in Mach-O binaries.")
                     (string-append out "/etc/rpc" suffix "\n"))
                    (("^install-others =.*$")
                     (string-append "install-others = " out "/etc/rpc\n")))))))))))))
+
+;; The sponge tool from moreutils.
+(define-public sponge
+  (package
+    (name "sponge")
+    (version "0.69")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://git.joeyh.name/index.cgi/moreutils.git/snapshot/
+                    moreutils-" version ".tar.gz"))
+              (file-name (string-append "moreutils-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1l859qnzccslvxlh5ghn863bkq2vgmqgnik6jr21b9kc6ljmsy8g"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               (delete 'configure)
+               (replace 'install
+                (lambda* (#:key outputs #:allow-other-keys)
+                  (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
+                  (install-file "sponge" bin)))))
+           #:make-flags
+           #~(list "sponge" (string-append "CC=" #$(cc-for-target)))))
+    (home-page "https://joeyh.name/code/moreutils/")
+    (synopsis "Miscellaneous general-purpose command-line tools")
+    (description "Just sponge")
+    (license license:gpl2+)))
 
 (packages->manifest
  (append
@@ -481,7 +515,7 @@ inspecting signatures in Mach-O binaries.")
         patch
         gawk
         sed
-        moreutils
+        sponge
         ;; Compression and archiving
         tar
         gzip

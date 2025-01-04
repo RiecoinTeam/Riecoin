@@ -11,6 +11,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 
 class CBlock;
 class CBlockHeader;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2015-present The Bitcoin Core developers
+# Copyright (c) 2015-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test block processing."""
@@ -88,7 +88,6 @@ class FullBlockTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.extra_args = [[
             '-acceptnonstdtxn=1',  # This is a consensus block test, we don't care about tx policy
-            '-par=1', # Until https://github.com/bitcoin/bitcoin/issues/30960 is fixed
         ]]
 
     def run_test(self):

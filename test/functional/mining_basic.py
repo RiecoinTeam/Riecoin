@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Bitcoin Core developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test mining RPCs
@@ -29,6 +29,7 @@ from test_framework.p2p import P2PDataStore
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    assert_greater_than_or_equal,
     assert_raises_rpc_error,
     get_fee,
 )
@@ -53,7 +54,12 @@ def assert_template(node, block, expect, rehash=True):
 
 class MiningTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 2
+        self.num_nodes = 3
+        self.extra_args = [
+            [],
+            [],
+            ["-fastprune", "-prune=1"]
+        ]
         self.setup_clean_chain = True
         self.supports_cli = False
 
@@ -115,6 +121,21 @@ class MiningTest(BitcoinTestFramework):
             assert tx_with_min_feerate['txid'] in block_txids
             assert tx_below_min_feerate['txid'] not in block_template_txids
             assert tx_below_min_feerate['txid'] not in block_txids
+
+    def test_pruning(self):
+        self.log.info("Test that submitblock stores previously pruned block")
+        prune_node = self.nodes[2]
+        self.generate(prune_node, 400, sync_fun=self.no_op)
+        pruned_block = prune_node.getblock(prune_node.getblockhash(2), verbosity=0)
+        pruned_height = prune_node.pruneblockchain(400)
+        assert_greater_than_or_equal(pruned_height, 2)
+        pruned_blockhash = prune_node.getblockhash(2)
+
+        assert_raises_rpc_error(-1, 'Block not available (pruned data)', prune_node.getblock, pruned_blockhash)
+
+        result = prune_node.submitblock(pruned_block)
+        assert_equal(result, "inconclusive")
+        assert_equal(prune_node.getblock(pruned_blockhash, verbosity=0), pruned_block)
 
     def run_test(self):
         node = self.nodes[0]
@@ -187,9 +208,27 @@ class MiningTest(BitcoinTestFramework):
         bad_block.vtx[0].rehash()
         assert_template(node, bad_block, 'bad-cb-missing')
 
-        self.log.info("submitblock: Test invalid coinbase transaction")
-        assert_raises_rpc_error(-22, "Block does not start with a coinbase", node.submitblock, CBlock().serialize().hex())
-        assert_raises_rpc_error(-22, "Block does not start with a coinbase", node.submitblock, bad_block.serialize().hex())
+        self.log.info("submitblock: Test bad input hash for coinbase transaction")
+        bad_block.solve()
+        assert_equal("bad-cb-missing", node.submitblock(hexdata=bad_block.serialize().hex()))
+
+        self.log.info("submitblock: Test block with no transactions")
+        no_tx_block = copy.deepcopy(block)
+        no_tx_block.vtx.clear()
+        no_tx_block.hashMerkleRoot = 0
+        no_tx_block.solve()
+        assert_equal("bad-blk-length", node.submitblock(hexdata=no_tx_block.serialize().hex()))
+
+        self.log.info("submitblock: Test empty block")
+        assert_equal('short-constellation', node.submitblock(hexdata=CBlock().serialize().hex()))
+
+        self.log.info("getblocktemplate: Test bad PoW Version")
+        bad_pow_version = copy.deepcopy(block)
+        bad_pow_version.nNonce += 2
+        assert_template(node, bad_pow_version, 'bad-pow-version')
+
+        self.log.info("submitblock: Test bad PoW Version")
+        assert_equal("short-constellation", node.submitblock(hexdata=bad_pow_version.serialize().hex()))
 
         self.log.info("getblocktemplate: Test truncated final transaction")
         assert_raises_rpc_error(-22, "Block decode failed", node.getblocktemplate, {
@@ -323,6 +362,7 @@ class MiningTest(BitcoinTestFramework):
         assert_equal(node.submitblock(hexdata=block.serialize().hex()), 'duplicate')  # valid
 
         self.test_blockmintxfee_parameter()
+        self.test_pruning()
 
 
 if __name__ == '__main__':

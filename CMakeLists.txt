@@ -18,12 +18,12 @@ endif()
 # Project / Package metadata
 #=============================
 set(CLIENT_NAME "Riecoin Core")
-set(CLIENT_VERSION_MAJOR 24)
-set(CLIENT_VERSION_MINOR 11)
+set(CLIENT_VERSION_MAJOR 25)
+set(CLIENT_VERSION_MINOR 1)
 set(CLIENT_VERSION_BUILD 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
-set(COPYRIGHT_YEAR "2024")
+set(COPYRIGHT_YEAR "2025")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
@@ -238,8 +238,8 @@ if(WIN32)
   ]=]
 
   target_compile_definitions(core_interface INTERFACE
-    _WIN32_WINNT=0x0601
-    _WIN32_IE=0x0501
+    _WIN32_WINNT=0x0A00
+    _WIN32_IE=0x0A00
     WIN32_LEAN_AND_MEAN
     NOMINMAX
   )
@@ -277,9 +277,20 @@ if(WIN32)
     # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=54412.
     try_append_cxx_flags("-Wa,-muse-unaligned-vector-move" TARGET core_interface SKIP_LINK)
     try_append_linker_flag("-static" TARGET core_interface)
-    # We require Windows 7 (NT 6.1) or later.
+    # We support Windows 10+, however it's not possible to set these values accordingly,
+    # due to a bug in mingw-w64. See https://sourceforge.net/p/mingw-w64/bugs/968/.
+    # As a best effort, target Windows 8.
     try_append_linker_flag("-Wl,--major-subsystem-version,6" TARGET core_interface)
-    try_append_linker_flag("-Wl,--minor-subsystem-version,1" TARGET core_interface)
+    try_append_linker_flag("-Wl,--minor-subsystem-version,2" TARGET core_interface)
+  endif()
+
+  # Workaround producing large object files, which cannot be handled by the assembler.
+  # More likely to happen with no, or lower levels of optimisation.
+  # See discussion in https://github.com/bitcoin/bitcoin/issues/28109.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    try_append_cxx_flags("/bigobj" TARGET core_interface_debug SKIP_LINK)
+  else()
+    try_append_cxx_flags("-Wa,-mbig-obj" TARGET core_interface_debug SKIP_LINK)
   endif()
 endif()
 
@@ -421,8 +432,16 @@ configure_file(contrib/filter-lcov.py filter-lcov.py USE_SOURCE_PERMISSIONS COPY
 # Don't allow extended (non-ASCII) symbols in identifiers. This is easier for code review.
 try_append_cxx_flags("-fno-extended-identifiers" TARGET core_interface SKIP_LINK)
 
-try_append_cxx_flags("-ffile-prefix-map=A=B" TARGET core_interface SKIP_LINK
-  IF_CHECK_PASSED "-ffile-prefix-map=${PROJECT_SOURCE_DIR}/src=."
+# Avoiding the `-ffile-prefix-map` compiler option because it implies
+# `-fcoverage-prefix-map` on Clang or `-fprofile-prefix-map` on GCC,
+# which can cause issues with coverage builds, particularly when using
+# Clang in the OSS-Fuzz environment due to its use of other options
+# and a third party script, or with GCC.
+try_append_cxx_flags("-fdebug-prefix-map=A=B" TARGET core_interface SKIP_LINK
+  IF_CHECK_PASSED "-fdebug-prefix-map=${PROJECT_SOURCE_DIR}/src=."
+)
+try_append_cxx_flags("-fmacro-prefix-map=A=B" TARGET core_interface SKIP_LINK
+  IF_CHECK_PASSED "-fmacro-prefix-map=${PROJECT_SOURCE_DIR}/src=."
 )
 
 # Currently all versions of gcc are subject to a class of bugs, see the
@@ -463,8 +482,7 @@ if(ENABLE_HARDENING)
     try_append_cxx_flags("-fcf-protection=full" TARGET hardening_interface)
 
     if(MINGW)
-      # stack-clash-protection doesn't compile with GCC 10 and earlier.
-      # In any case, it is a no-op for Windows.
+      # stack-clash-protection is a no-op for Windows.
       # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458 for more details.
     else()
       try_append_cxx_flags("-fstack-clash-protection" TARGET hardening_interface)
