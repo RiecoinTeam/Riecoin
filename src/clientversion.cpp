@@ -72,8 +72,8 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
-    std::string strCopyrightHolders = strPrefix + " 2009-2024 The Bitcoin Core developers";
-    strCopyrightHolders += "\n" + strPrefix + " 2013-2024 The Riecoin developers";
+    std::string strCopyrightHolders = strPrefix + " 2009-" + std::to_string(COPYRIGHT_YEAR) + " The Bitcoin Core developers";
+    strCopyrightHolders += "\n" + strPrefix + " 2013-" + std::to_string(COPYRIGHT_YEAR) + " The Riecoin developers";
     return strCopyrightHolders;
 }
 
@@ -89,7 +89,8 @@ std::string LicenseInfo()
                .translated +
            "\n" +
            strprintf(_("The source code is available from %s. Support us by starring our repositories!").translated, URL_SOURCE_CODE) +
-           "\n\n Riecoin Forum: <https://riecoin.xyz/Forum>" +
+           "\n\n Whitepaper: <https://riecoin.xyz/Whitepaper>" +
+           "\n Riecoin Forum: <https://riecoin.xyz/Forum>" +
            "\n Discord: <https://discord.gg/2sJEayC>" +
            "\n X: <https://twitter.com/RiecoinDev>" +
            "\n Reddit: <https://www.reddit.com/r/Riecoin/>\n\n" +
