@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -13,6 +13,7 @@
 
 class ClientModel;
 class TransactionFilterProxy;
+class TransactionView;
 class TxViewDelegate;
 class PlatformStyle;
 class WalletModel;
@@ -43,7 +44,6 @@ public Q_SLOTS:
     void setPrivacy(bool privacy);
 
 Q_SIGNALS:
-    void transactionClicked(const QModelIndex &index);
     void outOfSyncWarningClicked();
 
 protected:
@@ -60,10 +60,11 @@ private:
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
+    TransactionView *transactionView;
+
 private Q_SLOTS:
     void LimitTransactionRows();
     void updateDisplayUnit();
-    void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);
     void setMonospacedFont(const QFont&);
 };

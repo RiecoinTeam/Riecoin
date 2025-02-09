@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -35,7 +35,6 @@
 #include <QMenu>
 #include <QPoint>
 #include <QScrollBar>
-#include <QSettings>
 #include <QTableView>
 #include <QTimer>
 #include <QUrl>
@@ -146,17 +145,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     transactionView->setSortingEnabled(true);
     transactionView->verticalHeader()->hide();
 
-    QSettings settings;
-    if (!transactionView->horizontalHeader()->restoreState(settings.value("TransactionViewHeaderState").toByteArray())) {
-        transactionView->setColumnWidth(TransactionTableModel::Status, STATUS_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Date, DATE_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Type, TYPE_COLUMN_WIDTH);
-        transactionView->setColumnWidth(TransactionTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
-        transactionView->horizontalHeader()->setMinimumSectionSize(MINIMUM_COLUMN_WIDTH);
-        transactionView->horizontalHeader()->setStretchLastSection(true);
-    }
-    transactionView->setColumnHidden(TransactionTableModel::Date, false); // 2nd Column was previously something that was usually not visible (for Watch Only Wallets), for some reason this property carries out to the "new" 2nd Column (Date), so force it to be visible, else people who just upgraded will not see the Date column and have no practical way to make it appear. Remove once enough people upgraded to 23.04+, or if a more elegant solution can be found.
-
     contextMenu = new QMenu(this);
     contextMenu->setObjectName("contextMenu");
     copyAddressAction = contextMenu->addAction(tr("&Copy address"), this, &TransactionView::copyAddress);
@@ -191,12 +179,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     });
 }
 
-TransactionView::~TransactionView()
-{
-    QSettings settings;
-    settings.setValue("TransactionViewHeaderState", transactionView->horizontalHeader()->saveState());
-}
-
 void TransactionView::setModel(WalletModel *_model)
 {
     this->model = _model;
@@ -210,6 +192,13 @@ void TransactionView::setModel(WalletModel *_model)
         transactionProxyModel->setSortRole(Qt::EditRole);
         transactionView->setModel(transactionProxyModel);
         transactionView->sortByColumn(TransactionTableModel::Date, Qt::DescendingOrder);
+
+        transactionView->resizeColumnToContents(TransactionTableModel::Status);
+        transactionView->resizeColumnToContents(TransactionTableModel::Date);
+        transactionView->resizeColumnToContents(TransactionTableModel::Type);
+        transactionView->resizeColumnToContents(TransactionTableModel::ToAddress);
+        transactionView->resizeColumnToContents(TransactionTableModel::Amount);
+        transactionView->horizontalHeader()->setStretchLastSection(true);
 
         if (_model->getOptionsModel())
         {

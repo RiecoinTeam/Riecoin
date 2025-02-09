@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -17,7 +17,6 @@
 #include <qt/sendcoinsdialog.h>
 #include <qt/signverifymessagedialog.h>
 #include <qt/transactiontablemodel.h>
-#include <qt/transactionview.h>
 #include <qt/walletmodel.h>
 
 #include <interfaces/node.h>
@@ -42,23 +41,6 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     overviewPage = new OverviewPage(platformStyle);
     overviewPage->setWalletModel(walletModel);
 
-    transactionsPage = new QWidget(this);
-    QVBoxLayout *vbox = new QVBoxLayout();
-    QHBoxLayout *hbox_buttons = new QHBoxLayout();
-    transactionView = new TransactionView(platformStyle, this);
-    transactionView->setModel(walletModel);
-
-    vbox->addWidget(transactionView);
-    QPushButton *exportButton = new QPushButton(tr("&Export"), this);
-    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
-    if (platformStyle->getImagesOnButtons()) {
-        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-    }
-    hbox_buttons->addStretch();
-    hbox_buttons->addWidget(exportButton);
-    vbox->addLayout(hbox_buttons);
-    transactionsPage->setLayout(vbox);
-
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     receiveCoinsPage->setModel(walletModel);
 
@@ -72,30 +54,16 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
 
     addWidget(overviewPage);
-    addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
 
-    connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
-    // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
-    connect(overviewPage, &OverviewPage::transactionClicked, transactionView, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
-
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::outOfSyncWarningClicked);
-
     connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);
-    // Highlight transaction after send
-    connect(sendCoinsPage, &SendCoinsDialog::coinsSent, transactionView, qOverload<const uint256&>(&TransactionView::focusTransaction));
-
-    // Clicking on "Export" allows to export the transaction list
-    connect(exportButton, &QPushButton::clicked, transactionView, &TransactionView::exportClicked);
 
     // Pass through messages from sendCoinsPage
     connect(sendCoinsPage, &SendCoinsDialog::message, this, &WalletView::message);
-    // Pass through messages from transactionView
-    connect(transactionView, &TransactionView::message, this, &WalletView::message);
 
     connect(this, &WalletView::setPrivacy, overviewPage, &OverviewPage::setPrivacy);
-    connect(this, &WalletView::setPrivacy, this, &WalletView::disableTransactionView);
 
     // Receive and pass through messages from wallet model
     connect(walletModel, &WalletModel::message, this, &WalletView::message);
@@ -148,11 +116,6 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
 void WalletView::gotoOverviewPage()
 {
     setCurrentWidget(overviewPage);
-}
-
-void WalletView::gotoHistoryPage()
-{
-    setCurrentWidget(transactionsPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()
@@ -287,9 +250,4 @@ void WalletView::showProgress(const QString &title, int nProgress)
             progressDialog->setValue(nProgress);
         }
     }
-}
-
-void WalletView::disableTransactionView(bool disable)
-{
-    transactionView->setDisabled(disable);
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -15,6 +15,7 @@
 #include <qt/transactionfilterproxy.h>
 #include <qt/transactionoverviewwidget.h>
 #include <qt/transactiontablemodel.h>
+#include <qt/transactionview.h>
 #include <qt/walletmodel.h>
 
 #include <QAbstractItemDelegate>
@@ -140,27 +141,29 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
-    ui->labelTransactionsStatus->setIcon(icon);
     ui->labelWalletStatus->setIcon(icon);
-
-    // Recent transactions
-    ui->listTransactions->setItemDelegate(txdelegate);
-    ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * (DECORATION_SIZE + 2));
-    ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
-
-    connect(ui->listTransactions, &TransactionOverviewWidget::clicked, this, &OverviewPage::handleTransactionClicked);
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::outOfSyncWarningClicked);
-    connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::outOfSyncWarningClicked);
-}
 
-void OverviewPage::handleTransactionClicked(const QModelIndex &index)
-{
-    if(filter)
-        Q_EMIT transactionClicked(filter->mapToSource(index));
+    QVBoxLayout *vbox = new QVBoxLayout();
+    QHBoxLayout *hbox_buttons = new QHBoxLayout();
+    transactionView = new TransactionView(platformStyle, this);
+    transactionView->setModel(walletModel);
+
+    vbox->addWidget(transactionView);
+    QPushButton *exportButton = new QPushButton(tr("&Export"), this);
+    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
+    if (platformStyle->getImagesOnButtons())
+        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
+    hbox_buttons->addStretch();
+    hbox_buttons->addWidget(exportButton);
+    vbox->addLayout(hbox_buttons);
+    ui->listTransactions->setLayout(vbox);
+
+    // Clicking on "Export" allows to export the transaction list
+    connect(exportButton, &QPushButton::clicked, transactionView, &TransactionView::exportClicked);
 }
 
 void OverviewPage::setPrivacy(bool privacy)
@@ -217,26 +220,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
     this->walletModel = model;
     if(model && model->getOptionsModel())
     {
-        // Set up transaction list
-        filter.reset(new TransactionFilterProxy());
-        filter->setSourceModel(model->getTransactionTableModel());
-        filter->setDynamicSortFilter(true);
-        filter->setSortRole(Qt::EditRole);
-        filter->setShowInactive(false);
-        filter->sort(TransactionTableModel::Date, Qt::DescendingOrder);
-
-        ui->listTransactions->setModel(filter.get());
-        ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
-
-        connect(filter.get(), &TransactionFilterProxy::rowsInserted, this, &OverviewPage::LimitTransactionRows);
-        connect(filter.get(), &TransactionFilterProxy::rowsRemoved, this, &OverviewPage::LimitTransactionRows);
-        connect(filter.get(), &TransactionFilterProxy::rowsMoved, this, &OverviewPage::LimitTransactionRows);
-        LimitTransactionRows();
         // Keep up to date with wallet
         setBalance(model->getCachedBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
-
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
+        transactionView->setModel(walletModel);
     }
 
     // update the display unit, to not use the default ("RIC")
@@ -247,7 +235,6 @@ void OverviewPage::changeEvent(QEvent* e)
 {
     if (e->type() == QEvent::PaletteChange) {
         QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
-        ui->labelTransactionsStatus->setIcon(icon);
         ui->labelWalletStatus->setIcon(icon);
     }
 
@@ -288,7 +275,6 @@ void OverviewPage::updateAlerts(const QString &warnings)
 void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
-    ui->labelTransactionsStatus->setVisible(fShow);
 }
 
 void OverviewPage::setMonospacedFont(const QFont& f)

@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -37,7 +37,6 @@ class TransactionView : public QWidget
 
 public:
     explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
-    ~TransactionView();
 
     void setModel(WalletModel *model);
 
@@ -51,14 +50,6 @@ public:
         LastMonth,
         ThisYear,
         Range
-    };
-
-    enum ColumnWidths {
-        STATUS_COLUMN_WIDTH = 30,
-        DATE_COLUMN_WIDTH = 120,
-        TYPE_COLUMN_WIDTH = 113,
-        AMOUNT_MINIMUM_COLUMN_WIDTH = 120,
-        MINIMUM_COLUMN_WIDTH = 23
     };
 
 protected:

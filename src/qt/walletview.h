@@ -17,7 +17,6 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
-class TransactionView;
 class WalletModel;
 class AddressBookPage;
 
@@ -66,16 +65,12 @@ private:
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
 
-    TransactionView *transactionView;
-
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-    /** Switch to history (transactions) page */
-    void gotoHistoryPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
@@ -89,7 +84,6 @@ public Q_SLOTS:
     void gotoVerifyMessageTab(QString addr = "");
 
     /** Show incoming transaction notification for new transactions.
-
         The new items are those between start and end inclusive, under the given parent item.
     */
     void processNewTransaction(const QModelIndex& parent, int start, int /*end*/);
@@ -111,8 +105,6 @@ public Q_SLOTS:
     void showProgress(const QString &title, int nProgress);
 
 private Q_SLOTS:
-    void disableTransactionView(bool disable);
-
 Q_SIGNALS:
     void setPrivacy(bool privacy);
     void transactionClicked();
