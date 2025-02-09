@@ -110,6 +110,7 @@ add_library(riecoin_common STATIC EXCLUDE_FROM_ALL
   addresstype.cpp
   base58.cpp
   bech32.cpp
+  chain.cpp
   chainparams.cpp
   chainparamsbase.cpp
   coins.cpp
@@ -143,6 +144,7 @@ add_library(riecoin_common STATIC EXCLUDE_FROM_ALL
   outputtype.cpp
   policy/feerate.cpp
   policy/policy.cpp
+  pow.cpp
   protocol.cpp
   psbt.cpp
   rpc/external_signer.cpp
@@ -165,6 +167,7 @@ target_link_libraries(riecoin_common
     univalue
     secp256k1
     Boost::headers
+    $<TARGET_NAME_IF_EXISTS:GMP::GMP>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
 )
@@ -201,7 +204,6 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   bip324.cpp
   blockencodings.cpp
   blockfilter.cpp
-  chain.cpp
   consensus/tx_verify.cpp
   dbwrapper.cpp
   deploymentstatus.cpp
@@ -263,7 +265,6 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   policy/rbf.cpp
   policy/settings.cpp
   policy/truc_policy.cpp
-  pow.cpp
   rest.cpp
   rpc/blockchain.cpp
   rpc/fees.cpp

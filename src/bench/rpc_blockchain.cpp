@@ -48,8 +48,9 @@ struct TestBlockAndIndex {
 static void BlockToJsonVerbose(benchmark::Bench& bench)
 {
     TestBlockAndIndex data;
+    const uint32_t nBitsMin{data.testing_setup->m_node.chainman->GetParams().GetConsensus().nBitsMin};
     bench.run([&] {
-        auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+        auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, TxVerbosity::SHOW_DETAILS_AND_PREVOUT, nBitsMin);
         ankerl::nanobench::doNotOptimizeAway(univalue);
     });
 }
@@ -59,7 +60,8 @@ BENCHMARK(BlockToJsonVerbose, benchmark::PriorityLevel::HIGH);
 static void BlockToJsonVerboseWrite(benchmark::Bench& bench)
 {
     TestBlockAndIndex data;
-    auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+    const uint32_t nBitsMin{data.testing_setup->m_node.chainman->GetParams().GetConsensus().nBitsMin};
+    auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, TxVerbosity::SHOW_DETAILS_AND_PREVOUT, nBitsMin);
     bench.run([&] {
         auto str = univalue.write();
         ankerl::nanobench::doNotOptimizeAway(str);

@@ -141,8 +141,14 @@ We are using floating point number as perfect precision is not critical here. */
 arith_uint256 GetBlockProof(const CBlockIndex& block)
 {
     const Consensus::Params& consensusParams(Params().GetConsensus());
-    double difficulty(GetDifficulty(block)),
+    double difficulty(0.),
            constellationSize(consensusParams.GetPowAcceptedPatternsAtHeight(block.nHeight)[0].size());
+    const uint32_t nBits(block.nBits);
+    const int32_t powVersion(Params().GetConsensus().GetPoWVersionAtHeight(block.nHeight));
+    if (powVersion == -1)
+        difficulty = (nBits & 0x007FFFFFU) >> 8U; // The original PoW used the Bitcoin Compact format. This formula is equivalent for any block before Fork 2.
+    else if (powVersion == 1)
+        difficulty = static_cast<double>(nBits)/256.;
     double proof(std::pow(difficulty, constellationSize + 2.3));
     std::string proofStr(mpz_class(proof).get_str(16));
     proofStr = std::string(64U - proofStr.length(), '0') + proofStr;

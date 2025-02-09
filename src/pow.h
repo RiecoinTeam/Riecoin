@@ -16,6 +16,19 @@
 class CBlockHeader;
 class CBlockIndex;
 class uint256;
+class arith_uint256;
+
+/**
+ * Convert nBits value to target.
+ *
+ * @param[in] hash       hash the target depends on
+ * @param[in] nBits      integer representation of the target
+ * @param[in] powVersion PoW Version to use for the derivation
+ * @param[in] nBitsMin   PoW limit (consensus parameter)
+ *
+ * @return               the proof-of-work target or nullopt if nBits or powVersion is invalid
+ */
+std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin);
 
 // MainNet Only, Pre Fork 2 SuperBlocks
 inline bool isInSuperblockInterval(int nHeight, const Consensus::Params& params) {return ((nHeight/288) % 14) == 12;} // once per week

@@ -6,17 +6,23 @@
 """Test bitcoin-wallet."""
 
 import os
+import platform
+import random
 import stat
+import string
 import subprocess
 import textwrap
 
 from collections import OrderedDict
 
+from test_framework.messages import ser_string
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    assert_greater_than,
     sha256sum_file,
 )
+from test_framework.wallet import getnewdestination
 
 
 class ToolWalletTest(BitcoinTestFramework):
@@ -389,6 +395,42 @@ class ToolWalletTest(BitcoinTestFramework):
         ''')
         self.assert_tool_output(expected_output, "-wallet=conflicts", "info")
 
+    def test_dump_very_large_records(self):
+        self.log.info("Test that wallets with large records are successfully dumped")
+
+        self.start_node(0)
+        self.nodes[0].createwallet("bigrecords")
+        wallet = self.nodes[0].get_wallet_rpc("bigrecords")
+
+        # Sqlite has maximum page sizes of 65536 bytes, with defaults of 4096
+        # When a record exceeds some size threshold, SQLite will store the data
+        # in one or more overflow pages. We want to make sure that our tooling can dump such
+        # records, even when they span multiple pages. To make a large record, we just need
+        # to make a very big transaction.
+        self.generate(self.nodes[0], 101)
+        def_wallet = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
+        outputs = {}
+        for i in range(700):
+            outputs[wallet.getnewaddress(address_type="bech32m")] = 0.01
+        def_wallet.sendmany(amounts=outputs)
+        self.generate(self.nodes[0], 1)
+        send_res = wallet.sendall([def_wallet.getnewaddress()])
+        self.generate(self.nodes[0], 1)
+        assert_equal(send_res["complete"], True)
+        tx = wallet.gettransaction(txid=send_res["txid"], verbose=True)
+        assert_greater_than(tx["decoded"]["size"], 70000)
+
+        self.stop_node(0)
+
+        wallet_dump = self.nodes[0].datadir_path / "bigrecords.dump"
+        self.assert_tool_output("The dumpfile may contain private keys. To ensure the safety of your Riecoins, do not share the dumpfile.\n", "-wallet=bigrecords", f"-dumpfile={wallet_dump}", "dump")
+        dump = self.read_dump(wallet_dump)
+        for k,v in dump.items():
+            if tx["hex"] in v:
+                break
+        else:
+            assert False, "Big transaction was not found in wallet dump"
+
     def run_test(self):
         self.wallet_path = self.nodes[0].wallets_path / self.default_wallet_name / self.wallet_data_filename
         self.test_invalid_tool_commands_and_args()
@@ -399,6 +441,7 @@ class ToolWalletTest(BitcoinTestFramework):
         self.test_getwalletinfo_on_different_wallet()
         self.test_dump_createfromdump()
         self.test_chainless_conflicts()
+        self.test_dump_very_large_records()
 
 if __name__ == '__main__':
     ToolWalletTest(__file__).main()

@@ -156,41 +156,51 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
     return true;
 }
 
-uint32_t GenerateTarget(mpz_class &target, uint256 hash, unsigned int nBits, const int32_t powVersion)
+std::optional<uint32_t> DeriveTrailingZeros(unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin)
 {
+    if (nBits < nBitsMin)
+        return {};
     uint32_t trailingZeros;
-    if (powVersion == -1) // Target = 1 . 00000000 . hash . 00...0 = 2^(D - 1) + H*2^(D – 265)
-    {
-        target = 256;
+    if (powVersion == -1)
         trailingZeros = (nBits & 0x007FFFFFU) >> 8U;
-        for (int i(0) ; i < 256 ; i++) // Inverts endianness and bit order inside bytes
-        {
+    else if (powVersion == 1)
+        trailingZeros = (nBits >> 8U) + 1;
+    else
+        return {};
+
+    const unsigned int significativeDigits(265); // 1 + 8 + 256
+    if (trailingZeros < significativeDigits)
+        return {};
+    trailingZeros -= significativeDigits;
+    return trailingZeros;
+}
+
+std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin)
+{
+    mpz_class target(256);
+    if (powVersion == -1) { // Target = 1 . 00000000 . hash . 00...0 = 2^(D - 1) + H*2^(D – 265)
+        for (int i(0) ; i < 256 ; i++) { // Inverts endianness and bit order inside bytes
             target <<= 1;
             target += ((hash.begin()[i/8] >> (i % 8)) & 1);
         }
     }
-    else if (powVersion == 1) // Here, rather than using 8 zeros, we fill this field with L = round(2^(8 + Df/2^8) - 2^8)
-    {
+    else if (powVersion == 1) { // Here, rather than using 8 zeros, we fill this field with L = round(2^(8 + Df/2^8) - 2^8)
         uint32_t df(nBits & 255U);
-        target = 256;
         target += (10U*df*df*df + 7383U*df*df + 5840720U*df + 3997440U) >> 23U; // Gives the same results as L using only integers
-        const uint32_t difficultyIntegerPart(nBits >> 8U);
-        trailingZeros = difficultyIntegerPart + 1;
         target <<= 256;
         mpz_class hashGmp;
         mpz_import(hashGmp.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, hash.begin());
         target += hashGmp;
     }
-    else // Check must be done before calling GenerateTarget
-        assert(false);
+    else // Check must be done before calling DeriveTarget
+        return {};
 
     // Now padding Target with zeros such that its size is the Difficulty (PoW Version -1) or such that Target = ~2^Difficulty (else)
-    const unsigned int significativeDigits(265); // 1 + 8 + 256
-    if (trailingZeros < significativeDigits)
-        return 0;
-    trailingZeros -= significativeDigits;
-    target <<= trailingZeros;
-    return trailingZeros;
+    const auto trailingZeros(DeriveTrailingZeros(nBits, powVersion, nBitsMin));
+    if (!trailingZeros)
+        return {};
+    target <<= *trailingZeros;
+    return target;
 }
 
 uint32_t CheckConstellation(mpz_class n, std::vector<int32_t> offsets, uint32_t iterations)
@@ -258,10 +268,14 @@ bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nOnce, const
     else
         return false;
 
-    uint32_t trailingZeros;
-    mpz_class target, offset, offsetLimit(1);
-    trailingZeros = GenerateTarget(target, hash, nBits, powVersion);
-    offsetLimit <<= trailingZeros;
+    const auto trailingZeros(DeriveTrailingZeros(nBits, powVersion, params.nBitsMin));
+    if (!trailingZeros)
+        return false;
+    const std::optional<mpz_class> target(DeriveTarget(hash, nBits, powVersion, params.nBitsMin));
+    if (!target)
+        return false;
+    mpz_class offset, offsetLimit(1);
+    offsetLimit <<= *trailingZeros;
     // Calculate the PoW result
     if (powVersion == -1)
         mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, nOnce.begin()); // [31-0 Offset]
@@ -280,13 +294,13 @@ bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nOnce, const
         }
         mpz_import(primorialFactor.get_mpz_t(), 16, -1, sizeof(uint8_t), 0, 0, &rawOffset[14]);
         mpz_import(primorialOffset.get_mpz_t(), 12, -1, sizeof(uint8_t), 0, 0, &rawOffset[2]);
-        offset = primorial - (target % primorial) + primorialFactor*primorial + primorialOffset;
+        offset = primorial - (*target % primorial) + primorialFactor*primorial + primorialOffset;
     }
     if (offset >= offsetLimit) {
-        LogError("CheckProofOfWork(): offset %s larger than allowed 2^%d\n", offset.get_str().c_str(), trailingZeros);
+        LogError("CheckProofOfWork(): offset %s larger than allowed 2^%d\n", offset.get_str().c_str(), *trailingZeros);
         return false;
     }
-    mpz_class result(target + offset);
+    const mpz_class result(*target + offset);
 
     // Check PoW result
     std::vector<uint32_t> tupleLengths;

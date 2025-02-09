@@ -71,8 +71,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000c159949feff001e3195f96200000"}; // 2278572
-        consensus.defaultAssumeValid = uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}; // 2278572
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000c975dea626863b076e5f96200000"}; // 2299008
+        consensus.defaultAssumeValid = uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}; // 2299008
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -125,23 +125,24 @@ public:
                 {2144042, uint256{"95e0d3078a9b75982b4967591e05b2886298f516220845118284a6a7fcd28be6"}},
                 {2256044, uint256{"867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5"}},
                 {2278572, uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}},
+                {2299008, uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}},
             }
         };
 
         m_assumeutxo_data = {
             {
-                .height = 2256044,
-                .hash_serialized = AssumeutxoHash{uint256{"64bac520bbdb8ad64b2616272bf18fa50ead26ffb5340033868fa97dbadab552"}},
-                .m_chain_tx_count = 4513703,
-                .blockhash = uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}
+                .height = 2299008,
+                .hash_serialized = AssumeutxoHash{uint256{"9290e02355f4dc62b12ea6976c7a58aac0ef4368a13c0e523c1c40dc2419fcfb"}},
+                .m_chain_tx_count = 4538788,
+                .blockhash = uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899
-            .nTime    = 1736010819,
-            .tx_count = 4513703,
-            .dTxRate  = 0.00891424525464766,
+            // Data from RPC: getchaintxstats 65536 ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f
+            .nTime    = 1739062580,
+            .tx_count = 4538788,
+            .dTxRate  = 0.008752785489941508,
         };
     }
 };
@@ -166,8 +167,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000577870f6a52affc9fe000"}; // 92305
-        consensus.defaultAssumeValid = uint256{"39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6"}; // 92305
+        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000621d26412a433de46a000"}; // 102484
+        consensus.defaultAssumeValid = uint256{"b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda"}; // 102484
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -208,18 +209,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 92305,
-                .hash_serialized = AssumeutxoHash{uint256{"b5347b5519bc531fc77c2c59b73e29af7d3b7dacd205e861c4b8117e7a513487"}},
-                .m_chain_tx_count = 16384,
-                .blockhash = uint256{"39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6"}
+                .height = 102484,
+                .hash_serialized = AssumeutxoHash{uint256{"992eb27a882178196b880b811fbe49ac8400f5212172deaf40906ab26bd17154"}},
+                .m_chain_tx_count = 102494,
+                .blockhash = uint256{"b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 39bf1589efa2a9f2e2af384fa4636ab4f855430b3591cf895f0420ea962949e6
-            .nTime    = 1736010668,
-            .tx_count = 92315,
-            .dTxRate  = 0.003271750724970937,
+            // Data from RPC: getchaintxstats 16384 b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda
+            .nTime    = 1739063576,
+            .tx_count = 102494,
+            .dTxRate  = 0.003342740655705871,
         };
     }
 };

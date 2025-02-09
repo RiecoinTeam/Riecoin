@@ -6,7 +6,9 @@
 """Test Wallet encryption"""
 
 import time
+import subprocess
 
+from test_framework.messages import hash256
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_raises_rpc_error,
@@ -98,6 +100,25 @@ class WalletEncryptionTest(BitcoinTestFramework):
             sig = self.nodes[0].signmessage(address, msg)
             assert self.nodes[0].verifymessage(address, sig, msg)
 
+        self.log.info("Test that wallets without private keys cannot be encrypted")
+        self.nodes[0].createwallet(wallet_name="noprivs", disable_private_keys=True)
+        noprivs_wallet = self.nodes[0].get_wallet_rpc("noprivs")
+        assert_raises_rpc_error(-16, "Error: wallet does not contain private keys, nothing to encrypt.", noprivs_wallet.encryptwallet, "pass")
+
+        if self.is_wallet_tool_compiled():
+            self.log.info("Test that encryption keys in wallets without privkeys are removed")
+
+            def do_wallet_tool(*args):
+                proc = subprocess.Popen(
+                    [self.options.bitcoinwallet, f"-datadir={self.nodes[0].datadir_path}", f"-chain={self.chain}"] + list(args),
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                stdout, stderr = proc.communicate()
+                assert_equal(proc.poll(), 0)
+                assert_equal(stderr, "")
 
 if __name__ == '__main__':
     WalletEncryptionTest(__file__).main()

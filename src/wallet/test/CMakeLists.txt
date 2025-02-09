@@ -9,6 +9,7 @@ target_sources(test_riecoin
   PRIVATE
     init_test_fixture.cpp
     wallet_test_fixture.cpp
+    db_tests.cpp
     coinselector_tests.cpp
     feebumper_tests.cpp
     group_outputs_tests.cpp

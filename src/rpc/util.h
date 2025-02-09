@@ -22,6 +22,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <gmp.h>
+#include <gmpxx.h>
 #include <initializer_list>
 #include <map>
 #include <optional>
@@ -515,5 +517,15 @@ void PushWarnings(const UniValue& warnings, UniValue& obj);
 void PushWarnings(const std::vector<bilingual_str>& warnings, UniValue& obj);
 
 std::vector<RPCResult> ScriptPubKeyDoc();
+
+/***
+ * Get the target for a given block index.
+ *
+ * @param[in] blockindex    the block
+ * @param[in] nBitsMin      PoW limit (consensus parameter)
+ *
+ * @return  the target
+ */
+mpz_class GetTarget(const CBlockIndex& blockindex, const uint32_t nBitsMin);
 
 #endif // BITCOIN_RPC_UTIL_H

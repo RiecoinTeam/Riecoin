@@ -47,6 +47,7 @@
 #include <policy/settings.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <rpc/blockchain.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <support/allocators/secure.h>
@@ -117,7 +118,7 @@ public:
         m_context->ecc_context = std::make_unique<ECC_Context>();
         if (!AppInitSanityChecks(*m_context->kernel)) return false;
 
-        if (!AppInitLockDataDirectory()) return false;
+        if (!AppInitLockDirectories()) return false;
         if (!AppInitInterfaces(*m_context)) return false;
 
         return true;
@@ -443,7 +444,7 @@ bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<Rec
     if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active, blockman);
     if (block.m_data) {
         REVERSE_LOCK(lock);
-        if (!blockman.ReadBlockFromDisk(*block.m_data, *index)) block.m_data->SetNull();
+        if (!blockman.ReadBlock(*block.m_data, *index)) block.m_data->SetNull();
     }
     block.found = true;
     return true;
@@ -770,6 +771,11 @@ public:
     {
         LOCK(::cs_main);
         return chainman().m_blockman.m_have_pruned;
+    }
+    std::optional<int> getPruneHeight() override
+    {
+        LOCK(chainman().GetMutex());
+        return GetPruneHeight(chainman().m_blockman, chainman().ActiveChain());
     }
     bool isReadyToBroadcast() override { return !chainman().m_blockman.LoadingBlocks() && !isInitialBlockDownload(); }
     bool isInitialBlockDownload() override

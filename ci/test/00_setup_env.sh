@@ -61,7 +61,10 @@ export CCACHE_COMPRESS=${CCACHE_COMPRESS:-1}
 export CCACHE_DIR="${CCACHE_DIR:-$BASE_SCRATCH_DIR/ccache}"
 # Folder where the build result is put (bin and lib).
 export BASE_OUTDIR=${BASE_OUTDIR:-$BASE_SCRATCH_DIR/out}
-export CI_BASE_PACKAGES=${CI_BASE_PACKAGES:-build-essential pkg-config curl ca-certificates ccache python3 rsync git procps bison e2fsprogs cmake}
+export CI_BASE_PACKAGES=${CI_BASE_PACKAGES:-build-essential pkgconf curl ca-certificates ccache python3 rsync git procps bison e2fsprogs cmake}
 export GOAL=${GOAL:-install}
 export DIR_QA_ASSETS=${DIR_QA_ASSETS:-${BASE_SCRATCH_DIR}/qa-assets}
 export CI_RETRY_EXE=${CI_RETRY_EXE:-"retry --"}
+
+# The --platform argument used with `docker build` and `docker run`.
+export CI_IMAGE_PLATFORM=${CI_IMAGE_PLATFORM:-"linux"} # Force linux, but use native arch by default

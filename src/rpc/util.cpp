@@ -5,6 +5,7 @@
 
 #include <bitcoin-build-config.h> // IWYU pragma: keep
 
+#include <chain.h>
 #include <clientversion.h>
 #include <common/args.h>
 #include <common/messages.h>
@@ -14,6 +15,7 @@
 #include <key_io.h>
 #include <node/types.h>
 #include <outputtype.h>
+#include <pow.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
 #include <script/interpreter.h>
@@ -1418,4 +1420,10 @@ std::vector<RPCResult> ScriptPubKeyDoc() {
              {RPCResult::Type::STR, "address", /*optional=*/true, "The Riecoin address (only if a well-defined address exists)"},
              {RPCResult::Type::STR, "type", "The type (one of: " + GetAllOutputTypes() + ")"},
          };
+}
+
+mpz_class GetTarget(const CBlockIndex& blockindex, const uint32_t nBitsMin)
+{
+    mpz_class target{*CHECK_NONFATAL(DeriveTarget(blockindex.GetBlockHeader().GetHashForPoW(), blockindex.nBits, blockindex.GetBlockHeader().GetPoWVersion(), nBitsMin))};
+    return target;
 }

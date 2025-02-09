@@ -271,6 +271,7 @@ BASE_SCRIPTS = [
     # 'wallet_importdescriptors.py', # Needs adjustments for Bech32/Bech32M
     'wallet_crosschain.py',
     'mining_basic.py',
+    # 'mining_mainnet.py', # Needs to be rewritten for Riecoin
     'p2p_mutated_blocks.py',
     'rpc_named_arguments.py',
     'feature_startupnotify.py',
