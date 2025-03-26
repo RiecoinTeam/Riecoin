@@ -10,11 +10,11 @@ import tempfile
 import argparse
 
 BINARIES = [
-'src/riecoind',
-'src/riecoin-cli',
-'src/riecoin-tx',
-'src/riecoin-wallet',
-'src/qt/riecoin-qt',
+'bin/riecoind',
+'bin/riecoin-cli',
+'bin/riecoin-tx',
+'bin/riecoin-wallet',
+'bin/riecoin-qt',
 ]
 
 parser = argparse.ArgumentParser(
@@ -40,7 +40,7 @@ if not topdir:
     topdir = r.stdout.rstrip()
 
 # Get input and output directories.
-builddir = os.getenv('BUILDDIR', topdir)
+builddir = os.getenv('BUILDDIR', os.path.join(topdir, 'build'))
 mandir = os.getenv('MANDIR', os.path.join(topdir, 'doc/man'))
 
 # Verify that all the required binaries are usable, and extract copyright

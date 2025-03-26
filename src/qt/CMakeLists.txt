@@ -239,7 +239,7 @@ target_link_libraries(riecoin-qt
 )
 
 import_plugins(riecoin-qt)
-set(installable_targets riecoin-qt)
+install_binary_component(riecoin-qt HAS_MANPAGE)
 if(WIN32)
   set_target_properties(riecoin-qt PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
@@ -256,16 +256,11 @@ if(WITH_MULTIPROCESS)
     bitcoin_ipc
   )
   import_plugins(bitcoin-gui)
-  list(APPEND installable_targets bitcoin-gui)
+  install_binary_component(bitcoin-gui)
   if(WIN32)
     set_target_properties(bitcoin-gui PROPERTIES WIN32_EXECUTABLE TRUE)
   endif()
 endif()
-
-install(TARGETS ${installable_targets}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  COMPONENT GUI
-)
 
 if(BUILD_GUI_TESTS)
   add_subdirectory(test)
@@ -296,7 +291,13 @@ function(get_translatable_sources var)
           get_target_property(target_source_dir ${target} SOURCE_DIR)
           cmake_path(APPEND target_source_dir ${source} OUTPUT_VARIABLE source)
         endif()
-        list(APPEND result ${source})
+        get_property(is_generated
+          SOURCE  ${source} TARGET_DIRECTORY ${target}
+          PROPERTY GENERATED
+        )
+        if(NOT is_generated)
+          list(APPEND result ${source})
+        endif()
       endforeach()
     endif()
   endforeach()
@@ -327,7 +328,6 @@ else()
     COMMAND Qt5::lconvert -drop-translations -o ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf -i ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
     COMMAND ${SED_EXECUTABLE} -i.old -e "s|source-language=\"en\" target-language=\"en\"|source-language=\"en\"|" -e "/<target xml:space=\"preserve\"><\\/target>/d" ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf
     COMMAND ${CMAKE_COMMAND} -E rm ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf.old
-    DEPENDS ${translatable_sources}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/src
     VERBATIM
   )

@@ -6,7 +6,6 @@
 """Test bitcoin-wallet."""
 
 import os
-import platform
 import random
 import stat
 import string
@@ -38,7 +37,7 @@ class ToolWalletTest(BitcoinTestFramework):
     def bitcoin_wallet_process(self, *args):
         default_args = ['-datadir={}'.format(self.nodes[0].datadir_path), '-chain=%s' % self.chain]
 
-        return subprocess.Popen([self.options.bitcoinwallet] + default_args + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        return subprocess.Popen(self.get_binaries().wallet_argv() + default_args + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def assert_raises_tool_error(self, error, *args):
         p = self.bitcoin_wallet_process(*args)
@@ -294,8 +293,7 @@ class ToolWalletTest(BitcoinTestFramework):
 
         self.log.info('Checking createfromdump')
         self.do_tool_createfromdump("load", "wallet.dump")
-        if self.is_sqlite_compiled():
-            self.do_tool_createfromdump("load-sqlite", "wallet.dump")
+        self.do_tool_createfromdump("load-sqlite", "wallet.dump")
 
         self.log.info('Checking createfromdump handling of magic and versions')
         bad_ver_wallet_dump = self.nodes[0].datadir_path / "wallet-bad_ver1.dump"

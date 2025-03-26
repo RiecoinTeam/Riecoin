@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copyright (c) 2019-2022 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2019-present The Bitcoin Core developers
+# Copyright (c) 2019-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 export LC_ALL=C
@@ -248,8 +248,6 @@ mkdir -p "$DISTSRC"
     # Build Riecoin Core
     cmake --build build -j "$JOBS" ${V:+--verbose}
 
-    # Check that symbol/security checks tools are sane.
-    cmake --build build --target test-security-check ${V:+--verbose}
     # Perform basic security checks on a series of executables.
     cmake --build build -j 1 --target check-security ${V:+--verbose}
     # Check that executables only contain allowed version symbols.
@@ -284,22 +282,6 @@ mkdir -p "$DISTSRC"
             ;;
     esac
 
-    case "$HOST" in
-        *darwin*)
-            cmake --build build --target deploy ${V:+--verbose}
-            mv build/dist/Riecoin-Core.zip "${OUTDIR}/${DISTNAME}-${HOST}.zip"
-            mkdir -p "app-${HOST}"
-            mv --target-directory="app-${HOST}" build/dist
-            (
-                cd "app-${HOST}"
-                find . -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
-            )
-            ;;
-    esac
     (
         cd installed
 
@@ -328,7 +310,7 @@ mkdir -p "$DISTSRC"
 
         cp -r "${DISTSRC}/share/rpcauth" "${DISTNAME}/share/"
 
-        # Finally, deterministically produce {non-,}debug binary tarballs ready
+        # Deterministically produce {non-,}debug binary tarballs ready
         # for release
         case "$HOST" in
             *mingw*)

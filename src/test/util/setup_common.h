@@ -131,6 +131,12 @@ struct RegTestingSetup : public TestingSetup {
         : TestingSetup{ChainType::REGTEST} {}
 };
 
+/** Identical to TestingSetup, but chain set to testnet */
+struct Testnet4Setup : public TestingSetup {
+    Testnet4Setup()
+        : TestingSetup{ChainType::TESTNET} {}
+};
+
 class CBlock;
 struct CMutableTransaction;
 class CScript;

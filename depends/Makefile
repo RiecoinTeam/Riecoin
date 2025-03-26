@@ -36,19 +36,16 @@ NO_BOOST ?=
 NO_LIBEVENT ?=
 NO_QT ?=
 NO_QR ?=
-NO_SQLITE ?=
 NO_WALLET ?=
 NO_ZMQ ?=
 NO_USDT ?=
 MULTIPROCESS ?=
 LTO ?=
-NO_HARDEN ?=
 
 C_STANDARD ?= c11
 CXX_STANDARD ?= c++20
 
 BUILD = $(shell ./config.guess)
-HOST ?= $(BUILD)
 PATCHES_PATH = $(BASEDIR)/patches
 BASEDIR = $(CURDIR)
 HASH_LENGTH:=11
@@ -56,11 +53,6 @@ DOWNLOAD_CONNECT_TIMEOUT:=30
 DOWNLOAD_RETRIES:=3
 HOST_ID_SALT ?= salt
 BUILD_ID_SALT ?= salt
-
-host:=$(BUILD)
-ifneq ($(HOST),)
-host:=$(HOST)
-endif
 
 ifneq ($(DEBUG),)
 release_type=debug
@@ -71,8 +63,14 @@ endif
 base_build_dir=$(WORK_PATH)/build
 base_staging_dir=$(WORK_PATH)/staging
 base_download_dir=$(WORK_PATH)/download
-canonical_host:=$(shell ./config.sub $(HOST))
 build:=$(shell ./config.sub $(BUILD))
+
+host:=$(build)
+ifneq ($(HOST),)
+host:=$(HOST)
+endif
+HOST ?= $(BUILD)
+canonical_host:=$(shell ./config.sub $(HOST))
 
 build_arch =$(firstword $(subst -, ,$(build)))
 build_vendor=$(word 2,$(subst -, ,$(build)))
@@ -141,13 +139,13 @@ include packages/packages.mk
 #
 build_id:=$(shell env CC='$(build_CC)' C_STANDARD='$(C_STANDARD)' CXX='$(build_CXX)' CXX_STANDARD='$(CXX_STANDARD)' \
                       AR='$(build_AR)' NM='$(build_NM)' RANLIB='$(build_RANLIB)' STRIP='$(build_STRIP)' SHA256SUM='$(build_SHA256SUM)' \
-                      DEBUG='$(DEBUG)' NO_HARDEN='$(NO_HARDEN)' \
+                      DEBUG='$(DEBUG)' \
                       ./gen_id '$(BUILD_ID_SALT)' 'GUIX_ENVIRONMENT=$(realpath $(GUIX_ENVIRONMENT))')
 
 $(host_arch)_$(host_os)_id:=$(shell env CC='$(host_CC)' C_STANDARD='$(C_STANDARD)' CXX='$(host_CXX)' CXX_STANDARD='$(CXX_STANDARD)' \
                                         CPPFLAGS='$(CPPFLAGS)' CFLAGS='$(CFLAGS)' CXXFLAGS='$(CXXFLAGS)' LDFLAGS='$(LDFLAGS)' \
                                         AR='$(host_AR)' NM='$(host_NM)' RANLIB='$(host_RANLIB)' STRIP='$(host_STRIP)' SHA256SUM='$(build_SHA256SUM)' \
-                                        DEBUG='$(DEBUG)' LTO='$(LTO)' NO_HARDEN='$(NO_HARDEN)' \
+                                        DEBUG='$(DEBUG)' LTO='$(LTO)' \
                                         ./gen_id '$(HOST_ID_SALT)' 'GUIX_ENVIRONMENT=$(realpath $(GUIX_ENVIRONMENT))')
 
 boost_packages_$(NO_BOOST) = $(boost_packages)
@@ -158,8 +156,7 @@ qrencode_packages_$(NO_QR) = $(qrencode_$(host_os)_packages)
 
 qt_packages_$(NO_QT) = $(qt_packages) $(qt_$(host_os)_packages) $(qt_$(host_arch)_$(host_os)_packages) $(qrencode_packages_)
 
-sqlite_packages_$(NO_SQLITE) = $(sqlite_packages)
-wallet_packages_$(NO_WALLET) = $(sqlite_packages_)
+wallet_packages_$(NO_WALLET) = $(sqlite_packages)
 
 zmq_packages_$(NO_ZMQ) = $(zmq_packages)
 multiprocess_packages_$(MULTIPROCESS) = $(multiprocess_packages)
@@ -230,10 +227,7 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@qrencode_packages@|$(qrencode_packages_)|' \
             -e 's|@zmq_packages@|$(zmq_packages_)|' \
             -e 's|@wallet_packages@|$(wallet_packages_)|' \
-            -e 's|@bdb_packages@|$(bdb_packages_)|' \
-            -e 's|@sqlite_packages@|$(sqlite_packages_)|' \
             -e 's|@usdt_packages@|$(usdt_packages_)|' \
-            -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
             $< > $@
 	touch $@

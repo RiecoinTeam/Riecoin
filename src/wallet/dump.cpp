@@ -1,5 +1,5 @@
-// Copyright (c) 2020-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2020-present The Bitcoin Core developers
+// Copyright (c) 2020-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -58,12 +58,12 @@ bool DumpWallet(const ArgsManager& args, WalletDatabase& db, bilingual_str& erro
     // Write out a magic string with version
     std::string line = strprintf("%s,%u\n", DUMP_MAGIC, DUMP_VERSION);
     dump_file.write(line.data(), line.size());
-    hasher << Span{line};
+    hasher << std::span{line};
 
     // Write out the file format
     line = strprintf("%s,%s\n", "format", db.Format());
     dump_file.write(line.data(), line.size());
-    hasher << Span{line};
+    hasher << std::span{line};
 
     if (ret) {
 
@@ -84,7 +84,7 @@ bool DumpWallet(const ArgsManager& args, WalletDatabase& db, bilingual_str& erro
             std::string value_str = HexStr(ss_value);
             line = strprintf("%s,%s\n", key_str, value_str);
             dump_file.write(line.data(), line.size());
-            hasher << Span{line};
+            hasher << std::span{line};
         }
     }
 
@@ -158,7 +158,7 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
         return false;
     }
     std::string magic_hasher_line = strprintf("%s,%s\n", magic_key, version_value);
-    hasher << Span{magic_hasher_line};
+    hasher << std::span{magic_hasher_line};
 
     // Get the stored file format
     std::string format_key;
@@ -175,7 +175,7 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
         return false;
     }
     std::string format_hasher_line = strprintf("%s,%s\n", format_key, format_value);
-    hasher << Span{format_hasher_line};
+    hasher << std::span{format_hasher_line};
 
     DatabaseOptions options;
     DatabaseStatus status;
@@ -219,7 +219,7 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
             }
 
             std::string line = strprintf("%s,%s\n", key, value);
-            hasher << Span{line};
+            hasher << std::span{line};
 
             if (key.empty() || value.empty()) {
                 continue;
@@ -238,7 +238,7 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
 
             std::vector<unsigned char> k = ParseHex(key);
             std::vector<unsigned char> v = ParseHex(value);
-            if (!batch->Write(Span{k}, Span{v})) {
+            if (!batch->Write(std::span{k}, std::span{v})) {
                 error = strprintf(_("Error: Unable to write record to new wallet"));
                 ret = false;
                 break;

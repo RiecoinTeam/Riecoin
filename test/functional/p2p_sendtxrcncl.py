@@ -32,7 +32,7 @@ class PeerNoVerack(P2PInterface):
         # comment in add_p2p_connection).
         self.send_version()
         if message.nVersion >= 70016 and self.wtxidrelay:
-            self.send_message(msg_wtxidrelay())
+            self.send_without_ping(msg_wtxidrelay())
 
 class SendTxrcnclReceiver(P2PInterface):
     def __init__(self):
@@ -93,7 +93,7 @@ class SendTxRcnclTest(BitcoinTestFramework):
         no_txrelay_version_msg.strSubVer = P2P_SUBVERSION
         no_txrelay_version_msg.nServices = P2P_SERVICES
         no_txrelay_version_msg.relay = 0
-        peer.send_message(no_txrelay_version_msg)
+        peer.send_without_ping(no_txrelay_version_msg)
         peer.wait_for_verack()
         assert not peer.sendtxrcncl_msg_received
         self.nodes[0].disconnect_p2ps()
@@ -106,7 +106,7 @@ class SendTxRcnclTest(BitcoinTestFramework):
         no_txrelay_version_msg.strSubVer = P2P_SUBVERSION
         no_txrelay_version_msg.nServices = P2P_SERVICES
         no_txrelay_version_msg.relay = 0
-        peer.send_message(no_txrelay_version_msg)
+        peer.send_without_ping(no_txrelay_version_msg)
         peer.wait_for_verack()
         assert peer.nServices & NODE_BLOOM != 0
         assert not peer.sendtxrcncl_msg_received
@@ -155,17 +155,17 @@ class SendTxRcnclTest(BitcoinTestFramework):
         self.log.info('valid SENDTXRCNCL received')
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(), send_version=True, wait_for_verack=False)
         with self.nodes[0].assert_debug_log(["received: sendtxrcncl"]):
-            peer.send_message(create_sendtxrcncl_msg())
+            peer.send_without_ping(create_sendtxrcncl_msg())
         self.log.info('second SENDTXRCNCL triggers a disconnect')
         with self.nodes[0].assert_debug_log(["(sendtxrcncl received from already registered peer), disconnecting peer=0"]):
-            peer.send_message(create_sendtxrcncl_msg())
+            peer.send_without_ping(create_sendtxrcncl_msg())
             peer.wait_for_disconnect()
 
         self.restart_node(0, [])
         self.log.info('SENDTXRCNCL if no txreconciliation supported is ignored')
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(), send_version=True, wait_for_verack=False)
         with self.nodes[0].assert_debug_log(['ignored, as our node does not have txreconciliation enabled']):
-            peer.send_message(create_sendtxrcncl_msg())
+            peer.send_without_ping(create_sendtxrcncl_msg())
         self.nodes[0].disconnect_p2ps()
 
         self.restart_node(0, ["-txreconciliation"])
@@ -175,7 +175,7 @@ class SendTxRcnclTest(BitcoinTestFramework):
         sendtxrcncl_low_version.version = 0
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(), send_version=True, wait_for_verack=False)
         with self.nodes[0].assert_debug_log(["txreconciliation protocol violation"]):
-            peer.send_message(sendtxrcncl_low_version)
+            peer.send_without_ping(sendtxrcncl_low_version)
             peer.wait_for_disconnect()
 
         self.log.info('SENDTXRCNCL with version=2 is valid')
@@ -183,20 +183,20 @@ class SendTxRcnclTest(BitcoinTestFramework):
         sendtxrcncl_higher_version.version = 2
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(), send_version=True, wait_for_verack=False)
         with self.nodes[0].assert_debug_log(['Register peer=1']):
-            peer.send_message(sendtxrcncl_higher_version)
+            peer.send_without_ping(sendtxrcncl_higher_version)
         self.nodes[0].disconnect_p2ps()
 
         self.log.info('sending SENDTXRCNCL after sending VERACK triggers a disconnect')
         peer = self.nodes[0].add_p2p_connection(P2PInterface())
         with self.nodes[0].assert_debug_log(["sendtxrcncl received after verack"]):
-            peer.send_message(create_sendtxrcncl_msg())
+            peer.send_without_ping(create_sendtxrcncl_msg())
             peer.wait_for_disconnect()
 
         self.log.info('SENDTXRCNCL without WTXIDRELAY is ignored (recon state is erased after VERACK)')
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(wtxidrelay=False), send_version=True, wait_for_verack=False)
         with self.nodes[0].assert_debug_log(['Forget txreconciliation state of peer']):
-            peer.send_message(create_sendtxrcncl_msg())
-            peer.send_message(msg_verack())
+            peer.send_without_ping(create_sendtxrcncl_msg())
+            peer.send_without_ping(msg_verack())
         self.nodes[0].disconnect_p2ps()
 
         # Now, *receiving* from *outbound*.
@@ -204,7 +204,7 @@ class SendTxRcnclTest(BitcoinTestFramework):
         peer = self.nodes[0].add_outbound_p2p_connection(
             PeerNoVerack(), wait_for_verack=False, p2p_idx=0, connection_type="block-relay-only")
         with self.nodes[0].assert_debug_log(["we indicated no tx relay, disconnecting peer=4"]):
-            peer.send_message(create_sendtxrcncl_msg())
+            peer.send_without_ping(create_sendtxrcncl_msg())
             peer.wait_for_disconnect()
 
 

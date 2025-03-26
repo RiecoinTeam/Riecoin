@@ -43,7 +43,7 @@ cmake -B build -DBUILD_GUI=ON
 cmake --build build
 ```
 
-The Riecoin-Qt binary is located in `build/src/qt`. You can run `strip riecoin-qt` to reduce its size a lot, or build without the Qt Gui with
+The Riecoin-Qt binary is located in `build/bin`. You can run `strip riecoin-qt` to reduce its size a lot, or build without the Qt Gui with
 
 ```bash
 cd Riecoin
@@ -96,7 +96,7 @@ Either build using Guix as explained above in a spare physical or virtual machin
 Most Boost and Python Bitcoin Tests were ported for Riecoin. These should all pass after every code change, unless it is precised in the `test_runner.py` file that a particular Test may fail. In order to run them,
 
 ```bash
-build/src/test/test_riecoin # Boost Test Suite
+build/bin/test_riecoin # Boost Test Suite
 build/test/functional/test_runner.py # Python Functional Tests, use -j N for N jobs
 ```
 

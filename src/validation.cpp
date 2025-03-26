@@ -696,7 +696,7 @@ private:
     // cache - should only be called after successful validation of all transactions in the package.
     // Does not call LimitMempoolSize(), so mempool max_size_bytes may be temporarily exceeded.
     bool SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& workspaces, PackageValidationState& package_state,
-                       std::map<uint256, MempoolAcceptResult>& results)
+                       std::map<Wtxid, MempoolAcceptResult>& results)
          EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
 
     // Compare a package's feerate against minimum allowed.
@@ -1339,7 +1339,7 @@ void MemPoolAccept::FinalizeSubpackage(const ATMPArgs& args)
 
 bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& workspaces,
                                   PackageValidationState& package_state,
-                                  std::map<uint256, MempoolAcceptResult>& results)
+                                  std::map<Wtxid, MempoolAcceptResult>& results)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(m_pool.cs);
@@ -1439,8 +1439,8 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
     }
 
     if (m_pool.m_opts.require_standard) {
-        Txid dummy_txid;
-        if (!CheckEphemeralSpends(/*package=*/{ptx}, m_pool.m_opts.dust_relay_feerate, m_pool, ws.m_state, dummy_txid)) {
+        Wtxid dummy_wtxid;
+        if (!CheckEphemeralSpends(/*package=*/{ptx}, m_pool.m_opts.dust_relay_feerate, m_pool, ws.m_state, dummy_wtxid)) {
             return MempoolAcceptResult::Failure(ws.m_state);
         }
     }
@@ -1513,7 +1513,7 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     workspaces.reserve(txns.size());
     std::transform(txns.cbegin(), txns.cend(), std::back_inserter(workspaces),
                    [](const auto& tx) { return Workspace(tx); });
-    std::map<uint256, MempoolAcceptResult> results;
+    std::map<Wtxid, MempoolAcceptResult> results;
 
     LOCK(m_pool.cs);
 
@@ -1593,10 +1593,10 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     // Now that we've bounded the resulting possible ancestry count, check package for dust spends
     if (m_pool.m_opts.require_standard) {
         TxValidationState child_state;
-        Txid child_txid;
-        if (!CheckEphemeralSpends(txns, m_pool.m_opts.dust_relay_feerate, m_pool, child_state, child_txid)) {
+        Wtxid child_wtxid;
+        if (!CheckEphemeralSpends(txns, m_pool.m_opts.dust_relay_feerate, m_pool, child_state, child_wtxid)) {
             package_state.Invalid(PackageValidationResult::PCKG_TX, "unspent-dust");
-            results.emplace(child_txid, MempoolAcceptResult::Failure(child_state));
+            results.emplace(child_wtxid, MempoolAcceptResult::Failure(child_state));
             return PackageMempoolAcceptResult(package_state, std::move(results));
         }
     }
@@ -1752,11 +1752,11 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
     LOCK(m_pool.cs);
     // Stores results from which we will create the returned PackageMempoolAcceptResult.
     // A result may be changed if a mempool transaction is evicted later due to LimitMempoolSize().
-    std::map<uint256, MempoolAcceptResult> results_final;
+    std::map<Wtxid, MempoolAcceptResult> results_final;
     // Results from individual validation which will be returned if no other result is available for
     // this transaction. "Nonfinal" because if a transaction fails by itself but succeeds later
     // (i.e. when evaluated with a fee-bumping child), the result in this map may be discarded.
-    std::map<uint256, MempoolAcceptResult> individual_results_nonfinal;
+    std::map<Wtxid, MempoolAcceptResult> individual_results_nonfinal;
     // Tracks whether we think package submission could result in successful entry to the mempool
     bool quit_early{false};
     std::vector<CTransactionRef> txns_package_eval;
@@ -4105,6 +4105,10 @@ arith_uint256 CalculateClaimedHeadersWork(std::span<const CBlockHeader> headers,
  *  enforced in this function (eg by adding a new consensus rule). See comment
  *  in ConnectBlock().
  *  Note that -reindex-chainstate skips the validation that happens here!
+ *
+ *  NOTE: failing to check the header's height against the last checkpoint's opened a DoS vector between
+ *  v0.12 and v0.15 (when no additional protection was in place) whereby an attacker could unboundedly
+ *  grow our in-memory block index. See https://bitcoincore.org/en/2024/07/03/disclose-header-spam.
  */
 static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, BlockManager& blockman, const ChainstateManager& chainman, const CBlockIndex* pindexPrev) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
@@ -4118,18 +4122,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
     if (block.GetPoWVersion() != consensusParams.GetPoWVersionAtHeight(nHeight))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-pow-version", "incorrect proof of work version");
-
-    // Check against checkpoints
-    if (chainman.m_options.checkpoints_enabled) {
-        // Don't accept any forks from the main chain prior to last checkpoint.
-        // GetLastCheckpoint finds the last checkpoint in MapCheckpoints that's in our
-        // BlockIndex().
-        const CBlockIndex* pcheckpoint = blockman.GetLastCheckpoint(chainman.GetParams().Checkpoints());
-        if (pcheckpoint && nHeight < pcheckpoint->nHeight) {
-            LogPrintf("ERROR: %s: forked chain older than last checkpoint (height %d)\n", __func__, nHeight);
-            return state.Invalid(BlockValidationResult::BLOCK_CHECKPOINT, "bad-fork-prior-to-checkpoint");
-        }
-    }
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -5073,16 +5065,15 @@ void ChainstateManager::LoadExternalBlockFile(
                 }
 
                 // Activate the genesis block so normal node progress can continue
-                if (hash == params.GetConsensus().hashGenesisBlock) {
-                    bool genesis_activation_failure = false;
-                    for (auto c : GetAll()) {
-                        BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
-                            genesis_activation_failure = true;
-                            break;
-                        }
-                    }
-                    if (genesis_activation_failure) {
+                // During first -reindex, this will only connect Genesis since
+                // ActivateBestChain only connects blocks which are in the block tree db,
+                // which only contains blocks whose parents are in it.
+                // But do this only if genesis isn't activated yet, to avoid connecting many blocks
+                // without assumevalid in the case of a continuation of a reindex that
+                // was interrupted by the user.
+                if (hash == params.GetConsensus().hashGenesisBlock && WITH_LOCK(::cs_main, return ActiveHeight()) == -1) {
+                    BlockValidationState state;
+                    if (!ActiveChainstate().ActivateBestChain(state, nullptr)) {
                         break;
                     }
                 }

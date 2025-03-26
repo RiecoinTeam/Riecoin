@@ -164,7 +164,7 @@ uint256 MessageHash(const std::string& message, MessageSignatureFormat format)
         {
             HashWriter hasher{HASHER_BIP322};
             if (!message.empty()) {
-                hasher.write(AsBytes(Span{message.data(), message.size() * sizeof(char)}));
+                hasher.write(std::as_bytes(std::span{message.data(), message.size() * sizeof(char)}));
             }
             return hasher.GetSHA256();
         }

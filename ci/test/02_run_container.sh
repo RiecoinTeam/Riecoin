@@ -7,14 +7,12 @@
 export LC_ALL=C.UTF-8
 export CI_IMAGE_LABEL="bitcoin-ci-test"
 
-set -ex
+set -o errexit -o pipefail -o xtrace
 
 if [ -z "$DANGER_RUN_CI_ON_HOST" ]; then
   # Export all env vars to avoid missing some.
   # Though, exclude those with newlines to avoid parsing problems.
   python3 -c 'import os; [print(f"{key}={value}") for key, value in os.environ.items() if "\n" not in value and "HOME" != key and "PATH" != key and "USER" != key]' | tee "/tmp/env-$USER-$CONTAINER_NAME"
-  # System-dependent env vars must be kept as is. So read them from the container.
-  docker run --platform="${CI_IMAGE_PLATFORM}" --rm "${CI_IMAGE_NAME_TAG}" bash -c "env | grep --extended-regexp '^(HOME|PATH|USER)='" | tee --append "/tmp/env-$USER-$CONTAINER_NAME"
 
   # Env vars during the build can not be changed. For example, a modified
   # $MAKEJOBS is ignored in the build process. Use --cpuset-cpus as an
@@ -92,16 +90,11 @@ if [ -z "$DANGER_RUN_CI_ON_HOST" ]; then
   fi
 
   if [ "$DANGER_CI_ON_HOST_CCACHE_FOLDER" ]; then
-   # Temporary exclusion for https://github.com/bitcoin/bitcoin/issues/31108
-   # to allow CI configs and envs generated in the past to work for a bit longer.
-   # Can be removed in March 2025.
-   if [ "${CCACHE_DIR}" != "/tmp/ccache_dir" ]; then
     if [ ! -d "${CCACHE_DIR}" ]; then
       echo "Error: Directory '${CCACHE_DIR}' must be created in advance."
       exit 1
     fi
     CI_CCACHE_MOUNT="type=bind,src=${CCACHE_DIR},dst=${CCACHE_DIR}"
-   fi # End temporary exclusion
   fi
 
   docker network create --ipv6 --subnet 1111:1111::/112 ci-ip6net || true

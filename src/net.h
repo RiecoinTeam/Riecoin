@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -211,7 +211,7 @@ public:
     // Address of this peer
     CAddress addr;
     // Bind address of our side of the connection
-    CAddress addrBind;
+    CService addrBind;
     // Network the peer connected through
     Network m_network;
     uint32_t m_mapped_as;
@@ -276,7 +276,7 @@ public:
      *
      * Consumed bytes are chopped off the front of msg_bytes.
      */
-    virtual bool ReceivedBytes(Span<const uint8_t>& msg_bytes) = 0;
+    virtual bool ReceivedBytes(std::span<const uint8_t>& msg_bytes) = 0;
 
     /** Retrieve a completed message from transport.
      *
@@ -298,14 +298,14 @@ public:
     virtual bool SetMessageToSend(CSerializedNetMsg& msg) noexcept = 0;
 
     /** Return type for GetBytesToSend, consisting of:
-     *  - Span<const uint8_t> to_send: span of bytes to be sent over the wire (possibly empty).
+     *  - std::span<const uint8_t> to_send: span of bytes to be sent over the wire (possibly empty).
      *  - bool more: whether there will be more bytes to be sent after the ones in to_send are
      *    all sent (as signaled by MarkBytesSent()).
      *  - const std::string& m_type: message type on behalf of which this is being sent
      *    ("" for bytes that are not on behalf of any message).
      */
     using BytesToSend = std::tuple<
-        Span<const uint8_t> /*to_send*/,
+        std::span<const uint8_t> /*to_send*/,
         bool /*more*/,
         const std::string& /*m_type*/
     >;
@@ -380,8 +380,8 @@ private:
     unsigned int nDataPos GUARDED_BY(m_recv_mutex);
 
     const uint256& GetMessageHash() const EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
-    int readHeader(Span<const uint8_t> msg_bytes) EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
-    int readData(Span<const uint8_t> msg_bytes) EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
+    int readHeader(std::span<const uint8_t> msg_bytes) EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
+    int readData(std::span<const uint8_t> msg_bytes) EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
 
     void Reset() EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex) {
         AssertLockHeld(m_recv_mutex);
@@ -424,7 +424,7 @@ public:
 
     Info GetInfo() const noexcept override;
 
-    bool ReceivedBytes(Span<const uint8_t>& msg_bytes) override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex)
+    bool ReceivedBytes(std::span<const uint8_t>& msg_bytes) override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex)
     {
         AssertLockNotHeld(m_recv_mutex);
         LOCK(m_recv_mutex);
@@ -616,7 +616,7 @@ private:
     /** Change the send state. */
     void SetSendState(SendState send_state) noexcept EXCLUSIVE_LOCKS_REQUIRED(m_send_mutex);
     /** Given a packet's contents, find the message type (if valid), and strip it from contents. */
-    static std::optional<std::string> GetMessageType(Span<const uint8_t>& contents) noexcept;
+    static std::optional<std::string> GetMessageType(std::span<const uint8_t>& contents) noexcept;
     /** Determine how many received bytes can be processed in one go (not allowed in V1 state). */
     size_t GetMaxBytesToProcess() noexcept EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
     /** Put our public key + garbage in the send buffer. */
@@ -641,11 +641,11 @@ public:
     V2Transport(NodeId nodeid, bool initiating) noexcept;
 
     /** Construct a V2 transport with specified keys and garbage (test use only). */
-    V2Transport(NodeId nodeid, bool initiating, const CKey& key, Span<const std::byte> ent32, std::vector<uint8_t> garbage) noexcept;
+    V2Transport(NodeId nodeid, bool initiating, const CKey& key, std::span<const std::byte> ent32, std::vector<uint8_t> garbage) noexcept;
 
     // Receive side functions.
     bool ReceivedMessageComplete() const noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
-    bool ReceivedBytes(Span<const uint8_t>& msg_bytes) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex, !m_send_mutex);
+    bool ReceivedBytes(std::span<const uint8_t>& msg_bytes) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex, !m_send_mutex);
     CNetMessage GetReceivedMessage(std::chrono::microseconds time, bool& reject_message) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
 
     // Send side functions.
@@ -707,7 +707,7 @@ public:
     // Address of this peer
     const CAddress addr;
     // Bind address of our side of the connection
-    const CAddress addrBind;
+    const CService addrBind;
     const std::string m_addr_name;
     /** The pszDest argument provided to ConnectNode(). Only used for reconnections. */
     const std::string m_dest;
@@ -883,7 +883,7 @@ public:
           const CAddress& addrIn,
           uint64_t nKeyedNetGroupIn,
           uint64_t nLocalHostNonceIn,
-          const CAddress& addrBindIn,
+          const CService& addrBindIn,
           const std::string& addrNameIn,
           ConnectionType conn_type_in,
           bool inbound_onion,
@@ -914,7 +914,7 @@ public:
      * @return  True if the peer should stay connected,
      *          False if the peer should be disconnected from.
      */
-    bool ReceiveMsgBytes(Span<const uint8_t> msg_bytes, bool& complete) EXCLUSIVE_LOCKS_REQUIRED(!cs_vRecv);
+    bool ReceiveMsgBytes(std::span<const uint8_t> msg_bytes, bool& complete) EXCLUSIVE_LOCKS_REQUIRED(!cs_vRecv);
 
     void SetCommonVersion(int greatest_common_version)
     {
@@ -1297,7 +1297,7 @@ private:
     void ThreadOpenAddedConnections() EXCLUSIVE_LOCKS_REQUIRED(!m_added_nodes_mutex, !m_unused_i2p_sessions_mutex, !m_reconnections_mutex);
     void AddAddrFetch(const std::string& strDest) EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex);
     void ProcessAddrFetch() EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_unused_i2p_sessions_mutex);
-    void ThreadOpenConnections(std::vector<std::string> connect, Span<const std::string> seed_nodes) EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_added_nodes_mutex, !m_nodes_mutex, !m_unused_i2p_sessions_mutex, !m_reconnections_mutex);
+    void ThreadOpenConnections(std::vector<std::string> connect, std::span<const std::string> seed_nodes) EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_added_nodes_mutex, !m_nodes_mutex, !m_unused_i2p_sessions_mutex, !m_reconnections_mutex);
     void ThreadMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!mutexMsgProc);
     void ThreadI2PAcceptIncoming();
     void AcceptConnection(const ListenSocket& hListenSocket);
@@ -1312,8 +1312,8 @@ private:
      */
     void CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
                                       NetPermissionFlags permission_flags,
-                                      const CAddress& addr_bind,
-                                      const CAddress& addr);
+                                      const CService& addr_bind,
+                                      const CService& addr);
 
     void DisconnectNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_reconnections_mutex, !m_nodes_mutex);
     void NotifyNumConnectionsChanged();
@@ -1325,7 +1325,7 @@ private:
      * @param[in] nodes Select from these nodes' sockets.
      * @return sockets to check for readiness
      */
-    Sock::EventsPerSock GenerateWaitSockets(Span<CNode* const> nodes);
+    Sock::EventsPerSock GenerateWaitSockets(std::span<CNode* const> nodes);
 
     /**
      * Check connected and listening sockets for IO readiness and process them accordingly.
@@ -1350,7 +1350,7 @@ private:
     void ThreadSocketHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc, !m_nodes_mutex, !m_reconnections_mutex);
     void ThreadDNSAddressSeed() EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex);
 
-    uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
+    uint64_t CalculateKeyedNetGroup(const CNetAddr& ad) const;
 
     CNode* FindNode(const CNetAddr& ip);
     CNode* FindNode(const std::string& addrName);
@@ -1679,7 +1679,7 @@ private:
 /** Defaults to `CaptureMessageToFile()`, but can be overridden by unit tests. */
 extern std::function<void(const CAddress& addr,
                           const std::string& msg_type,
-                          Span<const unsigned char> data,
+                          std::span<const unsigned char> data,
                           bool is_incoming)>
     CaptureMessage;
 

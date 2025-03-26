@@ -109,26 +109,6 @@ public:
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
 
-        checkpointData = {
-            {
-                {  4000,  uint256{"1c0cbd04b20aa0df11ef7194d4117696a4d761f31882ee098432cffe222869f8"}},
-                { 33400,  uint256{"8d1f31eb883c1bee51f02335594b14f1cf79772eae42dc7e81e5fd569edff1cc"}},
-                { 50300,  uint256{"9640513f592d30940d4cf0d139c0106b46eb3f08d267043eae3e0cc6113aae19"}},
-                { 76499,  uint256{"4f1a629015a269b37c840c8450903bcac801fb99a0ae0d1d5ce86b2bcf8fd692"}},
-                { 150550, uint256{"373ca9ff9f0b68355bff755f78c5511d635be535a0ecf3f8f32b1ee7bcd07939"}},
-                { 931912, uint256{"4b6a2102c6c3e5ac094cecdedecc7ab1b6b26b05cef4bacda69f55643f114655"}},
-                {1330344, uint256{"b055f0cc42580d73d429105e92cdcb7157b8c7f68654eb9dc8a3794985ea379f"}},
-                {1486806, uint256{"0531ac83b4ec8ee5699fe8cbd591ffbdaf369187fb75227449bc640a9e19dd1a"}},
-                {1594496, uint256{"1d4e6dfe1ff598a0c69f5e81db9eaf8bbc1a9923b11c190da1ff4831850f496b"}},
-                {1921653, uint256{"1076d2f76cd20aedcd867b1d5ba058d90a55c74ce00dcac04c489ab64711a7f8"}},
-                {2122166, uint256{"973ba054bc7371c5e406c170b40c34f9d7c15fc81e5d286bed89bda2d8d58e12"}},
-                {2144042, uint256{"95e0d3078a9b75982b4967591e05b2886298f516220845118284a6a7fcd28be6"}},
-                {2256044, uint256{"867ffe5512b703af0a1959b2985ed7414db8fb9ed67695b0c55eb5b73f81abf5"}},
-                {2278572, uint256{"3c8331bc274280b59a452876989a097fb5810814cc4a06baf414aa8c8bf22899"}},
-                {2299008, uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}},
-            }
-        };
-
         m_assumeutxo_data = {
             {
                 .height = 2299008,
@@ -200,12 +180,6 @@ public:
 
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
-
-        checkpointData = {
-            {
-                {546, uint256{"de0475d73da731abe2763210994fb17532589949bd9966e8e31c814d9f4242e1"}},
-            }
-        };
 
         m_assumeutxo_data = {
             {
@@ -280,12 +254,6 @@ public:
         fDefaultConsistencyChecks = true;
         m_is_mockable_chain = true;
 
-        checkpointData = {
-            {
-                {0, uint256{"08982e71e300f2c7f5b967df5e9b40788942abd4bc62edaeabd27d351f953b68"}},
-            }
-        };
-
         m_assumeutxo_data = {
             {   // For use by unit tests
                 .height = 110,
@@ -296,7 +264,7 @@ public:
             {
                 // For use by fuzz target src/test/fuzz/utxo_snapshot.cpp
                 .height = 200,
-                .hash_serialized = AssumeutxoHash{uint256{"4f34d431c3e482f6b0d67b64609ece3964dc8d7976d02ac68dd7c9c1421738f2"}},
+                .hash_serialized = AssumeutxoHash{uint256{"7e3b7780fbd2fa479a01f66950dc8f728dc1b11f03d06d5bf223168520df3a48"}},
                 .m_chain_tx_count = 201,
                 .blockhash = uint256{"5e93653318f294fb5aa339d00bbf8cf1c3515488ad99412c37608b139ea63b27"}
             },

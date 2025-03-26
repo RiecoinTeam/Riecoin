@@ -23,7 +23,7 @@ static_assert(!ValidDeployment(Consensus::MAX_VERSION_BITS_DEPLOYMENTS), "sanity
 template<typename T, T x>
 static constexpr bool is_minimum()
 {
-    using U = typename std::underlying_type<T>::type;
+    using U = std::underlying_type_t<T>;
     return x == std::numeric_limits<U>::min();
 }
 

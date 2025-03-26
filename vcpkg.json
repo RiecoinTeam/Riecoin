@@ -22,12 +22,6 @@
         "libqrencode"
       ]
     },
-    "sqlite": {
-      "description": "Enable SQLite wallet support",
-      "dependencies": [
-        "sqlite3"
-      ]
-    },
     "tests": {
       "description": "Build test_riecoin.exe executable",
       "dependencies": [
@@ -35,7 +29,7 @@
       ]
     },
     "wallet": {
-      "description": "Enable wallet",
+      "description": "Enable wallet (SQLite)",
       "dependencies": [
         "sqlite3"
       ]

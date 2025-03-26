@@ -236,6 +236,7 @@ BASE_SCRIPTS = [
     'example_test.py',
     'mempool_truc.py',
     'wallet_multisig_descriptor_psbt.py',
+    'wallet_miniscript_decaying_multisig_descriptor_psbt.py',
     'wallet_txn_doublespend.py',
     # 'wallet_txn_clone.py --mineblock', # Test might not work with Bech32/Bech32M.
     'feature_notifications.py',
@@ -248,6 +249,7 @@ BASE_SCRIPTS = [
     'mempool_package_onemore.py',
     'mempool_package_limits.py',
     'mempool_package_rbf.py',
+    'tool_utxo_to_sqlite.py',
     'feature_versionbits_warning.py',
     'feature_blocksxor.py',
     'rpc_preciousblock.py',
@@ -305,7 +307,6 @@ BASE_SCRIPTS = [
     'feature_filelock.py',
     'feature_loadblock.py',
     'wallet_assumeutxo.py',
-    'p2p_dos_header_tree.py',
     'p2p_add_connections.py',
     'feature_bind_port_discover.py',
     'p2p_unrequested_blocks.py',

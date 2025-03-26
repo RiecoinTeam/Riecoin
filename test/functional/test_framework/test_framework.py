@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 
 from .address import create_deterministic_address_bcrt1_p2tr_op_true
 from .authproxy import JSONRPCException
@@ -55,6 +56,48 @@ class SkipTest(Exception):
 
     def __init__(self, message):
         self.message = message
+
+
+class Binaries:
+    """Helper class to provide information about bitcoin binaries
+
+    Attributes:
+        paths: Object returned from get_binary_paths() containing information
+            which binaries and command lines to use from environment variables and
+            the config file.
+        bin_dir: An optional string containing a directory path to look for
+            binaries, which takes precedence over the paths above, if specified.
+            This is used by tests calling binaries from previous releases.
+    """
+    def __init__(self, paths, bin_dir):
+        self.paths = paths
+        self.bin_dir = bin_dir
+
+    def daemon_argv(self):
+        "Return argv array that should be used to invoke bitcoind"
+        return self._argv(self.paths.bitcoind)
+
+    def rpc_argv(self):
+        "Return argv array that should be used to invoke bitcoin-cli"
+        return self._argv(self.paths.bitcoincli)
+
+    def util_argv(self):
+        "Return argv array that should be used to invoke bitcoin-util"
+        return self._argv(self.paths.bitcoinutil)
+
+    def wallet_argv(self):
+        "Return argv array that should be used to invoke bitcoin-wallet"
+        return self._argv(self.paths.bitcoinwallet)
+
+    def _argv(self, bin_path):
+        """Return argv array that should be used to invoke the command.
+        Normally this will return binary paths directly from the paths object,
+        but when bin_dir is set (by tests calling binaries from previous
+        releases) it will return paths relative to bin_dir instead."""
+        if self.bin_dir is not None:
+            return [os.path.join(self.bin_dir, os.path.basename(bin_path))]
+        else:
+            return [bin_path]
 
 
 class BitcoinTestMetaClass(type):
@@ -216,10 +259,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         config = configparser.ConfigParser()
         config.read_file(open(self.options.configfile))
         self.config = config
+        self.binary_paths = self.get_binary_paths()
         if self.options.v1transport:
             self.options.v2transport=False
 
-        if self.is_sqlite_compiled():
+        if self.is_wallet_compiled():
             self.options.descriptors = True
         else:
             # Tests requiring a wallet will be skipped and the value of self.options.descriptors won't matter
@@ -229,9 +273,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
         PortSeed.n = self.options.port_seed
 
-    def set_binary_paths(self):
-        """Update self.options with the paths of all binaries from environment variables or their default values"""
+    def get_binary_paths(self):
+        """Get paths of all binaries from environment variables or their default values"""
 
+        paths = types.SimpleNamespace()
         binaries = {
             "riecoind": ("bitcoind", "BITCOIND"),
             "riecoin-cli": ("bitcoincli", "BITCOINCLI"),
@@ -240,10 +285,14 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for binary, [attribute_name, env_variable_name] in binaries.items():
             default_filename = os.path.join(
                 self.config["environment"]["BUILDDIR"],
-                "src",
+                "bin",
                 binary + self.config["environment"]["EXEEXT"],
             )
-            setattr(self.options, attribute_name, os.getenv(env_variable_name, default=default_filename))
+            setattr(paths, attribute_name, os.getenv(env_variable_name, default=default_filename))
+        return paths
+
+    def get_binaries(self, bin_dir=None):
+        return Binaries(self.binary_paths, bin_dir)
 
     def setup(self):
         """Call this method to start up the test framework object with options set."""
@@ -254,11 +303,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
         config = self.config
 
-        self.set_binary_paths()
-
         os.environ['PATH'] = os.pathsep.join([
-            os.path.join(config['environment']['BUILDDIR'], 'src'),
-            os.path.join(config['environment']['BUILDDIR'], 'src', 'qt'), os.environ['PATH']
+            os.path.join(config['environment']['BUILDDIR'], 'bin'),
+            os.environ['PATH']
         ])
 
         # Set up temp directory and start logging
@@ -447,14 +494,14 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
     # Public helper methods. These can be accessed by the subclass test scripts.
 
-    def add_nodes(self, num_nodes: int, extra_args=None, *, rpchost=None, binary=None, binary_cli=None, versions=None):
+    def add_nodes(self, num_nodes: int, extra_args=None, *, rpchost=None, versions=None):
         """Instantiate TestNode objects.
 
         Should only be called once after the nodes have been specified in
         set_test_params()."""
-        def get_bin_from_version(version, bin_name, bin_default):
+        def bin_dir_from_version(version):
             if not version:
-                return bin_default
+                return None
             # The first two digits represent the major version, e.g. v22.0 instead of v0.22.0.
             version *= 100
             return os.path.join(
@@ -469,7 +516,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     ),
                 ),
                 'bin',
-                bin_name,
             )
 
         if self.bind_to_localhost_only:
@@ -484,15 +530,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 extra_args[i] = extra_args[i] + ["-whitelist=noban,in,out@127.0.0.1"]
         if versions is None:
             versions = [None] * num_nodes
-        if binary is None:
-            binary = [get_bin_from_version(v, 'riecoind', self.options.bitcoind) for v in versions]
-        if binary_cli is None:
-            binary_cli = [get_bin_from_version(v, 'riecoin-cli', self.options.bitcoincli) for v in versions]
+        bin_dirs = [bin_dir_from_version(v) for v in versions]
         assert_equal(len(extra_confs), num_nodes)
         assert_equal(len(extra_args), num_nodes)
         assert_equal(len(versions), num_nodes)
-        assert_equal(len(binary), num_nodes)
-        assert_equal(len(binary_cli), num_nodes)
+        assert_equal(len(bin_dirs), num_nodes)
         for i in range(num_nodes):
             args = list(extra_args[i])
             test_node_i = TestNode(
@@ -502,8 +544,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 rpchost=rpchost,
                 timewait=self.rpc_timeout,
                 timeout_factor=self.options.timeout_factor,
-                bitcoind=binary[i],
-                bitcoin_cli=binary_cli[i],
+                binaries=self.get_binaries(bin_dirs[i]),
                 version=versions[i],
                 coverage_dir=self.options.coveragedir,
                 cwd=self.options.tmpdir,
@@ -811,8 +852,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     rpchost=None,
                     timewait=self.rpc_timeout,
                     timeout_factor=self.options.timeout_factor,
-                    bitcoind=self.options.bitcoind,
-                    bitcoin_cli=self.options.bitcoincli,
+                    binaries=self.get_binaries(),
                     coverage_dir=None,
                     cwd=self.options.tmpdir,
                     descriptors=self.options.descriptors,
@@ -921,13 +961,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self._requires_wallet = True
         if not self.is_wallet_compiled():
             raise SkipTest("wallet has not been compiled.")
-        if self.options.descriptors:
-            self.skip_if_no_sqlite()
-
-    def skip_if_no_sqlite(self):
-        """Skip the running test if sqlite has not been compiled."""
-        if not self.is_sqlite_compiled():
-            raise SkipTest("sqlite has not been compiled.")
 
     def skip_if_no_wallet_tool(self):
         """Skip the running test if riecoin-wallet has not been compiled."""
@@ -959,7 +992,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def is_specified_wallet_compiled(self):
         """Checks whether wallet support for descriptors was compiled."""
         if self.options.descriptors:
-            return self.is_sqlite_compiled()
+            return self.is_wallet_compiled()
 
     def is_wallet_tool_compiled(self):
         """Checks whether riecoin-wallet was compiled."""
@@ -972,10 +1005,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def is_usdt_compiled(self):
         """Checks whether the USDT tracepoints were compiled."""
         return self.config["components"].getboolean("ENABLE_USDT_TRACEPOINTS")
-
-    def is_sqlite_compiled(self):
-        """Checks whether the wallet module was compiled with Sqlite support."""
-        return self.config["components"].getboolean("USE_SQLITE")
 
     def has_blockfile(self, node, filenum: str):
         return (node.blocks_path/ f"blk{filenum}.dat").is_file()

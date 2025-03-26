@@ -46,6 +46,4 @@ if(WIN32 AND VCPKG_TARGET_TRIPLET)
   )
 endif()
 
-install(TARGETS test_riecoin-qt
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+install_binary_component(test_riecoin-qt)

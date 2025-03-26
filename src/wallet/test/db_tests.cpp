@@ -1,5 +1,5 @@
-// Copyright (c) 2018-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2018-present The Bitcoin Core developers
+// Copyright (c) 2018-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,9 +11,7 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/translation.h>
-#ifdef USE_SQLITE
 #include <wallet/sqlite.h>
-#endif
 #include <wallet/test/util.h>
 #include <wallet/walletutil.h> // for WALLET_FLAG_DESCRIPTORS
 
@@ -23,7 +21,7 @@
 
 inline std::ostream& operator<<(std::ostream& os, const std::pair<const SerializeData, SerializeData>& kv)
 {
-    Span key{kv.first}, value{kv.second};
+    std::span key{kv.first}, value{kv.second};
     os << "(\"" << std::string_view{reinterpret_cast<const char*>(key.data()), key.size()} << "\", \""
        << std::string_view{reinterpret_cast<const char*>(value.data()), value.size()} << "\")";
     return os;
@@ -42,7 +40,7 @@ static SerializeData StringData(std::string_view str)
     return SerializeData{bytes.begin(), bytes.end()};
 }
 
-static void CheckPrefix(DatabaseBatch& batch, Span<const std::byte> prefix, MockableData expected)
+static void CheckPrefix(DatabaseBatch& batch, std::span<const std::byte> prefix, MockableData expected)
 {
     std::unique_ptr<DatabaseCursor> cursor = batch.GetNewPrefixCursor(prefix);
     MockableData actual;
@@ -65,9 +63,7 @@ static std::vector<std::unique_ptr<WalletDatabase>> TestDatabases(const fs::path
     DatabaseOptions options;
     DatabaseStatus status;
     bilingual_str error;
-#ifdef USE_SQLITE
     dbs.emplace_back(MakeSQLiteDatabase(path_root / "sqlite", options, status, error));
-#endif
     dbs.emplace_back(CreateMockableWalletDatabase());
     return dbs;
 }
@@ -130,7 +126,7 @@ BOOST_AUTO_TEST_CASE(db_cursor_prefix_byte_test)
     for (const auto& database : TestDatabases(m_path_root)) {
         std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
         for (const auto& [k, v] : {e, p, ps, f, fs, ff, ffs}) {
-            batch->Write(Span{k}, Span{v});
+            batch->Write(std::span{k}, std::span{v});
         }
         CheckPrefix(*batch, StringBytes(""), {e, p, ps, f, fs, ff, ffs});
         CheckPrefix(*batch, StringBytes("prefix"), {p, ps});
@@ -194,8 +190,6 @@ BOOST_AUTO_TEST_CASE(erase_prefix)
         BOOST_CHECK(batch->Exists(make_key(value, key)));
     }
 }
-
-#ifdef USE_SQLITE
 
 // Test-only statement execution error
 constexpr int TEST_SQLITE_ERROR = -999;
@@ -287,7 +281,6 @@ BOOST_AUTO_TEST_CASE(concurrent_txn_dont_interfere)
     BOOST_CHECK(handler2->Read(key, read_value));
     BOOST_CHECK_EQUAL(read_value, value2);
 }
-#endif // USE_SQLITE
 
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet

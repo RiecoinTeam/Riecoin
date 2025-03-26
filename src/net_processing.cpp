@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -1788,7 +1788,6 @@ void PeerManagerImpl::MaybePunishNodeForBlock(NodeId nodeid, const BlockValidati
             break;
         }
     case BlockValidationResult::BLOCK_INVALID_HEADER:
-    case BlockValidationResult::BLOCK_CHECKPOINT:
     case BlockValidationResult::BLOCK_INVALID_PREV:
         if (peer) Misbehaving(*peer, message);
         return;
@@ -2279,7 +2278,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
             pfrom.fDisconnect = true;
             return;
         }
-        MakeAndPushMessage(pfrom, NetMsgType::BLOCK, Span{block_data});
+        MakeAndPushMessage(pfrom, NetMsgType::BLOCK, std::span{block_data});
         // Don't set pblock as we've sent the block
     } else {
         // Send block from disk
@@ -2423,6 +2422,9 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         }
         // else: If the first item on the queue is an unknown type, we erase it
         // and continue processing the queue on the next call.
+        // NOTE: previously we wouldn't do so and the peer sending us a malformed GETDATA could
+        // result in never making progress and this thread using 100% allocated CPU. See
+        // https://bitcoincore.org/en/2024/07/03/disclose-getdata-cpu.
     }
 
     peer.m_getdata_requests.erase(peer.m_getdata_requests.begin(), it);
@@ -3064,6 +3066,8 @@ void PeerManagerImpl::ProcessPackageResult(const node::PackageToValidate& packag
     }
 }
 
+// NOTE: the orphan processing used to be uninterruptible and quadratic, which could allow a peer to stall the node for
+// hours with specially crafted transactions. See https://bitcoincore.org/en/2024/07/03/disclose-orphan-dos.
 bool PeerManagerImpl::ProcessOrphanTx(Peer& peer)
 {
     AssertLockHeld(g_msgproc_mutex);
@@ -4130,13 +4134,9 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
         LOCK(cs_main);
 
-        // Note that if we were to be on a chain that forks from the checkpointed
-        // chain, then serving those headers to a peer that has seen the
-        // checkpointed chain would cause that peer to disconnect us. Requiring
-        // that our chainwork exceed the minimum chain work is a protection against
-        // being fed a bogus chain when we started up for the first time and
-        // getting partitioned off the honest network for serving that chain to
-        // others.
+        // Don't serve headers from our active chain until our chainwork is at least
+        // the minimum chain work. This prevents us from starting a low-work headers
+        // sync that will inevitably be aborted by our peer.
         if (m_chainman.ActiveTip() == nullptr ||
                 (m_chainman.ActiveTip()->nChainWork < m_chainman.MinimumChainWork() && !pfrom.HasPermission(NetPermissionFlags::Download))) {
             LogDebug(BCLog::NET, "Ignoring getheaders from peer=%d because active chain has too little work; sending empty response\n", pfrom.GetId());

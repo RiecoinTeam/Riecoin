@@ -66,8 +66,6 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
     });
 }
 
-#ifdef USE_SQLITE
 static void WalletLoadingDescriptors(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/false); }
 BENCHMARK(WalletLoadingDescriptors, benchmark::PriorityLevel::HIGH);
-#endif
 } // namespace wallet

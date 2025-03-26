@@ -90,6 +90,11 @@ COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
     while (!CheckProofOfWork(block->GetHashForPoW(), block->nBits, ArithToUint256(block->nNonce), Params().GetConsensus()))
         block->nNonce += 131072;
 
+    return ProcessBlock(node, block);
+}
+
+COutPoint ProcessBlock(const NodeContext& node, const std::shared_ptr<CBlock>& block)
+{
     auto& chainman{*Assert(node.chainman)};
     const auto old_height = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveHeight());
     bool new_block;
