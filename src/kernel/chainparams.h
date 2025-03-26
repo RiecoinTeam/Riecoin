@@ -8,8 +8,10 @@
 #define BITCOIN_KERNEL_CHAINPARAMS_H
 
 #include <consensus/params.h>
+#include <hash.h>
 #include <kernel/messagestartchars.h>
 #include <primitives/block.h>
+#include <streams.h>
 #include <uint256.h>
 #include <util/chaintype.h>
 #include <util/hash_type.h>
@@ -17,12 +19,31 @@
 
 #include <cstdint>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+struct CheckpointData {
+    /** During the First Sync, Block Headers are downloaded by batches of 2000. Hardcode the Hash of serialized and concatenated Headers for each batck to recognize them and avoid the expensive PoW check on these Headers, tremendously accelerating the Sync process. */
+    std::map<uint256, std::pair<int, long unsigned int>> knownHeaderBatchesHashes;
+    /** By default assume that the scripts and PoW in ancestors of this block are valid */
+    uint256 assumedValidBlockHash; // Should be the last Block from the last Batch. There should also be a margin of at least 2000 Blocks fron this and the present.
+    int assumedValidBlockHeight;
+
+    bool isKnownHeaderBatch(std::span<const CBlockHeader> headers, const int start) const {
+        DataStream headersSerialized{};
+        for (const CBlockHeader& header : headers)
+            headersSerialized << header;
+        const auto hashIt(knownHeaderBatchesHashes.find(Hash(headersSerialized)));
+        if (hashIt != knownHeaderBatchesHashes.end())
+            return std::make_pair(start, headers.size()) == hashIt->second;
+        return false;
+    }
+};
 
 struct AssumeutxoHash : public BaseHash<uint256> {
     explicit AssumeutxoHash(const uint256& hash) : BaseHash(hash) {}
@@ -104,6 +125,7 @@ public:
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::string& Bech32HRP() const { return bech32_hrp; }
     const std::vector<uint8_t>& FixedSeeds() const { return vFixedSeeds; }
+    const CheckpointData& Checkpoints() const { return checkpointData; }
 
     std::optional<AssumeutxoData> AssumeutxoForHeight(int height) const
     {
@@ -153,6 +175,7 @@ protected:
     std::vector<uint8_t> vFixedSeeds;
     bool fDefaultConsistencyChecks;
     bool m_is_mockable_chain;
+    CheckpointData checkpointData;
     std::vector<AssumeutxoData> m_assumeutxo_data;
     ChainTxData chainTxData;
 };

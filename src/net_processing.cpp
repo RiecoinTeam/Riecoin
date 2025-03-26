@@ -1788,6 +1788,7 @@ void PeerManagerImpl::MaybePunishNodeForBlock(NodeId nodeid, const BlockValidati
             break;
         }
     case BlockValidationResult::BLOCK_INVALID_HEADER:
+    case BlockValidationResult::BLOCK_CHECKPOINT:
     case BlockValidationResult::BLOCK_INVALID_PREV:
         if (peer) Misbehaving(*peer, message);
         return;
@@ -2831,6 +2832,21 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
         // it is a response to our last getheaders request, if there is one.
         peer.m_last_getheaders_timestamp = {};
         return;
+    }
+    else if (nCount != MAX_HEADERS_RESULTS) {
+        if (m_chainman.m_best_header->nHeight < m_chainman.GetParams().Checkpoints().assumedValidBlockHeight) {
+            Misbehaving(peer, "received during first sync batch of " + std::to_string(nCount) + " headers instead of expected " + std::to_string(MAX_HEADERS_RESULTS));
+            return;
+        }
+    }
+    else {
+        // Check only for first Sync, avoid issues if resuming Sync after a long break with a new Version containing new Checkpoints.
+        if (m_chainman.m_best_header->nHeight % 2000 == 0 && m_chainman.m_best_header->nHeight < m_chainman.GetParams().Checkpoints().assumedValidBlockHeight) {
+            if (!m_chainparams.Checkpoints().isKnownHeaderBatch(headers, m_chainman.m_best_header->nHeight + 1)) {
+                Misbehaving(peer, "received during first sync invalid batch for Headers " + std::to_string(m_chainman.m_best_header->nHeight + 1) + "-" + std::to_string(m_chainman.m_best_header->nHeight + MAX_HEADERS_RESULTS));
+                return;
+            }
+        }
     }
 
     // Before we do any processing, make sure these pass basic sanity checks.
@@ -5489,7 +5505,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                    the peer's known best block.  This wouldn't be possible
                    if we requested starting at m_chainman.m_best_header and
                    got back an empty response.  */
-                if (pindexStart->pprev)
+                if (pindexStart->pprev && m_chainman.m_best_header->nHeight >= m_chainman.GetParams().Checkpoints().assumedValidBlockHeight) // Don't do it before the last Hard Coded Batch since it may break the Quick Initial Sync implementation.
                     pindexStart = pindexStart->pprev;
                 if (MaybeSendGetHeaders(*pto, GetLocator(pindexStart), *peer)) {
                     LogDebug(BCLog::NET, "initial getheaders (%d) to peer=%d (startheight:%d)\n", pindexStart->nHeight, pto->GetId(), peer->m_starting_height);

@@ -11,6 +11,7 @@
 #include <consensus/merkle.h>
 #include <consensus/params.h>
 #include <hash.h>
+#include <kernel/checkpointdata.h>
 #include <kernel/messagestartchars.h>
 #include <logging.h>
 #include <primitives/block.h>
@@ -72,7 +73,6 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
         consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000c975dea626863b076e5f96200000"}; // 2299008
-        consensus.defaultAssumeValid = uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}; // 2299008
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -108,6 +108,8 @@ public:
 
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
+
+        checkpointData = maincheckpointData;
 
         m_assumeutxo_data = {
             {
@@ -148,7 +150,6 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
         consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000621d26412a433de46a000"}; // 102484
-        consensus.defaultAssumeValid = uint256{"b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda"}; // 102484
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -180,6 +181,11 @@ public:
 
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
+
+        checkpointData = {
+            {},
+            uint256{}, 0 // Assumed Valid Block
+        };
 
         m_assumeutxo_data = {
             {
@@ -223,7 +229,6 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
         consensus.nMinimumChainWork = uint256{};
-        consensus.defaultAssumeValid = uint256{};
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -253,6 +258,11 @@ public:
 
         fDefaultConsistencyChecks = true;
         m_is_mockable_chain = true;
+
+        checkpointData = {
+            {},
+            uint256{}, 0 // Assumed Valid Block
+        };
 
         m_assumeutxo_data = {
             {   // For use by unit tests

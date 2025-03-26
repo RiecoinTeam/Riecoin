@@ -38,6 +38,7 @@
 
 #include <cstddef>
 #include <map>
+#include <ranges>
 #include <unordered_map>
 
 namespace kernel {
@@ -574,6 +575,14 @@ void BlockManager::ScanAndUnlinkAlreadyPrunedFiles()
     }
 
     UnlinkPrunedFiles(block_files_to_prune);
+}
+
+const CBlockIndex* BlockManager::GetCheckpoint(const uint256& hash)
+{
+    const CBlockIndex* pindex = LookupBlockIndex(hash);
+    if (pindex)
+        return pindex;
+    return nullptr;
 }
 
 bool BlockManager::IsBlockPruned(const CBlockIndex& block) const

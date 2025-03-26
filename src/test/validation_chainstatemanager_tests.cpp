@@ -1,4 +1,5 @@
-// Copyright (c) 2019-2022 The Bitcoin Core developers
+// Copyright (c) 2019-present The Bitcoin Core developers
+// Copyright (c) 2025-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
@@ -810,18 +811,18 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_args, BasicTestingSetup)
         return *result;
     };
 
-    // test -assumevalid
-    BOOST_CHECK(!get_valid_opts({}).assumed_valid_block);
-    BOOST_CHECK_EQUAL(get_valid_opts({"-assumevalid="}).assumed_valid_block, uint256::ZERO);
-    BOOST_CHECK_EQUAL(get_valid_opts({"-assumevalid=0"}).assumed_valid_block, uint256::ZERO);
+    // test -noassumevalid (and that -assumevalid does nothing)
     BOOST_CHECK_EQUAL(get_valid_opts({"-noassumevalid"}).assumed_valid_block, uint256::ZERO);
-    BOOST_CHECK_EQUAL(get_valid_opts({"-assumevalid=0x12"}).assumed_valid_block, uint256{0x12});
+    BOOST_CHECK(!get_valid_opts({}).assumed_valid_block);
+    BOOST_CHECK(!get_valid_opts({"-assumevalid="}).assumed_valid_block);
+    BOOST_CHECK(!get_valid_opts({"-assumevalid=0"}).assumed_valid_block);
+    BOOST_CHECK(!get_valid_opts({"-assumevalid=0x12"}).assumed_valid_block);
 
     std::string assume_valid{"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"};
-    BOOST_CHECK_EQUAL(get_valid_opts({("-assumevalid=" + assume_valid).c_str()}).assumed_valid_block, uint256::FromHex(assume_valid));
+    BOOST_CHECK(!get_valid_opts({("-assumevalid=" + assume_valid).c_str()}).assumed_valid_block);
 
-    BOOST_CHECK(!get_opts({"-assumevalid=xyz"}));                                                               // invalid hex characters
-    BOOST_CHECK(!get_opts({"-assumevalid=01234567890123456789012345678901234567890123456789012345678901234"})); // > 64 hex chars
+    BOOST_CHECK(!get_valid_opts({"-assumevalid=xyz"}).assumed_valid_block); // invalid hex characters
+    BOOST_CHECK(!get_valid_opts({"-assumevalid=01234567890123456789012345678901234567890123456789012345678901234"}).assumed_valid_block); // > 64 hex chars
 
     // test -minimumchainwork
     BOOST_CHECK(!get_valid_opts({}).minimum_chain_work);

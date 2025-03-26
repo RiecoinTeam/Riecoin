@@ -357,6 +357,9 @@ public:
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
 
+    //! Returns last CBlockIndex* that is a checkpoint
+    const CBlockIndex* GetCheckpoint(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
     //! Check if all blocks in the [upper_block, lower_block] range have data available.
     //! The caller is responsible for ensuring that lower_block is an ancestor of upper_block
     //! (part of the same chain).

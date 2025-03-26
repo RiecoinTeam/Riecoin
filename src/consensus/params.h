@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -75,8 +75,6 @@ struct Params {
     std::chrono::seconds PowTargetSpacing() const {return std::chrono::seconds{nPowTargetSpacing};}
     /** The best chain should have at least this much work */
     uint256 nMinimumChainWork;
-    /** By default assume that the signatures in ancestors of this block are valid */
-    uint256 defaultAssumeValid;
 };
 
 } // namespace Consensus
