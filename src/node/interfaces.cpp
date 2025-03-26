@@ -1,5 +1,5 @@
-// Copyright (c) 2018-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2018-present The Bitcoin Core developers
+// Copyright (c) 2018-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -106,7 +106,7 @@ public:
     explicit NodeImpl(NodeContext& context) { setContext(&context); }
     void initLogging() override { InitLogging(args()); }
     void initParameterInteraction() override { InitParameterInteraction(args()); }
-    bilingual_str getWarnings() override { return Join(Assert(m_context->warnings)->GetMessages(), Untranslated("<hr />")); }
+    bilingual_str getWarnings() override { return Join(Assert(m_context->warnings)->GetMessages(), Untranslated("<br>")); }
     int getExitStatus() override { return Assert(m_context)->exit_status.load(); }
     BCLog::CategoryMask getLogCategories() override { return LogInstance().GetCategoryMask(); }
     bool baseInitialize() override

@@ -130,7 +130,7 @@ QLabel { color: rgb(40,40,40);  }</string>
              <item>
               <widget class="QLabel" name="infoText">
                <property name="text">
-                <string>Syncing... If this is your first time using Riecoin Core, be sure to read the documentation available at https://riecoin.xyz/. A blockchain bootstrap can also be found there to skip the initial sync.</string>
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:600;&quot;&gt;Syncing... To learn more about the process, go to&lt;/span&gt;&lt;/p&gt;&lt;p align=&quot;center&quot;&gt;&lt;a href=&quot;https://riecoin.xyz/Core/Sync/&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:600; text-decoration: underline; color:#1d99f3;&quot;&gt;https://riecoin.xyz/Core/Sync/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
                <property name="textFormat">
                 <enum>Qt::RichText</enum>
@@ -138,23 +138,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                <property name="wordWrap">
                 <bool>true</bool>
                </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="infoTextStrong">
-               <property name="font">
-                <font>
-                 <weight>75</weight>
-                 <bold>true</bold>
-                </font>
-               </property>
-               <property name="text">
-                <string>Attempting to spend Riecoins that are affected by not-yet-displayed transactions will not be accepted by the network.</string>
-               </property>
-               <property name="textFormat">
-                <enum>Qt::RichText</enum>
-               </property>
-               <property name="wordWrap">
+               <property name="openExternalLinks">
                 <bool>true</bool>
                </property>
               </widget>
@@ -263,7 +247,7 @@ QLabel { color: rgb(40,40,40);  }</string>
             </widget>
            </item>
            <item row="2" column="1">
-            <layout class="QHBoxLayout" name="horizontalLayoutSync" stretch="0,1">
+            <layout class="QHBoxLayout" name="horizontalLayoutSync" stretch="0">
              <item>
               <widget class="QLabel" name="percentageProgress">
                <property name="text">
@@ -338,14 +322,14 @@ QLabel { color: rgb(40,40,40);  }</string>
            </item>
            <item>
             <widget class="QPushButton" name="closeButton">
+             <property name="focusPolicy">
+              <enum>Qt::StrongFocus</enum>
+             </property>
              <property name="text">
               <string>Hide</string>
              </property>
              <property name="shortcut">
               <string>Esc</string>
-             </property>
-             <property name="focusPolicy">
-              <enum>Qt::StrongFocus</enum>
              </property>
              <property name="default">
               <bool>true</bool>

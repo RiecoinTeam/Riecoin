@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <clientversion.h>
+
 #include <qt/overviewpage.h>
 #include <qt/forms/ui_overviewpage.h>
 
@@ -142,6 +144,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
     ui->labelWalletStatus->setIcon(icon);
+
+    // Show Version.
+    ui->version->setText(QString::fromStdString(FormatFullVersion()));
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
