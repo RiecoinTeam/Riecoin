@@ -5,7 +5,6 @@
 #ifndef BITCOIN_QT_SENDCOINSDIALOG_H
 #define BITCOIN_QT_SENDCOINSDIALOG_H
 
-#include <qt/clientmodel.h>
 #include <qt/walletmodel.h>
 
 #include <QDialog>
@@ -13,6 +12,7 @@
 #include <QString>
 #include <QTimer>
 
+class ClientModel;
 class PlatformStyle;
 class SendCoinsEntry;
 class SendCoinsRecipient;
@@ -113,7 +113,7 @@ private Q_SLOTS:
     void coinControlClipboardBytes();
     void coinControlClipboardChange();
     void updateFeeSectionControls();
-    void updateNumberOfBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state);
+    void updateNumberOfBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool headers, SynchronizationState sync_state);
     void updateSmartFeeLabel();
 
 Q_SIGNALS:

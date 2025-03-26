@@ -67,9 +67,9 @@ kernel::InterruptResult KernelNotifications::blockTip(SynchronizationState state
     return {};
 }
 
-void KernelNotifications::headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync)
+void KernelNotifications::headerTip(SynchronizationState state, const CBlockIndex* i)
 {
-    uiInterface.NotifyHeaderTip(state, height, timestamp, presync);
+    uiInterface.NotifyHeaderTip(state, i);
 }
 
 void KernelNotifications::progress(const bilingual_str& title, int progress_percent, bool resume_possible)

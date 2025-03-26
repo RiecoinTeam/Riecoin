@@ -49,7 +49,6 @@ struct CNodeStateStats {
     uint64_t m_addr_rate_limited = 0;
     bool m_addr_relay_enabled{false};
     ServiceFlags their_services;
-    int64_t presync_height{-1};
     std::chrono::seconds time_offset{0};
 };
 

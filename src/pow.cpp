@@ -133,29 +133,6 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     }
 }
 
-// Check that on difficulty adjustments, the new difficulty does not increase
-// or decrease beyond the permitted limits.
-bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t height, uint32_t old_nbits, uint32_t new_nbits)
-{
-    if (height >= params.fork2Height) {
-        if (height == params.fork2Height) { // Transition Fork 1 -> Fork 2
-            uint32_t oldDifficulty((old_nbits & 0x007FFFFFU) >> 8U);
-            uint32_t expectedNBits(oldDifficulty*171);
-            if (expectedNBits < params.nBitsMin) expectedNBits = params.nBitsMin;
-            return new_nbits == expectedNBits;
-        }
-        else {
-            int64_t largest_difficulty_target(asert(old_nbits, -TIMESTAMP_WINDOW, height, params));
-            int64_t smallest_difficulty_target(asert(old_nbits, 12*params.nPowTargetSpacing, height, params));
-            if (new_nbits < smallest_difficulty_target) return false;
-            if (new_nbits > largest_difficulty_target) return false;
-        }
-    }
-    else if (new_nbits < 33632256 || new_nbits > 34210816) // MainNet Only, before second Fork. Just enforce the lower (304) and upper (2564) bounds for simplicity.
-        return false;
-    return true;
-}
-
 std::optional<uint32_t> DeriveTrailingZeros(unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin)
 {
     if (nBits < nBitsMin)

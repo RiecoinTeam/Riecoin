@@ -45,7 +45,6 @@ add_executable(test_riecoin
   fs_tests.cpp
   getarg_tests.cpp
   hash_tests.cpp
-  headers_sync_chainwork_tests.cpp
   httpserver_tests.cpp
   i2p_tests.cpp
   interfaces_tests.cpp

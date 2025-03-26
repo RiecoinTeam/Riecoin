@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2021 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2015-present The Bitcoin Core developers
+# Copyright (c) 2015-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test node responses to invalid network messages."""
@@ -307,7 +307,7 @@ class InvalidMessagesTest(BitcoinTestFramework):
         # invalidate PoW
         blockheader.nNonce += 65536
         blockheader.rehash()
-        with self.nodes[0].assert_debug_log(['Misbehaving', 'header with invalid proof of work']):
+        with self.nodes[0].assert_debug_log(['Misbehaving', 'invalid header received']):
             peer.send_without_ping(msg_headers([blockheader]))
             peer.wait_for_disconnect()
 

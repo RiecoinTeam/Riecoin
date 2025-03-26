@@ -9,7 +9,6 @@
 #include <bitcoin-build-config.h> // IWYU pragma: keep
 
 #include <qt/bitcoinunits.h>
-#include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsdialog.h>
 
@@ -28,6 +27,7 @@
 
 #include <memory>
 
+class ClientModel;
 class NetworkStyle;
 class Notificator;
 class OptionsModel;
@@ -209,7 +209,6 @@ private:
     void updateNetworkState();
 
     void updateHeadersSyncProgressLabel();
-    void updateHeadersPresyncProgressLabel(int64_t height, const QDateTime& blockDate);
 
     /** Open the OptionsDialog on the specified tab index */
     void openOptionsDialogWithTab(OptionsDialog::Tab tab);
@@ -228,7 +227,7 @@ public Q_SLOTS:
     /** Set network state shown in the UI */
     void setNetworkActive(bool network_active);
     /** Set number of blocks and last block date shown in the UI */
-    void setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state);
+    void setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool headers, SynchronizationState sync_state);
     /** Launch the wallet creation modal (no-op if wallet is not compiled) **/
     void createWallet();
 

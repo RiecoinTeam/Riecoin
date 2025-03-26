@@ -228,7 +228,6 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   dbwrapper.cpp
   deploymentstatus.cpp
   flatfile.cpp
-  headerssync.cpp
   httprpc.cpp
   httpserver.cpp
   i2p.cpp

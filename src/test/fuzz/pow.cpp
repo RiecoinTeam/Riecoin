@@ -1,5 +1,5 @@
-// Copyright (c) 2020-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2020-present The Bitcoin Core developers
+// Copyright (c) 2020-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -85,46 +85,4 @@ FUZZ_TARGET(pow, .init = initialize_pow)
             }
         }
     }
-}
-
-
-FUZZ_TARGET(pow_transition, .init = initialize_pow)
-{
-    FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
-    const Consensus::Params& consensus_params{Params().GetConsensus()};
-    std::vector<std::unique_ptr<CBlockIndex>> blocks;
-
-    const uint32_t old_time{fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
-    const uint32_t new_time{fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
-    const int32_t version{fuzzed_data_provider.ConsumeIntegral<int32_t>()};
-    uint32_t nbits{fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
-    uint32_t nBitsMin(consensus_params.nBitsMin);
-
-    if (nbits < nBitsMin)
-        nbits = nBitsMin;
-
-    {
-        CBlockHeader header;
-        header.nVersion = version;
-        header.nTime = old_time;
-        header.nBits = nbits;
-        auto current_block{std::make_unique<CBlockIndex>(header)};
-        current_block->pprev = nullptr;
-        current_block->nHeight = 0;
-        blocks.emplace_back(std::move(current_block));
-    }
-
-    {
-        CBlockHeader header;
-        header.nVersion = version;
-        header.nTime = new_time;
-        header.nBits = nbits;
-        auto current_block{std::make_unique<CBlockIndex>(header)};
-        current_block->pprev = blocks.back().get();
-        current_block->nHeight = 1;
-        blocks.emplace_back(std::move(current_block));
-    }
-
-    unsigned int new_nbits{GetNextWorkRequired(blocks[1].get(), consensus_params)};
-    Assert(PermittedDifficultyTransition(consensus_params, blocks[1]->nHeight + 1, blocks[1]->nBits, new_nbits));
 }

@@ -681,7 +681,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     for (const auto& bi : BLOCKINFO) {
         const int current_height{mining->getTip()->height};
 
-        /**
+        *//**
          * Simple block creation, nothing special yet.
          * If current_height is odd, block_template will have already been
          * set at the end of the previous loop.
@@ -714,7 +714,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         // via the Mining interface. The former is used by net_processing as well
         // as the submitblock RPC.
         if (current_height % 2 == 0) {*/
-            //BOOST_REQUIRE(Assert(m_node.chainman)->ProcessNewBlock(shared_pblock, /*force_processing=*/true, /*min_pow_checked=*/true, nullptr));
+            //BOOST_REQUIRE(Assert(m_node.chainman)->ProcessNewBlock(shared_pblock, /*force_processing=*/true, nullptr));
         /*} else {
             BOOST_REQUIRE(block_template->submitSolution(block.nVersion, block.nTime, block.nNonce, MakeTransactionRef(txCoinbase)));
         }

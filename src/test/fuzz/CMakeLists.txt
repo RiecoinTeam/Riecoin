@@ -14,7 +14,6 @@ add_executable(fuzz
   base_encode_decode.cpp
   bech32.cpp
   bip324.cpp
-  bitdeque.cpp
   bitset.cpp
   block.cpp
   block_header.cpp
@@ -49,7 +48,6 @@ add_executable(fuzz
   flatfile.cpp
   float.cpp
   golomb_rice.cpp
-  headerssync.cpp
   hex.cpp
   http_request.cpp
   i2p.cpp

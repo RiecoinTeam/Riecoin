@@ -15,7 +15,6 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
-#include <util/bitdeque.h>
 #include <util/byte_units.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
@@ -29,6 +28,7 @@
 
 #include <array>
 #include <cmath>
+#include <deque>
 #include <fstream>
 #include <limits>
 #include <map>
