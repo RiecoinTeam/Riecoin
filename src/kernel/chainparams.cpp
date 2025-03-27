@@ -72,7 +72,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000c975dea626863b076e5f96200000"}; // 2299008
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000d3b6857eeeada253b65f96200000"}; // 2325905
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -109,22 +109,22 @@ public:
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
 
-        checkpointData = maincheckpointData;
+        checkpointData = mainCheckpointData;
 
         m_assumeutxo_data = {
             {
-                .height = 2299008,
-                .hash_serialized = AssumeutxoHash{uint256{"9290e02355f4dc62b12ea6976c7a58aac0ef4368a13c0e523c1c40dc2419fcfb"}},
-                .m_chain_tx_count = 4538788,
-                .blockhash = uint256{"ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f"}
+                .height = 2322000,
+                .hash_serialized = AssumeutxoHash{uint256{"09c01ba89fe47314da250b7dccaeaee90a64b7303cf62d3f43e505677be5585b"}},
+                .m_chain_tx_count = 4566965,
+                .blockhash = uint256{"40a3c0aaa790165a9b3d8764e867aec7a0b817d4edfd1a248a04242d0506a7ee"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 ea1ce446fae1f37adaf35d7f9ac405012ebb3d422658bf7529d1078e1656d05f
-            .nTime    = 1739062580,
-            .tx_count = 4538788,
-            .dTxRate  = 0.008752785489941508,
+            // Data from RPC: getchaintxstats 65536 40a3c0aaa790165a9b3d8764e867aec7a0b817d4edfd1a248a04242d0506a7ee
+            .nTime    = 1742504513,
+            .tx_count = 4566965,
+            .dTxRate  = 0.008461742683110736,
         };
     }
 };
@@ -149,7 +149,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000621d26412a433de46a000"}; // 102484
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000075f8e74698244438e6000"}; // 115939
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -182,25 +182,22 @@ public:
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
 
-        checkpointData = {
-            {},
-            uint256{}, 0 // Assumed Valid Block
-        };
+        checkpointData = testCheckpointData;
 
         m_assumeutxo_data = {
             {
-                .height = 102484,
-                .hash_serialized = AssumeutxoHash{uint256{"992eb27a882178196b880b811fbe49ac8400f5212172deaf40906ab26bd17154"}},
-                .m_chain_tx_count = 102494,
-                .blockhash = uint256{"b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda"}
+                .height = 112000,
+                .hash_serialized = AssumeutxoHash{uint256{"5c21e6d9c581a15a61fdeb905ddfa5ad13d93335dc08e23dbce589c23210df22"}},
+                .m_chain_tx_count = 112014,
+                .blockhash = uint256{"2e8b0c351e6ed2019ebdf567f7396ec034d721029b945a8e9659c721e06a7772"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 b84dfd998b4df08973f45a35db0eee48a20d0db0025ab75d10ef6d6df810dbda
-            .nTime    = 1739063576,
-            .tx_count = 102494,
-            .dTxRate  = 0.003342740655705871,
+            // Data from RPC: getchaintxstats 16384 2e8b0c351e6ed2019ebdf567f7396ec034d721029b945a8e9659c721e06a7772
+            .nTime    = 1741902653,
+            .tx_count = 112014,
+            .dTxRate  = 0.003345395783715304,
         };
     }
 };

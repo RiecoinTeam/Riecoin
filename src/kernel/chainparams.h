@@ -29,18 +29,18 @@
 
 struct CheckpointData {
     /** During the First Sync, Block Headers are downloaded by batches of 2000. Hardcode the Hash of serialized and concatenated Headers for each batck to recognize them and avoid the expensive PoW check on these Headers, tremendously accelerating the Sync process. */
-    std::map<uint256, std::pair<int, long unsigned int>> knownHeaderBatchesHashes;
+    std::map<uint256, std::pair<uint32_t, uint32_t>> knownHeaderBatchesHashes;
     /** By default assume that the scripts and PoW in ancestors of this block are valid */
     uint256 assumedValidBlockHash; // Should be the last Block from the last Batch. There should also be a margin of at least 2000 Blocks fron this and the present.
     int assumedValidBlockHeight;
 
-    bool isKnownHeaderBatch(std::span<const CBlockHeader> headers, const int start) const {
+    bool isKnownHeaderBatch(std::span<const CBlockHeader> headers, const uint32_t start) const {
         DataStream headersSerialized{};
         for (const CBlockHeader& header : headers)
             headersSerialized << header;
         const auto hashIt(knownHeaderBatchesHashes.find(Hash(headersSerialized)));
         if (hashIt != knownHeaderBatchesHashes.end())
-            return std::make_pair(start, headers.size()) == hashIt->second;
+            return std::make_pair(start, static_cast<uint32_t>(headers.size())) == hashIt->second;
         return false;
     }
 };
