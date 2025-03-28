@@ -4468,15 +4468,15 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
 
         // Bypass PoW Check if Ancestor of Assumed Valid Block.
         bool fPoWChecks = true;
-        uint256 hash = block->GetHash();
-        BlockMap::iterator miSelf{m_blockman.m_block_index.find(hash)};
-        CBlockIndex* pindexTmp = nullptr;
-        if (hash != GetConsensus().hashGenesisBlock)
-            if (miSelf != m_blockman.m_block_index.end())
-                pindexTmp = &(miSelf->second);
         if (!AssumedValidBlock().IsNull()) {
+            uint256 hash = block->GetHash();
+            BlockMap::iterator miSelf{m_blockman.m_block_index.find(hash)};
+            CBlockIndex* pindexTmp = nullptr;
+            if (hash != GetConsensus().hashGenesisBlock)
+                if (miSelf != m_blockman.m_block_index.end())
+                    pindexTmp = &(miSelf->second);
             BlockMap::const_iterator it{m_blockman.m_block_index.find(AssumedValidBlock())};
-            if (it != m_blockman.m_block_index.end()) {
+            if (pindexTmp && it != m_blockman.m_block_index.end()) {
                 if (it->second.GetAncestor(pindexTmp->nHeight) == pindexTmp &&
                     m_best_header->GetAncestor(pindexTmp->nHeight) == pindexTmp &&
                     m_best_header->nChainWork >= MinimumChainWork())
