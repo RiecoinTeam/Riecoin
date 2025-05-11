@@ -6,7 +6,6 @@
 """Test createwallet arguments.
 """
 
-from test_framework.address import key_to_p2wpkh
 from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -28,7 +27,6 @@ class CreateWalletTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0]
-        self.generate(node, 1) # Leave IBD for sethdseed
 
         self.log.info("Run createwallet with invalid parameters.")
         # Run createwallet with invalid parameters. This must not prevent a new wallet with the same name from being created with the correct parameters.
@@ -118,8 +116,8 @@ class CreateWalletTest(BitcoinTestFramework):
                 'active': True,
                 'internal': True
             }])
-        w4.getnewaddress()
-        w4.getrawchangeaddress()
+            w4.getnewaddress()
+            w4.getrawchangeaddress()
 
         self.log.info("Test blank creation with privkeys disabled and then encryption")
         self.nodes[0].createwallet(wallet_name='w5', disable_private_keys=True, blank=True)

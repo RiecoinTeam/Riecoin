@@ -34,7 +34,6 @@ and confirm again balances are correct.
 from decimal import Decimal
 import os
 from random import randint
-import shutil
 
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework

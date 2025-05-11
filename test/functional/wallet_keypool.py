@@ -9,7 +9,11 @@ import time
 from decimal import Decimal
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import (
+    assert_equal,
+    assert_not_equal,
+    assert_raises_rpc_error,
+)
 from test_framework.wallet_util import WalletUnlock
 
 class KeyPoolTest(BitcoinTestFramework):
@@ -24,7 +28,6 @@ class KeyPoolTest(BitcoinTestFramework):
         nodes = self.nodes
         addr_before_encrypting = nodes[0].getnewaddress()
         addr_before_encrypting_data = nodes[0].getaddressinfo(addr_before_encrypting)
-        wallet_info_old = nodes[0].getwalletinfo()
 
         # Encrypt wallet and wait to terminate
         nodes[0].encryptwallet('test')
@@ -75,8 +78,7 @@ class KeyPoolTest(BitcoinTestFramework):
         # Keep creating keys
         addr = nodes[0].getnewaddress()
         addr_data = nodes[0].getaddressinfo(addr)
-        wallet_info = nodes[0].getwalletinfo()
-        assert addr_before_encrypting_data['hdmasterfingerprint'] != addr_data['hdmasterfingerprint']
+        assert_not_equal(addr_before_encrypting_data['hdmasterfingerprint'], addr_data['hdmasterfingerprint'])
         assert_raises_rpc_error(-12, "Error: Keypool ran out, please call keypoolrefill first", nodes[0].getnewaddress)
 
         # put six (plus 2) new keys in the keypool (100% external-, +100% internal-keys, 1 in min)

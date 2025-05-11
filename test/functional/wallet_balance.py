@@ -74,7 +74,6 @@ class WalletTest(BitcoinTestFramework):
         self.generatetoaddress(self.nodes[1], COINBASE_MATURITY + 1, ADDRESS_WATCHONLY)
 
         # Verify listunspent returns all immature coinbases if 'include_immature_coinbase' is set
-        # For now, only the legacy wallet will see the coinbases going to the imported 'ADDRESS_WATCHONLY'
         assert_equal(len(self.nodes[0].listunspent(query_options={'include_immature_coinbase': False})), 1)
         assert_equal(len(self.nodes[0].listunspent(query_options={'include_immature_coinbase': True})), 1)
 
@@ -255,7 +254,6 @@ class WalletTest(BitcoinTestFramework):
         self.nodes[1].sendrawtransaction(tx_orig)
         self.generatetoaddress(self.nodes[1], 1, ADDRESS_WATCHONLY)
         assert_equal(self.nodes[0].getbalance(minconf=0), total_amount + 1)  # The reorg recovered our fee of 1 coin
-
 
         # Tests the lastprocessedblock JSON object in getbalances, getwalletinfo
         # and gettransaction by checking for valid hex strings and by comparing

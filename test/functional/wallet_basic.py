@@ -668,8 +668,6 @@ class WalletTest(BitcoinTestFramework):
         self.test_chain_listunspent()
 
     def test_chain_listunspent(self):
-        if not self.options.descriptors:
-            return
         self.wallet = MiniWallet(self.nodes[0])
         self.nodes[0].get_wallet_rpc(self.default_wallet_name).sendtoaddress(self.wallet.get_address(), "5")
         self.generate(self.wallet, 1, sync_fun=self.no_op)

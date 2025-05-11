@@ -10,7 +10,7 @@ import json
 import os
 
 from test_framework.address import address_to_scriptpubkey
-from test_framework.descriptors import descsum_create, drop_origins
+from test_framework.descriptors import descsum_create
 from test_framework.key import ECPubKey
 from test_framework.messages import COIN
 from test_framework.script_util import keys_to_multisig_script
@@ -30,7 +30,6 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 3
         self.supports_cli = False
-        self.enable_wallet_if_possible()
 
     def create_keys(self, num_keys):
         self.pub = []
@@ -40,29 +39,21 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
             self.pub.append(pubkey.hex())
             self.priv.append(privkey)
 
-    def create_wallet(self, node, wallet_name):
-        node.createwallet(wallet_name=wallet_name, disable_private_keys=True)
-        return node.get_wallet_rpc(wallet_name)
-
     def run_test(self):
         node0, node1, _node2 = self.nodes
         self.wallet = MiniWallet(test_node=node0)
 
-        if self.is_wallet_compiled():
-            self.check_addmultisigaddress_errors()
-
         self.log.info('Generating blocks ...')
         self.generate(self.wallet, 149)
 
-        wallet_multi = self.create_wallet(node1, 'wmulti') if self._requires_wallet else None
         self.create_keys(21)  # max number of allowed keys + 1
         m_of_n = [(2, 3), (3, 3), (2, 5), (3, 5), (10, 15), (15, 15)]
         for (sigs, keys) in m_of_n:
             for output_type in ["bech32"]:
-                self.do_multisig(keys, sigs, output_type, wallet_multi)
+                self.do_multisig(keys, sigs, output_type)
 
-        self.test_multisig_script_limit(wallet_multi)
-        self.test_mixing_uncompressed_and_compressed_keys(node0, wallet_multi)
+        self.test_multisig_script_limit()
+        self.test_mixing_uncompressed_and_compressed_keys(node0)
         self.test_sortedmulti_descriptors_bip67()
 
         # Check that bech32m is currently not allowed
@@ -78,32 +69,17 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
             res = self.nodes[0].createmultisig(nrequired=nkeys, keys=keys, address_type='bech32')
             assert_equal(res['redeemScript'], expected_ms_script.hex())
 
-    def check_addmultisigaddress_errors(self):
-        if self.options.descriptors:
-            return
-        self.log.info('Check that addmultisigaddress fails when the private keys are missing')
-        addresses = [self.nodes[1].getnewaddress(address_type='legacy') for _ in range(2)]
-        assert_raises_rpc_error(-5, 'no full public key for address', lambda: self.nodes[0].addmultisigaddress(nrequired=1, keys=addresses))
-        for a in addresses:
-            # Importing all addresses should not change the result
-            self.nodes[0].importaddress(a)
-        assert_raises_rpc_error(-5, 'no full public key for address', lambda: self.nodes[0].addmultisigaddress(nrequired=1, keys=addresses))
-
-        # Bech32m address type is disallowed for legacy wallets
-        pubs = [self.nodes[1].getaddressinfo(addr)["pubkey"] for addr in addresses]
-        assert_raises_rpc_error(-5, "Bech32m multisig addresses cannot be created with legacy wallets", self.nodes[0].addmultisigaddress, 2, pubs, "", "bech32m")
-
-    def test_multisig_script_limit(self, wallet_multi):
+    def test_multisig_script_limit(self):
         node1 = self.nodes[1]
         pubkeys = self.pub[0:20]
 
         self.log.info('Test valid 16-20 multisig bech32 (no wallet)')
-        self.do_multisig(nkeys=20, nsigs=16, output_type="bech32", wallet_multi=None)
+        self.do_multisig(nkeys=20, nsigs=16, output_type="bech32")
 
         self.log.info('Test invalid 16-21 multisig bech32 (no wallet)')
         assert_raises_rpc_error(-8, "Number of keys involved in the multisignature address creation > 20", node1.createmultisig, 16, self.pub, 'bech32')
 
-    def do_multisig(self, nkeys, nsigs, output_type, wallet_multi):
+    def do_multisig(self, nkeys, nsigs, output_type):
         node0, _node1, node2 = self.nodes
         pub_keys = self.pub[0: nkeys]
         priv_keys = self.priv[0: nkeys]
@@ -130,9 +106,7 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
         self.generate(node0, 1)
 
         outval = value - decimal.Decimal("0.00002000")  # deduce fee (must be higher than the min relay fee)
-        # send coins to node2 when wallet is enabled
-        node2_balance = node2.getbalances()['mine']['trusted'] if self.is_wallet_compiled() else 0
-        out_addr = node2.getnewaddress() if self.is_wallet_compiled() else getnewdestination('bech32')[2]
+        out_addr = getnewdestination('bech32')[2]
         rawtx = node2.createrawtransaction([{"txid": tx["txid"], "vout": tx["sent_vout"]}], [{out_addr: outval}])
 
         prevtx_err = dict(prevtxs[0])
@@ -175,14 +149,10 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
 
         assert_raises_rpc_error(-25, "Input not found or already spent", node2.combinerawtransaction, [rawtx2['hex'], rawtx3['hex']])
 
-        # When the wallet is enabled, assert node2 sees the incoming amount
-        if self.is_wallet_compiled():
-            assert_equal(node2.getbalances()['mine']['trusted'], node2_balance + outval)
-
         txinfo = node0.getrawtransaction(tx, True, blk)
         self.log.info("n/m=%d/%d %s size=%d vsize=%d weight=%d" % (nsigs, nkeys, output_type, txinfo["size"], txinfo["vsize"], txinfo["weight"]))
 
-    def test_mixing_uncompressed_and_compressed_keys(self, node, wallet_multi):
+    def test_mixing_uncompressed_and_compressed_keys(self, node):
         self.log.info('Mixed compressed and uncompressed multisigs are not allowed')
         pk0, pk1, pk2 = [getnewdestination('bech32')[0].hex() for _ in range(3)]
 
@@ -204,11 +174,6 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
                 result = self.nodes[0].createmultisig(nrequired=2, keys=keys, address_type=addr_type)
                 assert_equal(legacy_addr, result['address'])
                 assert_equal(result['warnings'], err_msg)
-
-                if wallet_multi is not None:
-                    result = wallet_multi.addmultisigaddress(nrequired=2, keys=keys, address_type=addr_type)
-                    assert_equal(legacy_addr, result['address'])
-                    assert_equal(result['warnings'], err_msg)
 
     def test_sortedmulti_descriptors_bip67(self):
         self.log.info('Testing sortedmulti descriptors with BIP 67 test vectors')

@@ -22,7 +22,6 @@ class uint256;
 struct CBlockLocator;
 
 namespace wallet {
-class CKeyPool;
 class CMasterKey;
 class CWallet;
 class CWalletTx;
@@ -34,8 +33,6 @@ struct WalletContext;
  * - WalletBatch is an abstract modifier object for the wallet database, and encapsulates a database
  *   batch update as well as methods to act on the database. It should be agnostic to the database implementation.
  */
-
-static const bool DEFAULT_FLUSHWALLET = true;
 
 /** Error statuses for the wallet database.
  * Values are in order of severity. When multiple errors occur, the most severe (highest value) will be returned.
@@ -183,10 +180,6 @@ private:
         if (!m_batch->Write(key, value, fOverwrite)) {
             return false;
         }
-        m_database.IncrementUpdateCounter();
-        if (m_database.nUpdateCounter % 1000 == 0) {
-            m_batch->Flush();
-        }
         return true;
     }
 
@@ -196,17 +189,12 @@ private:
         if (!m_batch->Erase(key)) {
             return false;
         }
-        m_database.IncrementUpdateCounter();
-        if (m_database.nUpdateCounter % 1000 == 0) {
-            m_batch->Flush();
-        }
         return true;
     }
 
 public:
-    explicit WalletBatch(WalletDatabase &database, bool _fFlushOnClose = true) :
-        m_batch(database.MakeBatch(_fFlushOnClose)),
-        m_database(database)
+    explicit WalletBatch(WalletDatabase &database) :
+        m_batch(database.MakeBatch())
     {
     }
     WalletBatch(const WalletBatch&) = delete;
@@ -225,8 +213,6 @@ public:
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta);
     bool WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey);
 
-    bool WriteCScript(const uint160& hash, const CScript& redeemScript);
-
     bool WriteWatchOnly(const CScript &script, const CKeyMetadata &keymeta);
     bool EraseWatchOnly(const CScript &script);
 
@@ -234,10 +220,6 @@ public:
     bool ReadBestBlock(CBlockLocator& locator);
 
     bool WriteOrderPosNext(int64_t nOrderPosNext);
-
-    bool ReadPool(int64_t nPool, CKeyPool& keypool);
-    bool WritePool(int64_t nPool, const CKeyPool& keypool);
-    bool ErasePool(int64_t nPool);
 
     bool WriteMinVersion(int nVersion);
 
@@ -262,9 +244,6 @@ public:
 
     DBErrors LoadWallet(CWallet* pwallet);
 
-    //! write the hdchain model (external chain child index counter)
-    bool WriteHDChain(const CHDChain& chain);
-
     bool WriteWalletFlags(const uint64_t flags);
     //! Begin a new transaction
     bool TxnBegin();
@@ -279,7 +258,6 @@ public:
 
 private:
     std::unique_ptr<DatabaseBatch> m_batch;
-    WalletDatabase& m_database;
 
     // External functions listening to the current db txn outcome.
     // Listeners are cleared at the end of the transaction.

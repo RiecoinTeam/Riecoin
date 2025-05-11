@@ -5,7 +5,6 @@
 
 #include <addresstype.h>
 #include <bench/bench.h>
-#include <bitcoin-build-config.h> // IWYU pragma: keep
 #include <consensus/amount.h>
 #include <outputtype.h>
 #include <primitives/transaction.h>
@@ -33,7 +32,7 @@ static void AddTx(CWallet& wallet)
     wallet.AddToWallet(MakeTransactionRef(mtx), TxStateInactive{});
 }
 
-static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
+static void WalletLoadingDescriptors(benchmark::Bench& bench)
 {
     const auto test_setup = MakeNoLogFileContext<TestingSetup>();
 
@@ -66,6 +65,5 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
     });
 }
 
-static void WalletLoadingDescriptors(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/false); }
 BENCHMARK(WalletLoadingDescriptors, benchmark::PriorityLevel::HIGH);
 } // namespace wallet

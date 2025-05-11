@@ -17,4 +17,4 @@ if [ -n "$CIRRUS_PR" ]; then
   fi
 fi
 
-RUST_BACKTRACE=1 "${LINT_RUNNER_PATH}/test_runner"
+RUST_BACKTRACE=1 cargo run --manifest-path "./test/lint/test_runner/Cargo.toml"

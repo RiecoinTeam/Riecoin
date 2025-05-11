@@ -52,6 +52,7 @@ from test_framework.p2p import P2PInterface
 from test_framework.script import hash256, OP_TRUE
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
@@ -361,7 +362,7 @@ class BlockchainTest(BitcoinTestFramework):
         # hash_type muhash should return a different UTXO set hash.
         res6 = node.gettxoutsetinfo(hash_type='muhash')
         assert 'muhash' in res6
-        assert res['hash_serialized_3'] != res6['muhash']
+        assert_not_equal(res['hash_serialized_3'], res6['muhash'])
 
         # muhash should not be returned unless requested.
         for r in [res, res2, res3, res4, res5]:
@@ -492,8 +493,8 @@ class BlockchainTest(BitcoinTestFramework):
 
     def _test_getresult(self):
         result = self.nodes[0].getresult(self.nodes[0].getblockhash(100))
-        # Just test that the result is in the allowed range for Difficulty 288 (2^288 to ~(2^288 + 2^24)) and is prime
-        assert int(result) > 2**288 and int(result) < 2**288.00390625 + 2**24
+        # Just test that the result is in the allowed range for Difficulty 288.000 (2^288 to ~(2^288 + 2^280)) and is prime
+        assert int(result) > 2**288 and int(result) < 2**288 + 2**280
         assert is_fermat_prime(int(result))
 
     def _test_stopatheight(self):

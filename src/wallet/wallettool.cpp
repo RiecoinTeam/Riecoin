@@ -8,6 +8,7 @@
 #include <wallet/wallettool.h>
 
 #include <common/args.h>
+#include <util/check.h>
 #include <util/fs.h>
 #include <util/translation.h>
 #include <wallet/dump.h>
@@ -32,7 +33,10 @@ static void WalletCreate(CWallet* wallet_instance, uint64_t wallet_creation_flag
     LOCK(wallet_instance->cs_wallet);
     wallet_instance->SetMinVersion(FEATURE_LATEST);
     wallet_instance->InitWalletFlags(wallet_creation_flags);
+
+    Assert(wallet_instance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
     wallet_instance->SetupDescriptorScriptPubKeyMans();
+
     tfm::format(std::cout, "Topping up keypool...\n");
     wallet_instance->TopUpKeyPool();
 }
@@ -104,10 +108,6 @@ static void WalletShowInfo(CWallet* wallet_instance)
 
 bool ExecuteWalletToolFunc(const ArgsManager& args, const std::string& command)
 {
-    if (args.IsArgSet("-format") && command != "createfromdump") {
-        tfm::format(std::cerr, "The -format option can only be used with the \"createfromdump\" command.\n");
-        return false;
-    }
     if (args.IsArgSet("-dumpfile") && command != "dump" && command != "createfromdump") {
         tfm::format(std::cerr, "The -dumpfile option can only be used with the \"dump\" and \"createfromdump\" commands.\n");
         return false;

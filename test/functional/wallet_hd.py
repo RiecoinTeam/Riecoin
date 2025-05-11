@@ -11,7 +11,6 @@ from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
-    assert_raises_rpc_error,
 )
 
 
@@ -45,7 +44,6 @@ class WalletHDTest(BitcoinTestFramework):
 
         # This should be enough to keep the master key and the non-HD key
         self.nodes[1].backupwallet(self.nodes[1].datadir_path / "hd.bak")
-        #self.nodes[1].dumpwallet(self.nodes[1].datadir_path / "hd.dump")
 
         # Derive some HD addresses and remember the last
         # Also send funds to each add

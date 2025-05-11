@@ -54,6 +54,7 @@ class MempoolPersistTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 3
         self.extra_args = [[], ["-persistmempool=0"], []]
+        self.uses_wallet = None
 
     def run_test(self):
         self.mini_wallet = MiniWallet(self.nodes[2])

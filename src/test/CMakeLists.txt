@@ -26,6 +26,7 @@ add_executable(test_riecoin
   blockmanager_tests.cpp
   bloom_tests.cpp
   bswap_tests.cpp
+  chainstate_write_tests.cpp
   checkqueue_tests.cpp
   cluster_linearize_tests.cpp
   coins_tests.cpp
@@ -156,11 +157,12 @@ if(ENABLE_WALLET)
   add_subdirectory(${PROJECT_SOURCE_DIR}/src/wallet/test wallet)
 endif()
 
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   target_link_libraries(bitcoin_ipc_test
     PRIVATE
       core_interface
       univalue
+      Boost::headers
   )
 
   target_sources(test_riecoin

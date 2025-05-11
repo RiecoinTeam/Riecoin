@@ -28,6 +28,7 @@ class InitTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = False
         self.num_nodes = 1
+        self.uses_wallet = None
 
     def init_stress_test(self):
         """

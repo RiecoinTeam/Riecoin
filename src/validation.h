@@ -31,6 +31,7 @@
 #include <util/fs.h>
 #include <util/hasher.h>
 #include <util/result.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <versionbits.h>
 
@@ -796,8 +797,7 @@ private:
     void UpdateTip(const CBlockIndex* pindexNew)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    SteadyClock::time_point m_last_write{};
-    SteadyClock::time_point m_last_flush{};
+    NodeClock::time_point m_next_write{NodeClock::time_point::max()};
 
     /**
      * In case of an invalid snapshot, rename the coins leveldb directory so
@@ -922,8 +922,6 @@ private:
         CBlockIndex** ppindex,
         bool checkPoW = true) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     friend Chainstate;
-
-    std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS> m_warningcache GUARDED_BY(::cs_main);
 
     //! Return true if a chainstate is considered usable.
     //!
@@ -1200,6 +1198,7 @@ public:
      * @param[in]  headers The block headers themselves
      * @param[out] state This may be set to an Error state if any error occurred processing them
      * @param[out] ppindex If set, the pointer will be set to point to the last new block index object for the given headers
+     * @returns false if AcceptBlockHeader fails on any of the headers, true otherwise (including if headers were already known)
      */
     bool ProcessNewBlockHeaders(std::span<const CBlockHeader> headers, BlockValidationState& state, const CBlockIndex** ppindex = nullptr) LOCKS_EXCLUDED(cs_main);
 

@@ -129,10 +129,6 @@ bash -c "cmake --build . $MAKEJOBS --target all $GOAL" || ( echo "Build failure.
 bash -c "${PRINT_CCACHE_STATISTICS}"
 du -sh "${DEPENDS_DIR}"/*/
 
-if [[ $HOST = *-mingw32 ]]; then
-  "${BASE_ROOT_DIR}/ci/test/wrap-wine.sh"
-fi
-
 if [ -n "$USE_VALGRIND" ]; then
   "${BASE_ROOT_DIR}/ci/test/wrap-valgrind.sh"
 fi

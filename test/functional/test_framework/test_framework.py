@@ -89,6 +89,10 @@ class Binaries:
         "Return argv array that should be used to invoke bitcoin-wallet"
         return self._argv(self.paths.bitcoinwallet)
 
+    def chainstate_argv(self):
+        "Return argv array that should be used to invoke bitcoin-chainstate"
+        return self._argv(self.paths.bitcoinchainstate)
+
     def _argv(self, bin_path):
         """Return argv array that should be used to invoke the command.
         Normally this will return binary paths directly from the paths object,
@@ -157,8 +161,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         # are not imported.
         self.wallet_names = None
         # By default the wallet is not required. Set to true by skip_if_no_wallet().
-        # When False, we ignore wallet_names regardless of what it is.
-        self._requires_wallet = False
+        # Can also be set to None to indicate that the wallet will be used if available.
+        # When False or None, we ignore wallet_names in setup_nodes().
+        self.uses_wallet = False
         # Disable ThreadOpenConnections by default, so that adding entries to
         # addrman will not result in automatic connections to them.
         self.disable_autoconnect = True
@@ -263,14 +268,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if self.options.v1transport:
             self.options.v2transport=False
 
-        if self.is_wallet_compiled():
-            self.options.descriptors = True
-        else:
-            # Tests requiring a wallet will be skipped and the value of self.options.descriptors won't matter
-            # It still needs to exist and be None in order for tests to work however.
-            # So set it to None, which will also set -disablewallet.
-            self.options.descriptors = None
-
         PortSeed.n = self.options.port_seed
 
     def get_binary_paths(self):
@@ -280,6 +277,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         binaries = {
             "riecoind": ("bitcoind", "BITCOIND"),
             "riecoin-cli": ("bitcoincli", "BITCOINCLI"),
+            "riecoin-chainstate": ("bitcoinchainstate", "BITCOINCHAINSTATE"),
             "riecoin-wallet": ("bitcoinwallet", "BITCOINWALLET"),
         }
         for binary, [attribute_name, env_variable_name] in binaries.items():
@@ -456,7 +454,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Override this method to customize test node setup"""
         self.add_nodes(self.num_nodes, self.extra_args)
         self.start_nodes()
-        if self._requires_wallet:
+        if self.uses_wallet:
             self.import_deterministic_coinbase_privkeys()
         if not self.setup_clean_chain:
             for n in self.nodes:
@@ -483,10 +481,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             if wallet_name is not None:
                 n.createwallet(wallet_name=wallet_name, load_on_startup=True)
             n.importprivkey(privkey=n.get_deterministic_priv_key().key, label='coinbase', rescan=True)
-
-    # Only enables wallet support when the module is available
-    def enable_wallet_if_possible(self):
-        self._requires_wallet = self.is_wallet_compiled()
 
     def run_test(self):
         """Tests must override this method to define test logic"""
@@ -553,8 +547,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 use_cli=self.options.usecli,
                 start_perf=self.options.perf,
                 use_valgrind=self.options.valgrind,
-                descriptors=self.options.descriptors,
                 v2transport=self.options.v2transport,
+                uses_wallet=self.uses_wallet,
             )
             self.nodes.append(test_node_i)
 
@@ -855,7 +849,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     binaries=self.get_binaries(),
                     coverage_dir=None,
                     cwd=self.options.tmpdir,
-                    descriptors=self.options.descriptors,
+                    uses_wallet=self.uses_wallet,
                 ))
             self.start_node(CACHE_NODE_ID)
             cache_node = self.nodes[CACHE_NODE_ID]
@@ -958,7 +952,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
     def skip_if_no_wallet(self):
         """Skip the running test if wallet has not been compiled."""
-        self._requires_wallet = True
+        self.uses_wallet = True
         if not self.is_wallet_compiled():
             raise SkipTest("wallet has not been compiled.")
 
@@ -966,6 +960,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Skip the running test if riecoin-wallet has not been compiled."""
         if not self.is_wallet_tool_compiled():
             raise SkipTest("riecoin-wallet has not been compiled")
+
+    def skip_if_no_bitcoin_chainstate(self):
+        """Skip the running test if bitcoin-chainstate has not been compiled."""
+        if not self.is_bitcoin_chainstate_compiled():
+            raise SkipTest("bitcoin-chainstate has not been compiled")
 
     def skip_if_no_cli(self):
         """Skip the running test if riecoin-cli has not been compiled."""
@@ -989,14 +988,13 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the wallet module was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET")
 
-    def is_specified_wallet_compiled(self):
-        """Checks whether wallet support for descriptors was compiled."""
-        if self.options.descriptors:
-            return self.is_wallet_compiled()
-
     def is_wallet_tool_compiled(self):
         """Checks whether riecoin-wallet was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET_TOOL")
+
+    def is_bitcoin_chainstate_compiled(self):
+        """Checks whether bitcoin-chainstate was compiled."""
+        return self.config["components"].getboolean("ENABLE_BITCOIN_CHAINSTATE")
 
     def is_zmq_compiled(self):
         """Checks whether the zmq module was compiled."""

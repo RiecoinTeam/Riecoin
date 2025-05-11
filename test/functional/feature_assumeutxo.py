@@ -24,10 +24,11 @@ from test_framework.compressor import (
 from test_framework.messages import (
     CBlockHeader,
     from_hex,
-    msg_headers,
-    tx_from_hex,
-    ser_varint,
+    MAGIC_BYTES,
     MAX_MONEY,
+    msg_headers,
+    ser_varint,
+    tx_from_hex,
 )
 from test_framework.p2p import (
     P2PInterface,
@@ -36,6 +37,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_approx,
     assert_equal,
+    assert_not_equal,
     assert_raises_rpc_error,
     ensure_for,
     sha256sum_file,
@@ -103,14 +105,14 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("  - snapshot file with mismatching network magic")
         invalid_magics = [
             # magic, name, real
-            [0xfcbcb2db, "main", True],
-            [0x0e091105, "test", True],
-            [0x00000000, "", False],
-            [0xffffffff, "", False],
+            [MAGIC_BYTES["mainnet"], "main", True],
+            [MAGIC_BYTES["testnet2404"], "test", True],
+            [0x00000000.to_bytes(4, 'big'), "", False],
+            [0xffffffff.to_bytes(4, 'big'), "", False],
         ]
         for [magic, name, real] in invalid_magics:
             with open(bad_snapshot_path, 'wb') as f:
-                f.write(valid_snapshot_contents[:7] + magic.to_bytes(4, 'big') + valid_snapshot_contents[11:])
+                f.write(valid_snapshot_contents[:7] + magic + valid_snapshot_contents[11:])
             if real:
                 assert_raises_rpc_error(parsing_error_code, f"Unable to parse metadata: The network of the snapshot ({name}) does not match the network of this node (regtest).", node.loadtxoutset, bad_snapshot_path)
             else:
@@ -138,12 +140,12 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("  - snapshot file with alternated but parsable UTXO data results in different hash")
         cases = [
             # (content, offset, wrong_hash, custom_message)
-            [b"\xff" * 32, 0, "bbdef9f6420e9f4a2766535559e7ffffa44d844811786ac41c1c13f65420bbfc", None],  # wrong outpoint hash
+            [b"\xff" * 32, 0, "c639c0c0fcad87e6f5258970cad73c382a493a376bfa7e1f3c67b22b84f49a3b", None],  # wrong outpoint hash
             [(2).to_bytes(1, "little"), 32, None, "Bad snapshot data after deserializing 1 coins."],  # wrong txid coins count
             [b"\xfd\xff\xff", 32, None, "Mismatch in coins count in snapshot metadata and actual snapshot data"],  # txid coins count exceeds coins left
-            [b"\x01", 33, "7c935bdd776daf7425bfb9df387101ac2328a530fef469e653bf032803cb5c1d", None],  # wrong outpoint index
-            [b"\x81", 34, "bb26b06d0b856c27ac6e6290f3e83d4e83dbe06df8151c04258642cb0462088a", None],  # wrong coin code VARINT
-            [b"\x80", 34, "a82c7cf3d3febd38a56bdec9f7653bc2487b70499ed14d2a3ec24067bb14b18e", None],  # another wrong coin code
+            [b"\x01", 33, "6b804f0a29edca008bacfb37fdc32169cb6c8a1864b7e6ee3b50ada650a5291f", None],  # wrong outpoint index
+            [b"\x82", 34, "753efdf376458f0c57dc5040ed7bfef59a743da6c0b60cafcd15ba626e4f71a1", None],  # wrong coin code VARINT
+            [b"\x80", 34, "bc8f6e244ad7cc0aaaa80366998d69a7e5de144ed4cbdb3fc803fa22a6c622c3", None],  # another wrong coin code
             [b"\x84\x58", 34, None, "Bad snapshot data after deserializing 0 coins"],  # wrong coin case with height 364 and coinbase 0
             [
                 # compressed txout value + scriptpubkey
@@ -162,12 +164,12 @@ class AssumeutxoTest(BitcoinTestFramework):
                 f.write(content)
                 f.write(valid_snapshot_contents[(5 + 2 + 4 + 32 + 8 + offset + len(content)):])
 
-            msg = custom_message if custom_message is not None else f"Bad snapshot content hash: expected 030663cfbd01e69df8bd572086b45c7e242212a6c36b3386bd39f3d40a8dfb3b, got {wrong_hash}."
+            msg = custom_message if custom_message is not None else f"Bad snapshot content hash: expected 2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85, got {wrong_hash}."
             expected_error(msg)
 
     def test_headers_not_synced(self, valid_snapshot_path):
         for node in self.nodes[1:]:
-            msg = "Unable to load UTXO snapshot: The base block header (3e7998064a7c6cc4d980f5d1405d63566872ea2b23d1b1c9f068a4d3a98854bc) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."
+            msg = "Unable to load UTXO snapshot: The base block header (b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."
             assert_raises_rpc_error(-32603, msg, node.loadtxoutset, valid_snapshot_path)
 
     def test_invalid_chainstate_scenarios(self):
@@ -226,7 +228,7 @@ class AssumeutxoTest(BitcoinTestFramework):
             block_hash = node.getblockhash(height)
             node.invalidateblock(block_hash)
             assert_equal(node.getblockcount(), height - 1)
-            msg = "Unable to load UTXO snapshot: The base block header (3e7998064a7c6cc4d980f5d1405d63566872ea2b23d1b1c9f068a4d3a98854bc) is part of an invalid chain."
+            msg = "Unable to load UTXO snapshot: The base block header (b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80) is part of an invalid chain."
             assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output_path)
             node.reconsiderblock(block_hash)
 
@@ -446,7 +448,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         def check_dump_output(output):
             assert_equal(
                 output['txoutset_hash'],
-                "030663cfbd01e69df8bd572086b45c7e242212a6c36b3386bd39f3d40a8dfb3b")
+                "2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85")
             assert_equal(output["nchaintx"], blocks[SNAPSHOT_BASE_HEIGHT].chain_tx)
 
         check_dump_output(dump_output)
@@ -476,8 +478,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         dump_output4 = n0.dumptxoutset(path='utxos4.dat', rollback=prev_snap_height)
         assert_equal(
             dump_output4['txoutset_hash'],
-            "c344428a4ea481bc5ed862668093613746b2bd2aa1355e6252b8f65462135d83")
-        assert sha256sum_file(dump_output['path']) != sha256sum_file(dump_output4['path'])
+            "592d7a36a9a0a060d2c2eea18814527d33183ca4c7a4c39fa7eefd87c7b98630")
+        assert_not_equal(sha256sum_file(dump_output['path']), sha256sum_file(dump_output4['path']))
 
         # Use a hash instead of a height
         prev_snap_hash = n0.getblockhash(prev_snap_height)

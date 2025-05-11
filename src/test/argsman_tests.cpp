@@ -653,8 +653,7 @@ BOOST_AUTO_TEST_CASE(util_GetChainTypeString)
     const char* argv_test_no_reg[] = {"cmd", "-testnet", "-noregtest"};
     const char* argv_both[] = {"cmd", "-testnet", "-regtest"};
 
-    // equivalent to "-testnet"
-    // regtest in testnet section is ignored
+    // regtest in test network section is ignored
     const char* testnetconf = "testnet=1\nregtest=0\n[test]\nregtest=1";
     std::string error;
 

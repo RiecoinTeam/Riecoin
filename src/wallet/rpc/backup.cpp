@@ -3,8 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
-
 #include <chain.h>
 #include <clientversion.h>
 #include <core_io.h>
@@ -35,11 +33,8 @@
 
 
 using interfaces::FoundBlock;
-using util::SplitString;
 
 namespace wallet {
-static const int64_t TIMESTAMP_MIN = 0;
-
 RPCHelpMan importprunedfunds()
 {
     return RPCHelpMan{"importprunedfunds",
@@ -126,95 +121,6 @@ RPCHelpMan removeprunedfunds()
     return UniValue::VNULL;
 },
     };
-}
-
-struct ImportData
-{
-    // Input data
-    std::unique_ptr<CScript> redeemscript; //!< Provided redeemScript; will be moved to `import_scripts` if relevant.
-    std::unique_ptr<CScript> witnessscript; //!< Provided witnessScript; will be moved to `import_scripts` if relevant.
-
-    // Output data
-    std::set<CScript> import_scripts;
-    std::map<CKeyID, bool> used_keys; //!< Import these private keys if available (the value indicates whether if the key is required for solvability)
-    std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>> key_origins;
-};
-
-enum class ScriptContext
-{
-    TOP, //!< Top-level scriptPubKey
-    P2SH, //!< P2SH redeemScript
-    WITNESS_V0, //!< P2WSH witnessScript
-};
-
-// Analyse the provided scriptPubKey, determining which keys and which redeem scripts from the ImportData struct are needed to spend it, and mark them as used.
-// Returns an error string, or the empty string for success.
-// NOLINTNEXTLINE(misc-no-recursion)
-static std::string RecurseImportData(const CScript& script, ImportData& import_data, const ScriptContext script_ctx)
-{
-    // Use Solver to obtain script type and parsed pubkeys or hashes:
-    std::vector<std::vector<unsigned char>> solverdata;
-    TxoutType script_type = Solver(script, solverdata);
-
-    switch (script_type) {
-    case TxoutType::PUBKEY: {
-        CPubKey pubkey(solverdata[0]);
-        import_data.used_keys.emplace(pubkey.GetID(), false);
-        return "";
-    }
-    case TxoutType::PUBKEYHASH: {
-        CKeyID id = CKeyID(uint160(solverdata[0]));
-        import_data.used_keys[id] = true;
-        return "";
-    }
-    case TxoutType::SCRIPTHASH: {
-        if (script_ctx == ScriptContext::P2SH) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Trying to nest P2SH inside another P2SH");
-        if (script_ctx == ScriptContext::WITNESS_V0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Trying to nest P2SH inside a P2WSH");
-        CHECK_NONFATAL(script_ctx == ScriptContext::TOP);
-        CScriptID id = CScriptID(uint160(solverdata[0]));
-        auto subscript = std::move(import_data.redeemscript); // Remove redeemscript from import_data to check for superfluous script later.
-        if (!subscript) return "missing redeemscript";
-        if (CScriptID(*subscript) != id) return "redeemScript does not match the scriptPubKey";
-        import_data.import_scripts.emplace(*subscript);
-        return RecurseImportData(*subscript, import_data, ScriptContext::P2SH);
-    }
-    case TxoutType::MULTISIG: {
-        for (size_t i = 1; i + 1< solverdata.size(); ++i) {
-            CPubKey pubkey(solverdata[i]);
-            import_data.used_keys.emplace(pubkey.GetID(), false);
-        }
-        return "";
-    }
-    case TxoutType::WITNESS_V0_SCRIPTHASH: {
-        if (script_ctx == ScriptContext::WITNESS_V0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Trying to nest P2WSH inside another P2WSH");
-        CScriptID id{RIPEMD160(solverdata[0])};
-        auto subscript = std::move(import_data.witnessscript); // Remove redeemscript from import_data to check for superfluous script later.
-        if (!subscript) return "missing witnessscript";
-        if (CScriptID(*subscript) != id) return "witnessScript does not match the scriptPubKey or redeemScript";
-        if (script_ctx == ScriptContext::TOP) {
-            import_data.import_scripts.emplace(script); // Special rule for IsMine: native P2WSH requires the TOP script imported (see script/ismine.cpp)
-        }
-        import_data.import_scripts.emplace(*subscript);
-        return RecurseImportData(*subscript, import_data, ScriptContext::WITNESS_V0);
-    }
-    case TxoutType::WITNESS_V0_KEYHASH: {
-        if (script_ctx == ScriptContext::WITNESS_V0) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Trying to nest P2WPKH inside P2WSH");
-        CKeyID id = CKeyID(uint160(solverdata[0]));
-        import_data.used_keys[id] = true;
-        if (script_ctx == ScriptContext::TOP) {
-            import_data.import_scripts.emplace(script); // Special rule for IsMine: native P2WPKH requires the TOP script imported (see script/ismine.cpp)
-        }
-        return "";
-    }
-    case TxoutType::NULL_DATA:
-        return "unspendable script";
-    case TxoutType::NONSTANDARD:
-    case TxoutType::WITNESS_UNKNOWN:
-    case TxoutType::WITNESS_V1_TAPROOT:
-    case TxoutType::ANCHOR:
-        return "unrecognized script";
-    } // no default case, so the compiler can warn about missing cases
-    NONFATAL_UNREACHABLE();
 }
 
 static int64_t GetImportTimestamp(const UniValue& data, int64_t now)
@@ -354,16 +260,15 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
 
             WalletDescriptor w_desc(std::move(parsed_desc), timestamp, range_start, range_end, next_index);
 
-            // Check if the wallet already contains the descriptor
-            auto existing_spk_manager = wallet.GetDescriptorScriptPubKeyMan(w_desc);
-            if (existing_spk_manager) {
-                if (!existing_spk_manager->CanUpdateToWalletDescriptor(w_desc, error)) {
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, error);
-                }
+            // Add descriptor to the wallet
+            auto spk_manager_res = wallet.AddWalletDescriptor(w_desc, keys, label, desc_internal);
+
+            if (!spk_manager_res) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, util::ErrorString(spk_manager_res).original);
             }
 
-            // Add descriptor to the wallet
-            auto spk_manager = wallet.AddWalletDescriptor(w_desc, keys, label, desc_internal);
+            auto spk_manager = spk_manager_res.value();
+
             if (spk_manager == nullptr) {
                 throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Could not add descriptor '%s'", descriptor));
             }

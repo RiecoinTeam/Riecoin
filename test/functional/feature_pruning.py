@@ -71,6 +71,7 @@ class PruneTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 6
         self.supports_cli = False
+        self.uses_wallet = None
 
         # Create nodes 0 and 1 to mine.
         # Create node 2 to test pruning.

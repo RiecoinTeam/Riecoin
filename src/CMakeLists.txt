@@ -20,6 +20,10 @@ include(../cmake/crc32c.cmake)
 include(../cmake/leveldb.cmake)
 include(../cmake/minisketch.cmake)
 add_subdirectory(univalue)
+if (ENABLE_IPC AND NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+  include(../cmake/libmultiprocess.cmake)
+  add_libmultiprocess(ipc/libmultiprocess)
+endif()
 #=============================
 # secp256k1 subtree
 #=============================
@@ -97,7 +101,7 @@ add_dependencies(riecoin_clientversion generate_build_info)
 
 add_subdirectory(crypto)
 add_subdirectory(util)
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   add_subdirectory(ipc)
 endif()
 
@@ -301,6 +305,7 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   script/sigcache.cpp
   torcontrol.cpp
   txdb.cpp
+  txgraph.cpp
   txmempool.cpp
   txorphanage.cpp
   txrequest.cpp
@@ -342,7 +347,7 @@ if(BUILD_DAEMON)
   )
   install_binary_component(riecoind HAS_MANPAGE)
 endif()
-if(WITH_MULTIPROCESS AND BUILD_DAEMON)
+if(ENABLE_IPC AND BUILD_DAEMON)
   add_executable(bitcoin-node
     bitcoind.cpp
     init/bitcoin-node.cpp
@@ -356,7 +361,7 @@ if(WITH_MULTIPROCESS AND BUILD_DAEMON)
   install_binary_component(bitcoin-node)
 endif()
 
-if(WITH_MULTIPROCESS AND BUILD_TESTS)
+if(ENABLE_IPC AND BUILD_TESTS)
     # bitcoin_ipc_test library target is defined here in src/CMakeLists.txt
     # instead of src/test/CMakeLists.txt so capnp files in src/test/ are able to
     # reference capnp files in src/ipc/capnp/ by relative path. The Cap'n Proto

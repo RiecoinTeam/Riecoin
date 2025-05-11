@@ -47,6 +47,7 @@
 #include <memory>
 #include <stdint.h>
 
+using interfaces::BlockRef;
 using interfaces::BlockTemplate;
 using interfaces::Mining;
 using node::BlockAssembler;
@@ -571,10 +572,10 @@ static UniValue BIP22ValidationResult(const BlockValidationState& state)
     return "valid?";
 }
 
-static std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
-    const struct VBDeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
-    std::string s = vbinfo.name;
-    if (!vbinfo.gbt_force) {
+static std::string gbt_force_name(const std::string& name, bool gbt_force)
+{
+    std::string s{name};
+    if (!gbt_force) {
         s.insert(s.begin(), '!');
     }
     return s;
@@ -756,9 +757,22 @@ static RPCHelpMan getblocktemplate()
     static unsigned int nTransactionsUpdatedLast;
     const CTxMemPool& mempool = EnsureMemPool(node);
 
-    if (!lpval.isNull())
-    {
-        // Wait to respond until either the best block changes, OR a minute has passed and there are more transactions
+    // Long Polling (BIP22)
+    if (!lpval.isNull()) {
+        /**
+         * Wait to respond until either the best block changes, OR there are more
+         * transactions.
+         *
+         * The check for new transactions first happens after 1 minute and
+         * subsequently every 10 seconds. BIP22 does not require this particular interval.
+         * On mainnet the mempool changes frequently enough that in practice this RPC
+         * returns after 60 seconds, or sooner if the best block changes.
+         *
+         * getblocktemplate is unlikely to be called by bitcoin-cli, so
+         * -rpcclienttimeout is not a concern. BIP22 recommends a long request timeout.
+         *
+         * The longpollid is assumed to be a tip hash if it has the right format.
+         */
         uint256 hashWatchedChain;
         unsigned int nTransactionsUpdatedLastLP;
 
@@ -767,6 +781,8 @@ static RPCHelpMan getblocktemplate()
             // Format: <hashBestChain><nTransactionsUpdatedLast>
             const std::string& lpstr = lpval.get_str();
 
+            // Assume the longpollid is a block hash. If it's not then we return
+            // early below.
             hashWatchedChain = ParseHashV(lpstr.substr(0, 64), "longpollid");
             nTransactionsUpdatedLastLP = LocaleIndependentAtoi<int64_t>(lpstr.substr(64));
         }
@@ -781,12 +797,20 @@ static RPCHelpMan getblocktemplate()
         LEAVE_CRITICAL_SECTION(cs_main);
         {
             MillisecondsDouble checktxtime{std::chrono::minutes(1)};
-            while (tip == hashWatchedChain && IsRPCRunning()) {
-                tip = miner.waitTipChanged(hashWatchedChain, checktxtime).hash;
-                // Timeout: Check transactions for update
-                // without holding the mempool lock to avoid deadlocks
-                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP)
+            while (IsRPCRunning()) {
+                // If hashWatchedChain is not a real block hash, this will
+                // return immediately.
+                std::optional<BlockRef> maybe_tip{miner.waitTipChanged(hashWatchedChain, checktxtime)};
+                // Node is shutting down
+                if (!maybe_tip) break;
+                tip = maybe_tip->hash;
+                if (tip != hashWatchedChain) break;
+
+                // Check transactions for update without holding the mempool
+                // lock to avoid deadlocks.
+                if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP) {
                     break;
+                }
                 checktxtime = std::chrono::seconds(10);
             }
         }
@@ -867,7 +891,7 @@ static RPCHelpMan getblocktemplate()
         }
         entry.pushKV("depends", std::move(deps));
 
-        int index_in_template = i - 1;
+        int index_in_template = i - 2;
         entry.pushKV("fee", tx_fees.at(index_in_template));
         int64_t nTxSigOps{tx_sigops.at(index_in_template)};
         entry.pushKV("sigops", nTxSigOps);
@@ -891,45 +915,33 @@ static RPCHelpMan getblocktemplate()
     aRules.push_back("!segwit");
 
     UniValue vbavailable(UniValue::VOBJ);
-    for (int j = 0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
-        Consensus::DeploymentPos pos = Consensus::DeploymentPos(j);
-        ThresholdState state = chainman.m_versionbitscache.State(pindexPrev, consensusParams, pos);
-        switch (state) {
-            case ThresholdState::DEFINED:
-            case ThresholdState::FAILED:
-                // Not exposed to GBT at all
-                break;
-            case ThresholdState::LOCKED_IN:
-                // Ensure bit is set in block version
-                block.nVersion |= chainman.m_versionbitscache.Mask(consensusParams, pos);
-                [[fallthrough]];
-            case ThresholdState::STARTED:
-            {
-                const struct VBDeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
-                vbavailable.pushKV(gbt_vb_name(pos), consensusParams.vDeployments[pos].bit);
-                if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
-                    if (!vbinfo.gbt_force) {
-                        // If the client doesn't support this, don't indicate it in the [default] version
-                        block.nVersion &= ~chainman.m_versionbitscache.Mask(consensusParams, pos);
-                    }
-                }
-                break;
-            }
-            case ThresholdState::ACTIVE:
-            {
-                // Add to rules only
-                const struct VBDeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
-                aRules.push_back(gbt_vb_name(pos));
-                if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
-                    // Not supported by the client; make sure it's safe to proceed
-                    if (!vbinfo.gbt_force) {
-                        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Support for '%s' rule requires explicit client support", vbinfo.name));
-                    }
-                }
-                break;
-            }
+    const auto gbtstatus = chainman.m_versionbitscache.GBTStatus(*pindexPrev, consensusParams);
+
+    for (const auto& [name, info] : gbtstatus.signalling) {
+        vbavailable.pushKV(gbt_force_name(name, info.gbt_force), info.bit);
+        if (!info.gbt_force && !setClientRules.count(name)) {
+            // If the client doesn't support this, don't indicate it in the [default] version
+            block.nVersion &= ~info.mask;
         }
     }
+
+    for (const auto& [name, info] : gbtstatus.locked_in) {
+        block.nVersion |= info.mask;
+        vbavailable.pushKV(gbt_force_name(name, info.gbt_force), info.bit);
+        if (!info.gbt_force && !setClientRules.count(name)) {
+            // If the client doesn't support this, don't indicate it in the [default] version
+            block.nVersion &= ~info.mask;
+        }
+    }
+
+    for (const auto& [name, info] : gbtstatus.active) {
+        aRules.push_back(gbt_force_name(name, info.gbt_force));
+        if (!info.gbt_force && !setClientRules.count(name)) {
+            // Not supported by the client; make sure it's safe to proceed
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Support for '%s' rule requires explicit client support", name));
+        }
+    }
+
     result.pushKV("version", block.nVersion);
     result.pushKV("rules", std::move(aRules));
     result.pushKV("vbavailable", std::move(vbavailable));

@@ -41,11 +41,6 @@ static feebumper::Result PreconditionChecks(const CWallet& wallet, const CWallet
         return feebumper::Result::WALLET_ERROR;
     }
 
-    if (!SignalsOptInRBF(*wtx.tx)) {
-        errors.emplace_back(Untranslated("Transaction is not BIP 125 replaceable"));
-        return feebumper::Result::WALLET_ERROR;
-    }
-
     if (wtx.mapValue.count("replaced_by_txid")) {
         errors.push_back(Untranslated(strprintf("Cannot bump transaction %s which was already bumped by transaction %s", wtx.GetHash().ToString(), wtx.mapValue.at("replaced_by_txid"))));
         return feebumper::Result::WALLET_ERROR;
@@ -54,7 +49,8 @@ static feebumper::Result PreconditionChecks(const CWallet& wallet, const CWallet
     if (require_mine) {
         // check that original tx consists entirely of our inputs
         // if not, we can't bump the fee, because the wallet has no way of knowing the value of the other inputs (thus the fee)
-        if (!AllInputsMine(wallet, *wtx.tx, ISMINE_SPENDABLE)) {
+        isminefilter filter = ISMINE_SPENDABLE;
+        if (!AllInputsMine(wallet, *wtx.tx, filter)) {
             errors.emplace_back(Untranslated("Transaction contains inputs that don't belong to this wallet"));
             return feebumper::Result::WALLET_ERROR;
         }

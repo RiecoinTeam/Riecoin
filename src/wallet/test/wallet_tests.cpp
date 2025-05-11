@@ -66,7 +66,8 @@ static void AddKey(CWallet& wallet, const CKey& key)
     assert(descs.size() == 1);
     auto& desc = descs.at(0);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
-    if (!wallet.AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
+    auto spk_manager = *Assert(wallet.AddWalletDescriptor(w_desc, provider, "", false));
+    assert(spk_manager);
 }
 
 BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
@@ -321,7 +322,6 @@ void TestLoadWallet(const std::string& name, std::function<void(std::shared_ptr<
 
 BOOST_FIXTURE_TEST_CASE(LoadReceiveRequests, TestingSetup)
 {
-#ifdef USE_SQLITE
     const std::string name{"receive-requests"};
     TestLoadWallet(name, [](std::shared_ptr<CWallet> wallet) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet) {
         BOOST_CHECK(!wallet->IsAddressPreviouslySpent(PKHash()));
@@ -353,7 +353,6 @@ BOOST_FIXTURE_TEST_CASE(LoadReceiveRequests, TestingSetup)
         auto erequests = {"val_rr11"};
         BOOST_CHECK_EQUAL_COLLECTIONS(requests.begin(), requests.end(), std::begin(erequests), std::end(erequests));
     });
-#endif
 }
 
 class ListCoinsTestingSetup : public TestChain100Setup
@@ -493,14 +492,12 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTest)
 
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
 {
-    {
-        const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
-        LOCK(wallet->cs_wallet);
-        wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-        wallet->SetMinVersion(FEATURE_LATEST);
-        wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
-        BOOST_CHECK(!wallet->GetNewDestination(OutputType::BECH32, ""));
-    }
+    const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
+    LOCK(wallet->cs_wallet);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    wallet->SetMinVersion(FEATURE_LATEST);
+    wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
+    BOOST_CHECK(!wallet->GetNewDestination(OutputType::BECH32M, ""));
 }
 
 // Explicit calculation which is used to test the wallet constant

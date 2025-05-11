@@ -48,7 +48,7 @@ class WalletLabelsTest(BitcoinTestFramework):
         assert_equal(response[0]['error']['message'], "Invalid label name")
 
         for rpc_call in rpc_calls:
-            assert_raises_rpc_error(-11, "Invalid label name", *rpc_call, "*")
+            assert_raises_rpc_error(-11, "Invalid label name", *rpc_call, label="*")
 
     def run_test(self):
         # Check that there's no UTXO on the node
@@ -149,18 +149,6 @@ class WalletLabelsTest(BitcoinTestFramework):
             label.verify(node)
             assert_raises_rpc_error(-11, "No addresses with label", node.getaddressesbylabel, "")
 
-        # Check that addmultisigaddress can assign labels.
-        if not self.options.descriptors:
-            for label in labels:
-                addresses = []
-                for _ in range(10):
-                    addresses.append(node.getnewaddress())
-                multisig_address = node.addmultisigaddress(5, addresses, label.name)['address']
-                label.add_address(multisig_address)
-                label.purpose[multisig_address] = "send"
-                label.verify(node)
-            self.generate(node, COINBASE_MATURITY + 1)
-
         # Check that setlabel can change the label of an address from a
         # different label.
         change_label(node, labels[0].addresses[0], labels[0], labels[1])
@@ -171,33 +159,32 @@ class WalletLabelsTest(BitcoinTestFramework):
 
         self.invalid_label_name_test()
 
-        if self.options.descriptors:
-            # This is a descriptor wallet test because of segwit v1+ addresses
-            self.log.info('Check watchonly labels')
-            node.createwallet(wallet_name='watch_only', disable_private_keys=True)
-            wallet_watch_only = node.get_wallet_rpc('watch_only')
-            BECH32_VALID = {
-                '✔️_VER15_PROG40': 'rric10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq0q8t6g',
-                '✔️_VER16_PROG03': 'rric1sqqqqqjnewvv',
-                '✔️_VER16_PROB02': 'rric1sqqqquca47f',
-            }
-            BECH32_INVALID = {
-                '❌_VER15_PROG41': 'rric1sqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqh2t46u',
-                '❌_VER16_PROB01': 'rric1sqqt9pu7y',
-            }
-            for l in BECH32_VALID:
-                ad = BECH32_VALID[l]
-                wallet_watch_only.importaddress(label=l, rescan=False, address=ad)
-                self.generatetoaddress(node, 1, ad)
-                assert_equal(wallet_watch_only.getaddressesbylabel(label=l), {ad: {'purpose': 'receive'}})
-                assert_equal(wallet_watch_only.getreceivedbylabel(label=l), 0)
-            for l in BECH32_INVALID:
-                ad = BECH32_INVALID[l]
-                assert_raises_rpc_error(
-                    -5,
-                    "Address is not valid" if self.options.descriptors else "Invalid Riecoin address or script",
-                    lambda: wallet_watch_only.importaddress(label=l, rescan=False, address=ad),
-                )
+        # This is a descriptor wallet test because of segwit v1+ addresses
+        self.log.info('Check watchonly labels')
+        node.createwallet(wallet_name='watch_only', disable_private_keys=True)
+        wallet_watch_only = node.get_wallet_rpc('watch_only')
+        BECH32_VALID = {
+            '✔️_VER15_PROG40': 'rric10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq0q8t6g',
+            '✔️_VER16_PROG03': 'rric1sqqqqqjnewvv',
+            '✔️_VER16_PROB02': 'rric1sqqqquca47f',
+        }
+        BECH32_INVALID = {
+            '❌_VER15_PROG41': 'rric1sqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqh2t46u',
+            '❌_VER16_PROB01': 'rric1sqqt9pu7y',
+        }
+        for l in BECH32_VALID:
+            ad = BECH32_VALID[l]
+            wallet_watch_only.importaddress(label=l, rescan=False, address=ad)
+            self.generatetoaddress(node, 1, ad)
+            assert_equal(wallet_watch_only.getaddressesbylabel(label=l), {ad: {'purpose': 'receive'}})
+            assert_equal(wallet_watch_only.getreceivedbylabel(label=l), 0)
+        for l in BECH32_INVALID:
+            ad = BECH32_INVALID[l]
+            assert_raises_rpc_error(
+                -5,
+                "Address is not valid",
+                lambda: wallet_watch_only.importaddress(label=l, rescan=False, address=ad),
+            )
 
 
 class Label:

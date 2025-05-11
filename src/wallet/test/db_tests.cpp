@@ -3,8 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
-
 #include <boost/test/unit_test.hpp>
 
 #include <test/util/setup_common.h>
@@ -74,8 +72,8 @@ BOOST_AUTO_TEST_CASE(db_cursor_prefix_range_test)
     for (const auto& database : TestDatabases(m_path_root)) {
         std::vector<std::string> prefixes = {"", "FIRST", "SECOND", "P\xfe\xff", "P\xff\x01", "\xff\xff"};
 
-        // Write elements to it
         std::unique_ptr<DatabaseBatch> handler = Assert(database)->MakeBatch();
+        // Write elements to it
         for (unsigned int i = 0; i < 10; i++) {
             for (const auto& prefix : prefixes) {
                 BOOST_CHECK(handler->Write(std::make_pair(prefix, i), i));
@@ -125,6 +123,7 @@ BOOST_AUTO_TEST_CASE(db_cursor_prefix_byte_test)
         ffs{StringData("\xff\xffsuffix"), StringData("ffs")};
     for (const auto& database : TestDatabases(m_path_root)) {
         std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        // Write elements to it
         for (const auto& [k, v] : {e, p, ps, f, fs, ff, ffs}) {
             batch->Write(std::span{k}, std::span{v});
         }

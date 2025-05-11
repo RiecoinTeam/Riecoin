@@ -77,6 +77,10 @@ def assert_equal(thing1, thing2, *args):
     if thing1 != thing2 or any(thing1 != arg for arg in args):
         raise AssertionError("not(%s)" % " == ".join(str(arg) for arg in (thing1, thing2) + args))
 
+def assert_not_equal(thing1, thing2, *, error_message=""):
+    if thing1 == thing2:
+        raise AssertionError(f"Both values are {thing1}{f', {error_message}' if error_message else ''}")
+
 
 def assert_greater_than(thing1, thing2):
     if thing1 <= thing2:
@@ -98,10 +102,9 @@ def assert_raises_message(exc, message, fun, *args, **kwds):
     except JSONRPCException:
         raise AssertionError("Use assert_raises_rpc_error() to test RPC failures")
     except exc as e:
-        if message is not None and message not in e.error['message']:
-            raise AssertionError(
-                "Expected substring not found in error message:\nsubstring: '{}'\nerror message: '{}'.".format(
-                    message, e.error['message']))
+        if message is not None and message not in repr(e):
+            raise AssertionError("Expected substring not found in exception:\n"
+                                 f"substring: '{message}'\nexception: {repr(e)}.")
     except Exception as e:
         raise AssertionError("Unexpected exception raised: " + type(e).__name__)
     else:
@@ -316,6 +319,13 @@ def wait_until_helper_internal(predicate, *, timeout=60, lock=None, timeout_fact
     predicate_source = "''''\n" + inspect.getsource(predicate) + "'''"
     logger.error("wait_until() failed. Predicate: {}".format(predicate_source))
     raise AssertionError("Predicate {} not true after {} seconds".format(predicate_source, timeout))
+
+
+def bpf_cflags():
+    return [
+        "-Wno-error=implicit-function-declaration",
+        "-Wno-duplicate-decl-specifier",  # https://github.com/bitcoin/bitcoin/issues/32322
+    ]
 
 
 def sha256sum_file(filename):

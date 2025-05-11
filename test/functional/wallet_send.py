@@ -12,6 +12,7 @@ from test_framework.authproxy import JSONRPCException
 from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_equal,
     assert_fee_amount,
     assert_greater_than,
@@ -44,7 +45,7 @@ class WalletSendTest(BitcoinTestFramework):
                   inputs=None, add_inputs=None, include_unsafe=None, change_address=None, change_position=None, change_type=None,
                   include_watching=None, locktime=None, lock_unspents=None, replaceable=None, subtract_fee_from_outputs=None,
                   expect_error=None, solving_data=None, minconf=None):
-        assert (amount is None) != (data is None)
+        assert_not_equal((amount is None), (data is None))
 
         from_balance_before = from_wallet.getbalances()["mine"]["trusted"]
         if include_unsafe:
@@ -194,48 +195,43 @@ class WalletSendTest(BitcoinTestFramework):
         w2 = self.nodes[1].get_wallet_rpc("w2")
         xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
         xpub = "tpubD6NzVbkrYhZ4YkEfMbRJkQyZe7wTkbTNRECozCtJPtdLRn6cT1QKb8yHjwAPcAr26eHBFYs5iLiFFnCbwPRsncCKUKCfubHDMGKzMVcN1Jg"
-        if self.options.descriptors:
-            w2.importdescriptors([{
-                "desc": descsum_create("wpkh(" + xpriv + "/0/0/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "active": True
-            },{
-                "desc": descsum_create("wpkh(" + xpriv + "/0/1/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "active": True,
-                "internal": True
-            }])
-        else:
-            w2.sethdseed(True)
+        w2.importdescriptors([{
+            "desc": descsum_create("wpkh(" + xpriv + "/0/0/*)"),
+            "timestamp": "now",
+            "range": [0, 100],
+            "active": True
+        },{
+            "desc": descsum_create("wpkh(" + xpriv + "/0/1/*)"),
+            "timestamp": "now",
+            "range": [0, 100],
+            "active": True,
+            "internal": True
+        }])
 
         # w3 is a watch-only wallet, based on w2
         self.nodes[1].createwallet(wallet_name="w3", disable_private_keys=True)
         w3 = self.nodes[1].get_wallet_rpc("w3")
-        if self.options.descriptors:
-            # Match the privkeys in w2 for descriptors
-            res = w3.importdescriptors([{
-                "desc": descsum_create("wpkh(" + xpub + "/0/0/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "keypool": True,
-                "active": True,
-                "watchonly": True
-            },{
-                "desc": descsum_create("wpkh(" + xpub + "/0/1/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "keypool": True,
-                "active": True,
-                "internal": True,
-                "watchonly": True
-            }])
-            assert_equal(res, [{"success": True}, {"success": True}])
+        # Match the privkeys in w2 for descriptors
+        res = w3.importdescriptors([{
+            "desc": descsum_create("wpkh(" + xpub + "/0/0/*)"),
+            "timestamp": "now",
+            "range": [0, 100],
+            "keypool": True,
+            "active": True,
+            "watchonly": True
+        },{
+            "desc": descsum_create("wpkh(" + xpub + "/0/1/*)"),
+            "timestamp": "now",
+            "range": [0, 100],
+            "keypool": True,
+            "active": True,
+            "internal": True,
+            "watchonly": True
+        }])
+        assert_equal(res, [{"success": True}, {"success": True}])
 
         for _ in range(3):
             a2_receive = w2.getnewaddress()
-
         w0.sendtoaddress(a2_receive, 10) # fund w3
         self.generate(self.nodes[0], 1)
 
@@ -268,16 +264,6 @@ class WalletSendTest(BitcoinTestFramework):
         res = self.test_send(from_wallet=w3, to_wallet=w1, amount=1)
         res = w2.walletprocesspsbt(res["psbt"])
         assert res["complete"]
-
-        if not self.options.descriptors:
-            # Descriptor wallets do not allow mixed watch-only and non-watch-only things in the same wallet.
-            # This is specifically testing that w4 ignores its own private keys and creates a psbt with send
-            # which is not something that needs to be tested in descriptor wallets.
-            self.log.info("Create PSBT from wallet w4 with watch-only keys, sign with w2...")
-            self.test_send(from_wallet=w4, to_wallet=w1, amount=1, expect_error=(-4, "Insufficient funds"))
-            res = self.test_send(from_wallet=w4, to_wallet=w1, amount=1, include_watching=True, add_to_wallet=False)
-            res = w2.walletprocesspsbt(res["psbt"])
-            assert res["complete"]
 
         self.log.info("Create OP_RETURN...")
         self.test_send(from_wallet=w0, to_wallet=w1, amount=1)
@@ -471,10 +457,7 @@ class WalletSendTest(BitcoinTestFramework):
 
         # Make a weird but signable script. sh(wsh(pkh())) descriptor accomplishes this
         desc = descsum_create("sh(wsh(pkh({})))".format(privkey))
-        if self.options.descriptors:
-            res = ext_fund.importdescriptors([{"desc": desc, "timestamp": "now"}])
-        else:
-            res = ext_fund.importmulti([{"desc": desc, "timestamp": "now"}])
+        res = ext_fund.importdescriptors([{"desc": desc, "timestamp": "now"}])
         assert res[0]["success"]
         addr = self.nodes[0].deriveaddresses(desc)[0]
         addr_info = ext_fund.getaddressinfo(addr)

@@ -237,7 +237,6 @@ static void FlushAndDeleteWallet(CWallet* wallet)
 {
     const std::string name = wallet->GetName();
     wallet->WalletLogPrintf("Releasing wallet %s..\n", name);
-    wallet->Flush();
     delete wallet;
     // Wallet is now released, notify WaitForDeleteWallet, if any.
     {
@@ -519,20 +518,60 @@ void CWallet::UpgradeDescriptorCache()
     SetWalletFlag(WALLET_FLAG_LAST_HARDENED_XPUB_CACHED);
 }
 
-bool CWallet::Unlock(const SecureString& strWalletPassphrase)
+/* Given a wallet passphrase string and an unencrypted master key, determine the proper key
+ * derivation parameters (should take at least 100ms) and encrypt the master key. */
+static bool EncryptMasterKey(const SecureString& wallet_passphrase, const CKeyingMaterial& plain_master_key, CMasterKey& master_key)
+{
+    constexpr MillisecondsDouble target{100};
+    auto start{SteadyClock::now()};
+    CCrypter crypter;
+
+    crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod);
+    master_key.nDeriveIterations = static_cast<unsigned int>(master_key.nDeriveIterations * target / (SteadyClock::now() - start));
+
+    start = SteadyClock::now();
+    crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod);
+    master_key.nDeriveIterations = (master_key.nDeriveIterations + static_cast<unsigned int>(master_key.nDeriveIterations * target / (SteadyClock::now() - start))) / 2;
+
+    if (master_key.nDeriveIterations < CMasterKey::DEFAULT_DERIVE_ITERATIONS) {
+        master_key.nDeriveIterations = CMasterKey::DEFAULT_DERIVE_ITERATIONS;
+    }
+
+    if (!crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod)) {
+        return false;
+    }
+    if (!crypter.Encrypt(plain_master_key, master_key.vchCryptedKey)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool DecryptMasterKey(const SecureString& wallet_passphrase, const CMasterKey& master_key, CKeyingMaterial& plain_master_key)
 {
     CCrypter crypter;
-    CKeyingMaterial _vMasterKey;
+    if (!crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod)) {
+        return false;
+    }
+    if (!crypter.Decrypt(master_key.vchCryptedKey, plain_master_key)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool CWallet::Unlock(const SecureString& strWalletPassphrase)
+{
+    CKeyingMaterial plain_master_key;
 
     {
         LOCK(cs_wallet);
-        for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
+        for (const auto& [_, master_key] : mapMasterKeys)
         {
-            if(!crypter.SetKeyFromPassphrase(strWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
-                return false;
-            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, _vMasterKey))
+            if (!DecryptMasterKey(strWalletPassphrase, master_key, plain_master_key)) {
                 continue; // try another master key
-            if (Unlock(_vMasterKey)) {
+            }
+            if (Unlock(plain_master_key)) {
                 // Now that we've unlocked, upgrade the descriptor cache
                 UpgradeDescriptorCache();
                 return true;
@@ -550,35 +589,20 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
         LOCK2(m_relock_mutex, cs_wallet);
         Lock();
 
-        CCrypter crypter;
-        CKeyingMaterial _vMasterKey;
-        for (MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
+        CKeyingMaterial plain_master_key;
+        for (auto& [master_key_id, master_key] : mapMasterKeys)
         {
-            if(!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+            if (!DecryptMasterKey(strOldWalletPassphrase, master_key, plain_master_key)) {
                 return false;
-            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, _vMasterKey))
-                return false;
-            if (Unlock(_vMasterKey))
+            }
+            if (Unlock(plain_master_key))
             {
-                constexpr MillisecondsDouble target{100};
-                auto start{SteadyClock::now()};
-                crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
-                pMasterKey.second.nDeriveIterations = static_cast<unsigned int>(pMasterKey.second.nDeriveIterations * target / (SteadyClock::now() - start));
-
-                start = SteadyClock::now();
-                crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
-                pMasterKey.second.nDeriveIterations = (pMasterKey.second.nDeriveIterations + static_cast<unsigned int>(pMasterKey.second.nDeriveIterations * target / (SteadyClock::now() - start))) / 2;
-
-                if (pMasterKey.second.nDeriveIterations < 25000)
-                    pMasterKey.second.nDeriveIterations = 25000;
-
-                WalletLogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", pMasterKey.second.nDeriveIterations);
-
-                if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                if (!EncryptMasterKey(strNewWalletPassphrase, plain_master_key, master_key)) {
                     return false;
-                if (!crypter.Encrypt(_vMasterKey, pMasterKey.second.vchCryptedKey))
-                    return false;
-                WalletBatch(GetDatabase()).WriteMasterKey(pMasterKey.first, pMasterKey.second);
+                }
+                WalletLogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", master_key.nDeriveIterations);
+
+                WalletBatch(GetDatabase()).WriteMasterKey(master_key_id, master_key);
                 if (fWasLocked)
                     Lock();
                 return true;
@@ -650,11 +674,6 @@ bool CWallet::HasWalletSpend(const CTransactionRef& tx) const
         }
     }
     return false;
-}
-
-void CWallet::Flush()
-{
-    GetDatabase().Flush();
 }
 
 void CWallet::Close()
@@ -753,50 +772,35 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     if (IsCrypted())
         return false;
 
-    CKeyingMaterial _vMasterKey;
+    CKeyingMaterial plain_master_key;
 
-    _vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
-    GetStrongRandBytes(_vMasterKey);
+    plain_master_key.resize(WALLET_CRYPTO_KEY_SIZE);
+    GetStrongRandBytes(plain_master_key);
 
-    CMasterKey kMasterKey;
+    CMasterKey master_key;
 
-    kMasterKey.vchSalt.resize(WALLET_CRYPTO_SALT_SIZE);
-    GetStrongRandBytes(kMasterKey.vchSalt);
+    master_key.vchSalt.resize(WALLET_CRYPTO_SALT_SIZE);
+    GetStrongRandBytes(master_key.vchSalt);
 
-    CCrypter crypter;
-    constexpr MillisecondsDouble target{100};
-    auto start{SteadyClock::now()};
-    crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, 25000, kMasterKey.nDerivationMethod);
-    kMasterKey.nDeriveIterations = static_cast<unsigned int>(25000 * target / (SteadyClock::now() - start));
-
-    start = SteadyClock::now();
-    crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod);
-    kMasterKey.nDeriveIterations = (kMasterKey.nDeriveIterations + static_cast<unsigned int>(kMasterKey.nDeriveIterations * target / (SteadyClock::now() - start))) / 2;
-
-    if (kMasterKey.nDeriveIterations < 25000)
-        kMasterKey.nDeriveIterations = 25000;
-
-    WalletLogPrintf("Encrypting Wallet with an nDeriveIterations of %i\n", kMasterKey.nDeriveIterations);
-
-    if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod))
+    if (!EncryptMasterKey(strWalletPassphrase, plain_master_key, master_key)) {
         return false;
-    if (!crypter.Encrypt(_vMasterKey, kMasterKey.vchCryptedKey))
-        return false;
+    }
+    WalletLogPrintf("Encrypting Wallet with an nDeriveIterations of %i\n", master_key.nDeriveIterations);
 
     {
         LOCK2(m_relock_mutex, cs_wallet);
-        mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
+        mapMasterKeys[++nMasterKeyMaxID] = master_key;
         WalletBatch* encrypted_batch = new WalletBatch(GetDatabase());
         if (!encrypted_batch->TxnBegin()) {
             delete encrypted_batch;
             encrypted_batch = nullptr;
             return false;
         }
-        encrypted_batch->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
+        encrypted_batch->WriteMasterKey(nMasterKeyMaxID, master_key);
 
         for (const auto& spk_man_pair : m_spk_managers) {
             auto spk_man = spk_man_pair.second.get();
-            if (!spk_man->Encrypt(_vMasterKey, encrypted_batch)) {
+            if (!spk_man->Encrypt(plain_master_key, encrypted_batch)) {
                 encrypted_batch->TxnAbort();
                 delete encrypted_batch;
                 encrypted_batch = nullptr;
@@ -824,15 +828,14 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         Unlock(strWalletPassphrase);
 
         // Make new descriptors with a new seed
-        if (!IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET))
+        if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && !IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET)) {
             SetupDescriptorScriptPubKeyMans();
+        }
         Lock();
 
-        // Todo: the following is some leftwover code from Bitcoin. Are they still needed for SqLite? They were not in some IfDef, so left as is just in case...
-        // Need to completely rewrite the wallet file; if we don't, bdb might keep bits of the unencrypted private key in slack space in the database file.
+        // Need to completely rewrite the wallet file; if we don't, the database might keep
+        // bits of the unencrypted private key in slack space in the database file.
         GetDatabase().Rewrite();
-        // BDB seems to have a bad habit of writing old data into slack space in .dat files; that is bad if the old data is unencrypted private keys. So:
-        GetDatabase().ReloadDbEnv();
     }
     NotifyStatusChanged(this);
 
@@ -981,11 +984,11 @@ bool CWallet::IsSpentKey(const CScript& scriptPubKey) const
     return false;
 }
 
-CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx, bool fFlushOnClose, bool rescanning_old_block)
+CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx, bool rescanning_old_block)
 {
     LOCK(cs_wallet);
 
-    WalletBatch batch(GetDatabase(), fFlushOnClose);
+    WalletBatch batch(GetDatabase());
 
     uint256 hash = tx->GetHash();
 
@@ -1195,7 +1198,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const SyncTxS
             // Block disconnection override an abandoned tx as unconfirmed
             // which means user may have to call abandontransaction again
             TxState tx_state = std::visit([](auto&& s) -> TxState { return s; }, state);
-            CWalletTx* wtx = AddToWallet(MakeTransactionRef(tx), tx_state, /*update_wtx=*/nullptr, /*fFlushOnClose=*/false, rescanning_old_block);
+            CWalletTx* wtx = AddToWallet(MakeTransactionRef(tx), tx_state, /*update_wtx=*/nullptr, rescanning_old_block);
             if (!wtx) {
                 // Can only be nullptr if there was a db write error (missing db, read-only db or a db engine internal writing error).
                 // As we only store arriving transaction in this process, and we don't want an inconsistent state, let's throw an error.
@@ -1293,8 +1296,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, int conflicting_height, c
 }
 
 void CWallet::RecursiveUpdateTxState(const uint256& tx_hash, const TryUpdatingStateFn& try_updating_state) {
-    // Do not flush the wallet here for performance reasons
-    WalletBatch batch(GetDatabase(), false);
+    WalletBatch batch(GetDatabase());
     RecursiveUpdateTxState(&batch, tx_hash, try_updating_state);
 }
 
@@ -1461,7 +1463,7 @@ void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
     int disconnect_height = block.height;
 
     for (size_t index = 0; index < block.data->vtx.size(); index++) {
-        const CTransactionRef& ptx = Assert(block.data)->vtx[index];
+        const CTransactionRef& ptx = block.data->vtx[index];
         // Coinbase transactions are not only inactive but also abandoned,
         // meaning they should never be relayed standalone via the p2p protocol.
         SyncTransaction(ptx, TxStateInactive{/*abandoned=*/index == 0});
@@ -2026,11 +2028,6 @@ void MaybeResendWalletTxs(WalletContext& context)
 }
 
 
-/** @defgroup Actions
- *
- * @{
- */
-
 bool CWallet::SignTransaction(CMutableTransaction& tx) const
 {
     AssertLockHeld(cs_wallet);
@@ -2358,6 +2355,7 @@ bool CWallet::DelAddressBookWithDB(WalletBatch& batch, const CTxDestination& add
 size_t CWallet::KeypoolCountExternalKeys() const
 {
     AssertLockHeld(cs_wallet);
+
     unsigned int count = 0;
     for (auto spk_man : m_external_spk_managers) {
         count += spk_man.second->GetKeyPoolSize();
@@ -2474,13 +2472,11 @@ util::Result<CTxDestination> ReserveDestination::GetReservedDestination(bool int
     }
 
     if (nIndex == -1) {
-        CKeyPool keypool;
         int64_t index;
-        auto op_address = m_spk_man->GetReservedDestination(type, internal, index, keypool);
+        auto op_address = m_spk_man->GetReservedDestination(type, internal, index);
         if (!op_address) return op_address;
         nIndex = index;
         address = *op_address;
-        fInternal = keypool.fInternal;
     }
     return address;
 }
@@ -2832,10 +2828,10 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         walletInstance->m_default_change_type = parsed.value();
     }
 
-    if (args.IsArgSet("-mintxfee")) {
-        std::optional<CAmount> min_tx_fee = ParseMoney(args.GetArg("-mintxfee", ""));
+    if (const auto arg{args.GetArg("-mintxfee")}) {
+        std::optional<CAmount> min_tx_fee = ParseMoney(*arg);
         if (!min_tx_fee) {
-            error = AmountErrMsg("mintxfee", args.GetArg("-mintxfee", ""));
+            error = AmountErrMsg("mintxfee", *arg);
             return nullptr;
         } else if (min_tx_fee.value() > HIGH_TX_FEE_PER_KB) {
             warnings.push_back(AmountHighWarn("-mintxfee") + Untranslated(" ") +
@@ -2845,8 +2841,8 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         walletInstance->m_min_fee = CFeeRate{min_tx_fee.value()};
     }
 
-    if (args.IsArgSet("-maxapsfee")) {
-        const std::string max_aps_fee{args.GetArg("-maxapsfee", "")};
+    if (const auto arg{args.GetArg("-maxapsfee")}) {
+        const std::string& max_aps_fee{*arg};
         if (max_aps_fee == "-1") {
             walletInstance->m_max_aps_fee = -1;
         } else if (std::optional<CAmount> max_fee = ParseMoney(max_aps_fee)) {
@@ -2861,10 +2857,10 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         }
     }
 
-    if (args.IsArgSet("-fallbackfee")) {
-        std::optional<CAmount> fallback_fee = ParseMoney(args.GetArg("-fallbackfee", ""));
+    if (const auto arg{args.GetArg("-fallbackfee")}) {
+        std::optional<CAmount> fallback_fee = ParseMoney(*arg);
         if (!fallback_fee) {
-            error = strprintf(_("Invalid amount for %s=<amount>: '%s'"), "-fallbackfee", args.GetArg("-fallbackfee", ""));
+            error = strprintf(_("Invalid amount for %s=<amount>: '%s'"), "-fallbackfee", *arg);
             return nullptr;
         } else if (fallback_fee.value() > HIGH_TX_FEE_PER_KB) {
             warnings.push_back(AmountHighWarn("-fallbackfee") + Untranslated(" ") +
@@ -2876,10 +2872,10 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     // Disable fallback fee in case value was set to 0, enable if non-null value
     walletInstance->m_allow_fallback_fee = walletInstance->m_fallback_fee.GetFeePerK() != 0;
 
-    if (args.IsArgSet("-discardfee")) {
-        std::optional<CAmount> discard_fee = ParseMoney(args.GetArg("-discardfee", ""));
+    if (const auto arg{args.GetArg("-discardfee")}) {
+        std::optional<CAmount> discard_fee = ParseMoney(*arg);
         if (!discard_fee) {
-            error = strprintf(_("Invalid amount for %s=<amount>: '%s'"), "-discardfee", args.GetArg("-discardfee", ""));
+            error = strprintf(_("Invalid amount for %s=<amount>: '%s'"), "-discardfee", *arg);
             return nullptr;
         } else if (discard_fee.value() > HIGH_TX_FEE_PER_KB) {
             warnings.push_back(AmountHighWarn("-discardfee") + Untranslated(" ") +
@@ -2888,10 +2884,10 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         walletInstance->m_discard_rate = CFeeRate{discard_fee.value()};
     }
 
-    if (args.IsArgSet("-paytxfee")) {
+    if (const auto arg{args.GetArg("-paytxfee")}) {
         std::optional<CAmount> pay_tx_fee = ParseMoney(args.GetArg("-paytxfee", ""));
         if (!pay_tx_fee) {
-            error = AmountErrMsg("paytxfee", args.GetArg("-paytxfee", ""));
+            error = AmountErrMsg("paytxfee", *arg);
             return nullptr;
         } else if (pay_tx_fee.value() > HIGH_TX_FEE_PER_KB) {
             warnings.push_back(AmountHighWarn("-paytxfee") + Untranslated(" ") +
@@ -2902,15 +2898,15 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
         if (chain && walletInstance->m_pay_tx_fee < chain->relayMinFee()) {
             error = strprintf(_("Invalid amount for %s=<amount>: '%s' (must be at least %s)"),
-                "-paytxfee", args.GetArg("-paytxfee", ""), chain->relayMinFee().ToString());
+                "-paytxfee", *arg, chain->relayMinFee().ToString());
             return nullptr;
         }
     }
 
-    if (args.IsArgSet("-maxtxfee")) {
-        std::optional<CAmount> max_fee = ParseMoney(args.GetArg("-maxtxfee", ""));
+    if (const auto arg{args.GetArg("-maxtxfee")}) {
+        std::optional<CAmount> max_fee = ParseMoney(*arg);
         if (!max_fee) {
-            error = AmountErrMsg("maxtxfee", args.GetArg("-maxtxfee", ""));
+            error = AmountErrMsg("maxtxfee", *arg);
             return nullptr;
         } else if (max_fee.value() > HIGH_MAX_TX_FEE) {
             warnings.push_back(strprintf(_("%s is set very high! Fees this large could be paid on a single transaction."), "-maxtxfee"));
@@ -2918,18 +2914,18 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
         if (chain && CFeeRate{max_fee.value(), 1000} < chain->relayMinFee()) {
             error = strprintf(_("Invalid amount for %s=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
-                "-maxtxfee", args.GetArg("-maxtxfee", ""), chain->relayMinFee().ToString());
+                "-maxtxfee", *arg, chain->relayMinFee().ToString());
             return nullptr;
         }
 
         walletInstance->m_default_max_tx_fee = max_fee.value();
     }
 
-    if (args.IsArgSet("-consolidatefeerate")) {
-        if (std::optional<CAmount> consolidate_feerate = ParseMoney(args.GetArg("-consolidatefeerate", ""))) {
+    if (const auto arg{args.GetArg("-consolidatefeerate")}) {
+        if (std::optional<CAmount> consolidate_feerate = ParseMoney(*arg)) {
             walletInstance->m_consolidate_feerate = CFeeRate(*consolidate_feerate);
         } else {
-            error = AmountErrMsg("consolidatefeerate", args.GetArg("-consolidatefeerate", ""));
+            error = AmountErrMsg("consolidatefeerate", *arg);
             return nullptr;
         }
     }
@@ -3087,7 +3083,6 @@ bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interf
         }
         walletInstance->m_attaching_chain = false;
         walletInstance->chainStateFlushed(ChainstateRole::NORMAL, chain.getTipLocator());
-        walletInstance->GetDatabase().IncrementUpdateCounter();
     }
     walletInstance->m_attaching_chain = false;
 
@@ -3158,21 +3153,6 @@ bool CWallet::BackupWallet(const std::string& strDest) const
         }
     }
     return GetDatabase().Backup(strDest);
-}
-
-CKeyPool::CKeyPool()
-{
-    nTime = GetTime();
-    fInternal = false;
-    m_pre_split = false;
-}
-
-CKeyPool::CKeyPool(const CPubKey& vchPubKeyIn, bool internalIn)
-{
-    nTime = GetTime();
-    vchPubKey = vchPubKeyIn;
-    fInternal = internalIn;
-    m_pre_split = false;
 }
 
 int CWallet::GetTxDepthInMainChain(const CWalletTx& wtx) const
@@ -3538,9 +3518,11 @@ void CWallet::DeactivateScriptPubKeyMan(uint256 id, OutputType type, bool intern
 
 DescriptorScriptPubKeyMan* CWallet::GetDescriptorScriptPubKeyMan(const WalletDescriptor& desc) const
 {
-    for (auto& spk_man_pair : m_spk_managers) {
+    auto spk_man_pair = m_spk_managers.find(desc.id);
+
+    if (spk_man_pair != m_spk_managers.end()) {
         // Try to downcast to DescriptorScriptPubKeyMan then check if the descriptors match
-        DescriptorScriptPubKeyMan* spk_manager = dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man_pair.second.get());
+        DescriptorScriptPubKeyMan* spk_manager = dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man_pair->second.get());
         if (spk_manager != nullptr && spk_manager->HasWalletDescriptor(desc)) {
             return spk_manager;
         }
@@ -3568,14 +3550,16 @@ std::optional<bool> CWallet::IsInternalScriptPubKeyMan(ScriptPubKeyMan* spk_man)
     return GetScriptPubKeyMan(*type, /* internal= */ true) == desc_spk_man;
 }
 
-ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, bool internal)
+util::Result<ScriptPubKeyMan*> CWallet::AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, bool internal)
 {
     AssertLockHeld(cs_wallet);
 
     auto spk_man = GetDescriptorScriptPubKeyMan(desc);
     if (spk_man) {
         WalletLogPrintf("Update existing descriptor: %s\n", desc.descriptor->ToString());
-        spk_man->UpdateWalletDescriptor(desc);
+        if (auto spkm_res = spk_man->UpdateWalletDescriptor(desc); !spkm_res) {
+            return util::Error{util::ErrorString(spkm_res)};
+        }
     } else {
         auto new_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, desc, m_keypool_size));
         spk_man = new_spk_man.get();

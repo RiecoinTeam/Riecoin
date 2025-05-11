@@ -21,7 +21,7 @@ target_link_libraries(test_riecoin-qt
   test_util
   riecoin_node
   Boost::headers
-  Qt5::Test
+  Qt6::Test
 )
 
 import_plugins(test_riecoin-qt)

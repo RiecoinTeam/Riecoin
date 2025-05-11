@@ -26,11 +26,6 @@ using common::PSBTError;
 using util::ToString;
 
 namespace wallet {
-//! Value for the first BIP 32 hardened derivation. Can be used as a bit mask and as a value. See BIP 32 for more details.
-const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
-
-typedef std::vector<unsigned char> valtype;
-
 SigningResult ScriptPubKeyMan::SignMessageBIP322(MessageSignatureFormat format, const SigningProvider* keystore, const std::string& message, const CTxDestination& address, std::string& str_sig) const
 {
     assert(format != MessageSignatureFormat::LEGACY);
@@ -175,7 +170,7 @@ bool DescriptorScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, Walle
     return true;
 }
 
-util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetReservedDestination(const OutputType type, bool internal, int64_t& index, CKeyPool& keypool)
+util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetReservedDestination(const OutputType type, bool internal, int64_t& index)
 {
     LOCK(cs_desc_man);
     auto op_dest = GetNewDestination(type);
@@ -822,12 +817,12 @@ void DescriptorScriptPubKeyMan::UpgradeDescriptorCache()
     }
 }
 
-void DescriptorScriptPubKeyMan::UpdateWalletDescriptor(WalletDescriptor& descriptor)
+util::Result<void> DescriptorScriptPubKeyMan::UpdateWalletDescriptor(WalletDescriptor& descriptor)
 {
     LOCK(cs_desc_man);
     std::string error;
     if (!CanUpdateToWalletDescriptor(descriptor, error)) {
-        throw std::runtime_error(std::string(__func__) + ": " + error);
+        return util::Error{Untranslated(std::move(error))};
     }
 
     m_map_pubkeys.clear();
@@ -836,6 +831,7 @@ void DescriptorScriptPubKeyMan::UpdateWalletDescriptor(WalletDescriptor& descrip
     m_wallet_descriptor = descriptor;
 
     NotifyFirstKeyTimeChanged(this, m_wallet_descriptor.creation_time);
+    return {};
 }
 
 bool DescriptorScriptPubKeyMan::CanUpdateToWalletDescriptor(const WalletDescriptor& descriptor, std::string& error)

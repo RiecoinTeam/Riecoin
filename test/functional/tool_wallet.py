@@ -6,22 +6,18 @@
 """Test bitcoin-wallet."""
 
 import os
-import random
 import stat
-import string
 import subprocess
 import textwrap
 
 from collections import OrderedDict
 
-from test_framework.messages import ser_string
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_greater_than,
     sha256sum_file,
 )
-from test_framework.wallet import getnewdestination
 
 
 class ToolWalletTest(BitcoinTestFramework):
@@ -115,19 +111,9 @@ class ToolWalletTest(BitcoinTestFramework):
                 row = ",".join(["checksum", dump["checksum"]]) + "\n"
                 f.write(row)
 
-    def assert_dump(self, expected, received):
-        e = expected.copy()
-        r = received.copy()
-
-        assert_equal(len(e), len(r))
-        for k, v in e.items():
-            assert_equal(v, r[k])
-
     def do_tool_createfromdump(self, wallet_name, dumpfile):
         dumppath = self.nodes[0].datadir_path / dumpfile
         rt_dumppath = self.nodes[0].datadir_path / "rt-{}.dump".format(wallet_name)
-
-        dump_data = self.read_dump(dumppath)
 
         args = ["-wallet={}".format(wallet_name),
                 "-dumpfile={}".format(dumppath)]
@@ -138,7 +124,6 @@ class ToolWalletTest(BitcoinTestFramework):
 
         self.assert_tool_output("The dumpfile may contain private keys. To ensure the safety of your Riecoins, do not share the dumpfile.\n", '-wallet={}'.format(wallet_name), '-dumpfile={}'.format(rt_dumppath), 'dump')
 
-        rt_dump_data = self.read_dump(rt_dumppath)
         wallet_dat = self.nodes[0].wallets_path / wallet_name / "wallet.dat"
         self.assert_is_sqlite(wallet_dat)
 
@@ -151,7 +136,6 @@ class ToolWalletTest(BitcoinTestFramework):
         self.assert_raises_tool_error('Error parsing command line arguments: Invalid parameter -foo', '-foo')
         self.assert_raises_tool_error('No method provided. Run `riecoin-wallet -help` for valid methods.')
         self.assert_raises_tool_error('Wallet name must be provided when creating a new wallet.', 'create')
-        locked_dir = self.nodes[0].wallets_path
         error = f"SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['CLIENT_NAME']}?"
         self.assert_raises_tool_error(
             error,
@@ -293,7 +277,6 @@ class ToolWalletTest(BitcoinTestFramework):
 
         self.log.info('Checking createfromdump')
         self.do_tool_createfromdump("load", "wallet.dump")
-        self.do_tool_createfromdump("load-sqlite", "wallet.dump")
 
         self.log.info('Checking createfromdump handling of magic and versions')
         bad_ver_wallet_dump = self.nodes[0].datadir_path / "wallet-bad_ver1.dump"
@@ -379,15 +362,15 @@ class ToolWalletTest(BitcoinTestFramework):
         self.stop_node(0)
 
         # Wallet tool should successfully give info for this wallet
-        expected_output = textwrap.dedent(f'''\
+        expected_output = textwrap.dedent('''\
             Wallet info
             ===========
             Name: conflicts
-            Format: {"sqlite"}
-            Descriptors: {"yes"}
+            Format: sqlite
+            Descriptors: yes
             Encrypted: no
             HD (hd seed available): yes
-            Keypool Size: {"4"}
+            Keypool Size: 4
             Transactions: 4
             Address Book: 4
         ''')

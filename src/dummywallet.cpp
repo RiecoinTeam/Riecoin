@@ -48,8 +48,6 @@ void DummyWalletInit::AddWalletOptions(ArgsManager& argsman) const
         "-walletdir=<dir>",
         "-walletnotify=<cmd>",
         "-walletrbf",
-        "-dblogsize=<n>",
-        "-privdb",
         "-walletrejectlongchains",
         "-walletcrosschain",
         "-unsafesqlitesync",

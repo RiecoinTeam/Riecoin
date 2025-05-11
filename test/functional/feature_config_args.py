@@ -25,6 +25,7 @@ class ConfArgsTest(BitcoinTestFramework):
         self.supports_cli = False
         self.wallet_names = []
         self.disable_autoconnect = False
+        self.uses_wallet = None
 
     # Overridden to avoid attempt to sync not yet started nodes.
     def setup_network(self):

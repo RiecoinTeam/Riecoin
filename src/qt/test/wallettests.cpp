@@ -189,23 +189,34 @@ void SyncUpWallet(const std::shared_ptr<CWallet>& wallet, interfaces::Node& node
     QVERIFY(result.last_failed_block.IsNull());
 }
 
-std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChain100Setup& test)
+std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChain100Setup& test, bool watch_only = false)
 {
     std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), "", CreateMockableWalletDatabase());
     wallet->LoadWallet();
     LOCK(wallet->cs_wallet);
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-    wallet->SetupDescriptorScriptPubKeyMans();
+    if (watch_only) {
+        wallet->SetWalletFlag(wallet::WALLET_FLAG_DISABLE_PRIVATE_KEYS);
+    } else {
+        wallet->SetupDescriptorScriptPubKeyMans();
+    }
 
     // Add the coinbase key
     FlatSigningProvider provider;
     std::string error;
-    auto descs = Parse("combo(" + EncodeSecret(test.coinbaseKey) + ")", provider, error, /* require_checksum=*/ false);
+    std::string key_str;
+    if (watch_only) {
+        key_str = HexStr(test.coinbaseKey.GetPubKey());
+    } else {
+        key_str = EncodeSecret(test.coinbaseKey);
+    }
+    auto descs = Parse("combo(" + key_str + ")", provider, error, /* require_checksum=*/ false);
     assert(!descs.empty());
     assert(descs.size() == 1);
     auto& desc = descs.at(0);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
-    if (!wallet->AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
+    auto spk_manager = *Assert(wallet->AddWalletDescriptor(w_desc, provider, "", false));
+    assert(spk_manager);
     CTxDestination dest = GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type);
     wallet->SetAddressBook(dest, "", wallet::AddressPurpose::RECEIVE);
     wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
@@ -282,8 +293,8 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
 
-    // Call bumpfee. Test disabled, canceled, enabled, then failing cases.
-    BumpFee(transactionView, txid1, /*expectDisabled=*/true, /*expectError=*/"not BIP 125 replaceable", /*cancel=*/false);
+    // Call bumpfee. Test canceled fullrbf bump, canceled bip-125-rbf bump, passing bump, and then failing bump.
+    BumpFee(transactionView, txid1, /*expectDisabled=*/false, /*expectError=*/{}, /*cancel=*/true);
     BumpFee(transactionView, txid2, /*expectDisabled=*/false, /*expectError=*/{}, /*cancel=*/true);
     BumpFee(transactionView, txid2, /*expectDisabled=*/false, /*expectError=*/{}, /*cancel=*/false);
     BumpFee(transactionView, txid2, /*expectDisabled=*/true, /*expectError=*/"already bumped", /*cancel=*/false);
@@ -377,6 +388,56 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     QCOMPARE(walletModel.wallet().getAddressReceiveRequests().size(), size_t{0});
 }
 
+void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
+{
+    const std::shared_ptr<CWallet>& wallet = SetupDescriptorsWallet(node, test, /*watch_only=*/true);
+
+    // Create widgets and init models
+    std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    MiniGUI mini_gui(node, platformStyle.get());
+    mini_gui.initModelForWallet(node, wallet, platformStyle.get());
+    WalletModel& walletModel = *mini_gui.walletModel;
+    SendCoinsDialog& sendCoinsDialog = mini_gui.sendCoinsDialog;
+
+    // Update walletModel cached balance which will trigger an update for the 'labelBalance' QLabel.
+    walletModel.pollBalanceChanged();
+    // Check balance in send dialog
+    CompareBalance(walletModel, walletModel.wallet().getBalances().balance,
+                   sendCoinsDialog.findChild<QLabel*>("labelBalance"));
+
+    // Set change address
+    sendCoinsDialog.getCoinControl()->destChange = GetDestinationForKey(test.coinbaseKey.GetPubKey(), OutputType::LEGACY);
+
+    // Time to reject "save" PSBT dialog ('SendCoins' locks the main thread until the dialog receives the event).
+    QTimer timer;
+    timer.setInterval(500);
+    QObject::connect(&timer, &QTimer::timeout, [&](){
+        for (QWidget* widget : QApplication::topLevelWidgets()) {
+            if (widget->inherits("QMessageBox") && widget->objectName().compare("psbt_copied_message") == 0) {
+                QMessageBox* dialog = qobject_cast<QMessageBox*>(widget);
+                QAbstractButton* button = dialog->button(QMessageBox::Discard);
+                button->setEnabled(true);
+                button->click();
+                timer.stop();
+                break;
+            }
+        }
+    });
+    timer.start(500);
+
+    // Send tx and verify PSBT copied to the clipboard.
+    SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 5 * COIN, /*rbf=*/false, QMessageBox::Save);
+    const std::string& psbt_string = QApplication::clipboard()->text().toStdString();
+    QVERIFY(!psbt_string.empty());
+
+    // Decode psbt
+    std::optional<std::vector<unsigned char>> decoded_psbt = DecodeBase64(psbt_string);
+    QVERIFY(decoded_psbt);
+    PartiallySignedTransaction psbt;
+    std::string err;
+    QVERIFY(DecodeRawPSBT(psbt, MakeByteSpan(*decoded_psbt), err));
+}
+
 void TestGUI(interfaces::Node& node)
 {
     // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
@@ -391,6 +452,10 @@ void TestGUI(interfaces::Node& node)
     // "Full" GUI tests, use descriptor wallet
     const std::shared_ptr<CWallet>& desc_wallet = SetupDescriptorsWallet(node, test);
     TestGUI(node, desc_wallet);
+
+    // Watch-only wallet test
+    // Verify PSBT creation.
+    TestGUIWatchOnly(node, test);
 }
 
 } // namespace

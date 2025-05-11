@@ -43,6 +43,7 @@ COIN = 100000000  # 1 btc in satoshis
 MAX_MONEY = 84000000 * COIN
 
 MAX_BIP125_RBF_SEQUENCE = 0xfffffffd  # Sequence number that is rbf-opt-in (BIP 125) and csv-opt-out (BIP 68)
+MAX_SEQUENCE_NONFINAL = 0xfffffffe  # Sequence number that is csv-opt-out (BIP 68)
 SEQUENCE_FINAL = 0xffffffff  # Sequence number that disables nLockTime if set for every input of a tx
 
 MAX_PROTOCOL_MESSAGE_LENGTH = 4000000  # Maximum length of incoming protocol messages
@@ -79,9 +80,9 @@ MAX_OP_RETURN_RELAY = 83
 DEFAULT_MEMPOOL_EXPIRY_HOURS = 336  # hours
 
 MAGIC_BYTES = {
-    "mainnet": b"\xfc\xbc\xb2\xdb",   # mainnet
-    "testnet2404": b"\x0e\x09\x11\x05",  # testnet2404
-    "regtest": b"\xfa\xbf\xb5\xda",   # regtest
+    "mainnet": b"\xfc\xbc\xb2\xdb",
+    "testnet2404": b"\x0e\x09\x11\x05",
+    "regtest": b"\xfa\xbf\xb5\xda",
 }
 
 def sha256(s):

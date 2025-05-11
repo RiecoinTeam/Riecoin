@@ -170,8 +170,12 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
         dump_file.close();
         return false;
     }
+    // Make sure that the dump was created from a sqlite database only as that is the only
+    // type of database that we still support.
+    // Other formats such as BDB should not be loaded into a sqlite database since they also
+    // use a different type of wallet entirely which is no longer compatible with this software.
     if (format_value != "sqlite") {
-        error = strprintf(_("Wallet file format must be sqlite, a \"%s\" dump was provided instead."), format_value);
+        error = strprintf(_("Error: Dumpfile specifies an unsupported database format (%s). Only sqlite database dumps are supported"), format_value);
         return false;
     }
     std::string format_hasher_line = strprintf("%s,%s\n", format_key, format_value);

@@ -19,6 +19,7 @@ from test_framework.messages import (
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_approx,
     assert_equal,
     assert_fee_amount,
@@ -190,7 +191,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         watchonly_address = self.nodes[0].getnewaddress()
         watchonly_pubkey = self.nodes[0].getaddressinfo(watchonly_address)["pubkey"]
         self.watchonly_amount = Decimal(200)
-        wwatch.importpubkey(watchonly_pubkey, "", True)
+        wwatch.importpubkey(watchonly_pubkey, label="", rescan=True)
         self.watchonly_utxo = self.create_outpoints(self.nodes[0], outputs=[{watchonly_address: self.watchonly_amount}])[0]
 
         # Lock UTXO so nodes[0] doesn't accidentally spend it
@@ -653,7 +654,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         outputs = {self.nodes[0].getnewaddress():1.1}
         rawtx = wallet.createrawtransaction(inputs, outputs)
         fundedTx = wallet.fundrawtransaction(rawtx)
-        assert fundedTx["changepos"] != -1
+        assert_not_equal(fundedTx["changepos"], -1)
 
         # Now we need to unlock.
         with WalletUnlock(wallet, "test"):
@@ -875,10 +876,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         for out in res_dec['vout']:
             if out['value'] > 1.0:
                 changeaddress += out['scriptPubKey']['address']
-        assert changeaddress != ""
+        assert_not_equal(changeaddress, "")
         nextaddr = self.nodes[3].getnewaddress()
         # Now the change address key should be removed from the keypool.
-        assert changeaddress != nextaddr
+        assert_not_equal(changeaddress, nextaddr)
 
     def test_option_subtract_fee_from_outputs(self):
         self.log.info("Test fundrawtxn subtractFeeFromOutputs option")

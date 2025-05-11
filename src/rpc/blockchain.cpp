@@ -66,6 +66,7 @@
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 
+using interfaces::BlockRef;
 using interfaces::Mining;
 using node::BlockManager;
 using node::NodeContext;
@@ -282,14 +283,17 @@ static RPCHelpMan waitfornewblock()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     Mining& miner = EnsureMining(node);
 
-    auto block{CHECK_NONFATAL(miner.getTip()).value()};
-    if (IsRPCRunning()) {
-        block = timeout ? miner.waitTipChanged(block.hash, std::chrono::milliseconds(timeout)) : miner.waitTipChanged(block.hash);
-    }
+    // Abort if RPC came out of warmup too early
+    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+    std::optional<BlockRef> block = timeout ? miner.waitTipChanged(current_block.hash, std::chrono::milliseconds(timeout)) :
+                                              miner.waitTipChanged(current_block.hash);
+
+    // Return current block upon shutdown
+    if (block) current_block = *block;
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("hash", block.hash.GetHex());
-    ret.pushKV("height", block.height);
+    ret.pushKV("hash", current_block.hash.GetHex());
+    ret.pushKV("height", current_block.height);
     return ret;
 },
     };
@@ -328,22 +332,28 @@ static RPCHelpMan waitforblock()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     Mining& miner = EnsureMining(node);
 
-    auto block{CHECK_NONFATAL(miner.getTip()).value()};
+    // Abort if RPC came out of warmup too early
+    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+
     const auto deadline{std::chrono::steady_clock::now() + 1ms * timeout};
-    while (IsRPCRunning() && block.hash != hash) {
+    while (current_block.hash != hash) {
+        std::optional<BlockRef> block;
         if (timeout) {
             auto now{std::chrono::steady_clock::now()};
             if (now >= deadline) break;
             const MillisecondsDouble remaining{deadline - now};
-            block = miner.waitTipChanged(block.hash, remaining);
+            block = miner.waitTipChanged(current_block.hash, remaining);
         } else {
-            block = miner.waitTipChanged(block.hash);
+            block = miner.waitTipChanged(current_block.hash);
         }
+        // Return current block upon shutdown
+        if (!block) break;
+        current_block = *block;
     }
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("hash", block.hash.GetHex());
-    ret.pushKV("height", block.height);
+    ret.pushKV("hash", current_block.hash.GetHex());
+    ret.pushKV("height", current_block.height);
     return ret;
 },
     };
@@ -383,23 +393,29 @@ static RPCHelpMan waitforblockheight()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     Mining& miner = EnsureMining(node);
 
-    auto block{CHECK_NONFATAL(miner.getTip()).value()};
+    // Abort if RPC came out of warmup too early
+    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+
     const auto deadline{std::chrono::steady_clock::now() + 1ms * timeout};
 
-    while (IsRPCRunning() && block.height < height) {
+    while (current_block.height < height) {
+        std::optional<BlockRef> block;
         if (timeout) {
             auto now{std::chrono::steady_clock::now()};
             if (now >= deadline) break;
             const MillisecondsDouble remaining{deadline - now};
-            block = miner.waitTipChanged(block.hash, remaining);
+            block = miner.waitTipChanged(current_block.hash, remaining);
         } else {
-            block = miner.waitTipChanged(block.hash);
+            block = miner.waitTipChanged(current_block.hash);
         }
+        // Return current block on shutdown
+        if (!block) break;
+        current_block = *block;
     }
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("hash", block.hash.GetHex());
-    ret.pushKV("height", block.height);
+    ret.pushKV("hash", current_block.hash.GetHex());
+    ret.pushKV("height", current_block.height);
     return ret;
 },
     };
@@ -1343,58 +1359,41 @@ static RPCHelpMan getresult()
 static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softforks, const ChainstateManager& chainman, Consensus::DeploymentPos id)
 {
     // For BIP9 deployments.
-
     if (!DeploymentEnabled(chainman, id)) return;
     if (blockindex == nullptr) return;
 
-    auto get_state_name = [](const ThresholdState state) -> std::string {
-        switch (state) {
-        case ThresholdState::DEFINED: return "defined";
-        case ThresholdState::STARTED: return "started";
-        case ThresholdState::LOCKED_IN: return "locked_in";
-        case ThresholdState::ACTIVE: return "active";
-        case ThresholdState::FAILED: return "failed";
-        }
-        return "invalid";
-    };
-
     UniValue bip9(UniValue::VOBJ);
-
-    const ThresholdState next_state = chainman.m_versionbitscache.State(blockindex, chainman.GetConsensus(), id);
-    const ThresholdState current_state = chainman.m_versionbitscache.State(blockindex->pprev, chainman.GetConsensus(), id);
-
-    const bool has_signal = (ThresholdState::STARTED == current_state || ThresholdState::LOCKED_IN == current_state);
+    BIP9Info info{chainman.m_versionbitscache.Info(*blockindex, chainman.GetConsensus(), id)};
+    const auto& depparams{chainman.GetConsensus().vDeployments[id]};
 
     // BIP9 parameters
-    if (has_signal) {
-        bip9.pushKV("bit", chainman.GetConsensus().vDeployments[id].bit);
+    if (info.stats.has_value()) {
+        bip9.pushKV("bit", depparams.bit);
     }
-    bip9.pushKV("start_time", chainman.GetConsensus().vDeployments[id].nStartTime);
-    bip9.pushKV("timeout", chainman.GetConsensus().vDeployments[id].nTimeout);
-    bip9.pushKV("min_activation_height", chainman.GetConsensus().vDeployments[id].min_activation_height);
+    bip9.pushKV("start_time", depparams.nStartTime);
+    bip9.pushKV("timeout", depparams.nTimeout);
+    bip9.pushKV("min_activation_height", depparams.min_activation_height);
 
     // BIP9 status
-    bip9.pushKV("status", get_state_name(current_state));
-    bip9.pushKV("since", chainman.m_versionbitscache.StateSinceHeight(blockindex->pprev, chainman.GetConsensus(), id));
-    bip9.pushKV("status_next", get_state_name(next_state));
+    bip9.pushKV("status", info.current_state);
+    bip9.pushKV("since", info.since);
+    bip9.pushKV("status_next", info.next_state);
 
     // BIP9 signalling status, if applicable
-    if (has_signal) {
+    if (info.stats.has_value()) {
         UniValue statsUV(UniValue::VOBJ);
-        std::vector<bool> signals;
-        BIP9Stats statsStruct = chainman.m_versionbitscache.Statistics(blockindex, chainman.GetConsensus(), id, &signals);
-        statsUV.pushKV("period", statsStruct.period);
-        statsUV.pushKV("elapsed", statsStruct.elapsed);
-        statsUV.pushKV("count", statsStruct.count);
-        if (ThresholdState::LOCKED_IN != current_state) {
-            statsUV.pushKV("threshold", statsStruct.threshold);
-            statsUV.pushKV("possible", statsStruct.possible);
+        statsUV.pushKV("period", info.stats->period);
+        statsUV.pushKV("elapsed", info.stats->elapsed);
+        statsUV.pushKV("count", info.stats->count);
+        if (info.stats->threshold > 0 || info.stats->possible) {
+            statsUV.pushKV("threshold", info.stats->threshold);
+            statsUV.pushKV("possible", info.stats->possible);
         }
         bip9.pushKV("statistics", std::move(statsUV));
 
         std::string sig;
-        sig.reserve(signals.size());
-        for (const bool s : signals) {
+        sig.reserve(info.signalling_blocks.size());
+        for (const bool s : info.signalling_blocks) {
             sig.push_back(s ? '#' : '-');
         }
         bip9.pushKV("signalling", sig);
@@ -1402,12 +1401,13 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
 
     UniValue rv(UniValue::VOBJ);
     rv.pushKV("type", "bip9");
-    if (ThresholdState::ACTIVE == next_state) {
-        rv.pushKV("height", chainman.m_versionbitscache.StateSinceHeight(blockindex, chainman.GetConsensus(), id));
+    bool is_active = false;
+    if (info.active_since.has_value()) {
+        rv.pushKV("height", *info.active_since);
+        is_active = (*info.active_since <= blockindex->nHeight + 1);
     }
-    rv.pushKV("active", ThresholdState::ACTIVE == next_state);
-    rv.pushKV("bip9", std::move(bip9));
-
+    rv.pushKV("active", is_active);
+    rv.pushKV("bip9", bip9);
     softforks.pushKV(DeploymentName(id), std::move(rv));
 }
 

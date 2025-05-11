@@ -220,7 +220,7 @@ const std::vector<uint64_t> primeTable(GeneratePrimeTable(821641)); // Used to c
 // Bypasses the actual proof of work check during fuzz testing .
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256 nOnce, const Consensus::Params& params)
 {
-    if constexpr (G_FUZZING) return true;
+    if (EnableFuzzDeterminism()) return true;
     return CheckProofOfWorkImpl(hash, nBits, nOnce, params);
 }
 

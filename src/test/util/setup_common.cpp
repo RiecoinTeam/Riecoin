@@ -61,6 +61,7 @@
 #include <walletinitinterface.h>
 
 #include <algorithm>
+#include <future>
 #include <functional>
 #include <stdexcept>
 
@@ -112,7 +113,7 @@ static void ExitFailure(std::string_view str_err)
 BasicTestingSetup::BasicTestingSetup(const ChainType chainType, TestOpts opts)
     : m_args{}
 {
-    if constexpr (!G_FUZZING) {
+    if (!EnableFuzzDeterminism()) {
         SeedRandomForTest(SeedRand::FIXED_SEED);
     }
     m_node.shutdown_signal = &m_interrupt;
@@ -203,7 +204,7 @@ BasicTestingSetup::~BasicTestingSetup()
 {
     m_node.ecc_context.reset();
     m_node.kernel.reset();
-    if constexpr (!G_FUZZING) {
+    if (!EnableFuzzDeterminism()) {
         SetMockTime(0s); // Reset mocktime for following tests
     }
     LogInstance().DisconnectTestLogger();
@@ -229,8 +230,15 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
         m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
         m_node.validation_signals =
             // Use synchronous task runner while fuzzing to avoid non-determinism
-            G_FUZZING ? std::make_unique<ValidationSignals>(std::make_unique<util::ImmediateTaskRunner>()) :
-                        std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
+            EnableFuzzDeterminism() ?
+                std::make_unique<ValidationSignals>(std::make_unique<util::ImmediateTaskRunner>()) :
+                std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(*m_node.scheduler));
+        {
+            // Ensure deterministic coverage by waiting for m_service_thread to be running
+            std::promise<void> promise;
+            m_node.scheduler->scheduleFromNow([&promise] { promise.set_value(); }, 0ms);
+            promise.get_future().wait();
+        }
     }
 
     bilingual_str error{};
@@ -248,7 +256,8 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
             .check_block_index = 1,
             .notifications = *m_node.notifications,
             .signals = m_node.validation_signals.get(),
-            .worker_threads_num = 2,
+            // Use no worker threads while fuzzing to avoid non-determinism
+            .worker_threads_num = EnableFuzzDeterminism() ? 0 : 2,
         };
         if (opts.min_validation_cache) {
             chainman_opts.script_execution_cache_bytes = 0;
@@ -361,7 +370,7 @@ TestChain100Setup::TestChain100Setup(
     {
         LOCK(::cs_main);
         assert(
-            m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() == "6dcdbb069a598de55640f1034918f019a9c865ee8df0cc1d53557ad53d6bebf5");
+            m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() == "4458482feb90695b1d513edd2c4163e6f9b141dc9edb25ef937288c51b2c4ddb");
     }
 }
 

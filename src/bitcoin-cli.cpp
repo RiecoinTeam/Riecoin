@@ -129,14 +129,10 @@ static void libevent_log_cb(int severity, const char *msg)
 // Exception thrown on connection error.  This error is used to determine
 // when to wait if -rpcwait is given.
 //
-class CConnectionFailed : public std::runtime_error
-{
-public:
-
+struct CConnectionFailed : std::runtime_error {
     explicit inline CConnectionFailed(const std::string& msg) :
         std::runtime_error(msg)
     {}
-
 };
 
 //
@@ -258,30 +254,25 @@ static void http_error_cb(enum evhttp_request_error err, void *ctx)
     reply->error = err;
 }
 
-/** Class that handles the conversion from a command-line to a JSON-RPC request,
+static int8_t NetworkStringToId(const std::string& str)
+{
+    for (size_t i = 0; i < NETWORKS.size(); ++i) {
+        if (str == NETWORKS[i]) return i;
+    }
+    return UNKNOWN_NETWORK;
+}
+
+/** Handle the conversion from a command-line to a JSON-RPC request,
  * as well as converting back to a JSON object that can be shown as result.
  */
-class BaseRequestHandler
-{
-public:
+struct BaseRequestHandler {
     virtual ~BaseRequestHandler() = default;
     virtual UniValue PrepareRequest(const std::string& method, const std::vector<std::string>& args) = 0;
     virtual UniValue ProcessReply(const UniValue &batch_in) = 0;
 };
 
 /** Process addrinfo requests */
-class AddrinfoRequestHandler : public BaseRequestHandler
-{
-private:
-    int8_t NetworkStringToId(const std::string& str) const
-    {
-        for (size_t i = 0; i < NETWORKS.size(); ++i) {
-            if (str == NETWORKS[i]) return i;
-        }
-        return UNKNOWN_NETWORK;
-    }
-
-public:
+struct AddrinfoRequestHandler : BaseRequestHandler {
     UniValue PrepareRequest(const std::string& method, const std::vector<std::string>& args) override
     {
         if (!args.empty()) {
@@ -320,9 +311,7 @@ public:
 };
 
 /** Process getinfo requests */
-class GetinfoRequestHandler: public BaseRequestHandler
-{
-public:
+struct GetinfoRequestHandler : BaseRequestHandler {
     const int ID_NETWORKINFO = 0;
     const int ID_BLOCKCHAININFO = 1;
     const int ID_WALLETINFO = 2;
@@ -395,15 +384,8 @@ private:
     std::array<std::array<uint16_t, NETWORKS.size() + 1>, 3> m_counts{{{}}}; //!< Peer counts by (in/out/total, networks/total)
     uint8_t m_block_relay_peers_count{0};
     uint8_t m_manual_peers_count{0};
-    int8_t NetworkStringToId(const std::string& str) const
-    {
-        for (size_t i = 0; i < NETWORKS.size(); ++i) {
-            if (str == NETWORKS[i]) return i;
-        }
-        return UNKNOWN_NETWORK;
-    }
     uint8_t m_details_level{0}; //!< Optional user-supplied arg to set dashboard details level
-    bool DetailsRequested() const { return m_details_level > 0 && m_details_level < 5; }
+    bool DetailsRequested() const { return m_details_level; }
     bool IsAddressSelected() const { return m_details_level == 2 || m_details_level == 4; }
     bool IsVersionSelected() const { return m_details_level == 3 || m_details_level == 4; }
     bool m_outbound_only_selected{false};
@@ -770,8 +752,7 @@ protected:
 };
 
 /** Process default single requests */
-class DefaultRequestHandler: public BaseRequestHandler {
-public:
+struct DefaultRequestHandler : BaseRequestHandler {
     UniValue PrepareRequest(const std::string& method, const std::vector<std::string>& args) override
     {
         UniValue params;
@@ -1073,7 +1054,7 @@ static void ParseGetInfoResult(UniValue& result)
     }
 #endif
 
-    if (gArgs.IsArgSet("-color")) {
+    {
         const std::string color{gArgs.GetArg("-color", DEFAULT_COLOR_SETTING)};
         if (color == "always") {
             should_colorize = true;
@@ -1234,7 +1215,7 @@ static int CommandLineRPC(int argc, char *argv[])
         if (gArgs.GetBoolArg("-stdinwalletpassphrase", false)) {
             NO_STDIN_ECHO();
             std::string walletPass;
-            if (args.size() < 1 || args[0].substr(0, 16) != "walletpassphrase") {
+            if (args.size() < 1 || !args[0].starts_with("walletpassphrase")) {
                 throw std::runtime_error("-stdinwalletpassphrase is only applicable for walletpassphrase(change)");
             }
             if (!StdinReady()) {
@@ -1262,7 +1243,7 @@ static int CommandLineRPC(int argc, char *argv[])
         gArgs.CheckMultipleCLIArgs();
         std::unique_ptr<BaseRequestHandler> rh;
         std::string method;
-        if (gArgs.IsArgSet("-getinfo")) {
+        if (gArgs.GetBoolArg("-getinfo", false)) {
             rh.reset(new GetinfoRequestHandler());
         } else if (gArgs.GetBoolArg("-netinfo", false)) {
             if (!args.empty() && (args.at(0) == "h" || args.at(0) == "help")) {

@@ -70,7 +70,6 @@ FUZZ_TARGET(headers_sync_state, .init = initialize_headers_sync_state_fuzz)
     // Store headers for potential redownload phase.
     std::vector<CBlockHeader> all_headers;
     std::vector<CBlockHeader>::const_iterator redownloaded_it;
-    bool presync{true};
     bool requested_more{true};
 
     while (requested_more) {
@@ -78,7 +77,7 @@ FUZZ_TARGET(headers_sync_state, .init = initialize_headers_sync_state_fuzz)
 
         // Consume headers from fuzzer or maybe replay headers if we got to the
         // redownload phase.
-        if (presync || fuzzed_data_provider.ConsumeBool()) {
+        if (fuzzed_data_provider.ConsumeBool()) {
             auto deser_headers = ConsumeDeserializable<std::vector<CBlockHeader>>(fuzzed_data_provider);
             if (!deser_headers || deser_headers->empty()) return;
 
@@ -99,21 +98,7 @@ FUZZ_TARGET(headers_sync_state, .init = initialize_headers_sync_state_fuzz)
         auto result = headers_sync.ProcessNextHeaders(headers, fuzzed_data_provider.ConsumeBool());
         requested_more = result.request_more;
 
-        if (result.request_more) {
-            if (presync) {
-                all_headers.insert(all_headers.cend(), headers.cbegin(), headers.cend());
-
-                if (headers_sync.GetState() == HeadersSyncState::State::REDOWNLOAD) {
-                    presync = false;
-                    redownloaded_it = all_headers.cbegin();
-
-                    // If we get to redownloading, the presynced headers need
-                    // to have the min amount of work on them.
-                    assert(CalculateClaimedHeadersWork(all_headers, start_index.nHeight) >= min_work);
-                }
-            }
-
+        if (result.request_more)
             (void)headers_sync.NextHeadersRequestLocator();
-        }
     }
 }

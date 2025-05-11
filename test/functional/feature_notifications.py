@@ -29,6 +29,7 @@ class NotificationsTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.setup_clean_chain = True
+        self.uses_wallet = None
 
     def setup_network(self):
         self.wallet = ''.join(chr(i) for i in range(FILE_CHAR_START, FILE_CHAR_END) if chr(i) not in FILE_CHARS_DISALLOWED)
@@ -56,7 +57,6 @@ class NotificationsTest(BitcoinTestFramework):
     def run_test(self):
         if self.is_wallet_compiled():
             # Setup the descriptors to be imported to the wallet
-            seed = "prvb458d3f1543602455fd0e962f93a339da7f96e644ea5d81f57c9f36a29829117"
             xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
             desc_imports = [{
                 "desc": descsum_create(f"tr({xpriv}/0/*)"),

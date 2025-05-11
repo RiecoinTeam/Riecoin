@@ -91,7 +91,7 @@ class ScanblocksTest(BitcoinTestFramework):
         b1_spks = bip158_relevant_scriptpubkeys(node, b1_blockhash)
         assert_equal(len(b1_spks), 1)
         b1_coinbase_spk = list(b1_spks)[0]
-        false_positive_spk = bytes.fromhex("001400000000000000000000000000000000001b8fc8")
+        false_positive_spk = bytes.fromhex("0014000000000000000000000000000000000020553b")
 
         b1_coinbase_hash = bip158_basic_element_hash(b1_coinbase_spk, 1, b1_blockhash)
         false_positive_hash = bip158_basic_element_hash(false_positive_spk, 1, b1_blockhash)

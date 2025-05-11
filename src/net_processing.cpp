@@ -7,39 +7,54 @@
 #include <net_processing.h>
 
 #include <addrman.h>
+#include <arith_uint256.h>
 #include <banman.h>
 #include <blockencodings.h>
 #include <blockfilter.h>
+#include <chain.h>
 #include <chainparams.h>
+#include <common/bloom.h>
 #include <consensus/amount.h>
+#include <consensus/params.h>
 #include <consensus/validation.h>
+#include <core_memusage.h>
+#include <crypto/siphash.h>
 #include <deploymentstatus.h>
-#include <hash.h>
+#include <flatfile.h>
 #include <index/blockfilterindex.h>
 #include <kernel/chain.h>
-#include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <merkleblock.h>
+#include <net.h>
+#include <net_permissions.h>
+#include <netaddress.h>
 #include <netbase.h>
 #include <netmessagemaker.h>
 #include <node/blockstorage.h>
+#include <node/connection_types.h>
+#include <node/protocol_version.h>
 #include <node/timeoffsets.h>
 #include <node/txdownloadman.h>
 #include <node/txreconciliation.h>
 #include <node/warnings.h>
+#include <policy/feerate.h>
 #include <policy/fees.h>
+#include <policy/packages.h>
 #include <policy/policy.h>
-#include <policy/settings.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <protocol.h>
 #include <random.h>
 #include <scheduler.h>
+#include <script/script.h>
+#include <serialize.h>
+#include <span.h>
 #include <streams.h>
 #include <sync.h>
 #include <tinyformat.h>
 #include <txmempool.h>
 #include <txorphanage.h>
-#include <txrequest.h>
+#include <uint256.h>
 #include <util/check.h>
 #include <util/strencodings.h>
 #include <util/time.h>
@@ -47,11 +62,26 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <compare>
+#include <cstddef>
+#include <deque>
+#include <exception>
+#include <functional>
 #include <future>
+#include <initializer_list>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <map>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <ranges>
+#include <ratio>
+#include <set>
+#include <span>
 #include <typeinfo>
 #include <utility>
 
@@ -970,6 +1000,8 @@ private:
 
     void AddAddressKnown(Peer& peer, const CAddress& addr) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex);
     void PushAddress(Peer& peer, const CAddress& addr) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex);
+
+    void LogBlockHeader(const CBlockIndex& index, const CNode& peer, bool via_compact_block);
 };
 
 const CNodeState* PeerManagerImpl::State(NodeId pnode) const
@@ -1085,7 +1117,7 @@ void PeerManagerImpl::RemoveBlockRequest(const uint256& hash, std::optional<Node
     Assume(mapBlocksInFlight.count(hash) <= MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK);
 
     while (range.first != range.second) {
-        auto [node_id, list_it] = range.first->second;
+        const auto& [node_id, list_it]{range.first->second};
 
         if (from_peer && *from_peer != node_id) {
             range.first++;
@@ -2616,13 +2648,18 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, Peer& peer,
     bool received_new_header{WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(headers.back().GetHash()) == nullptr)};
 
     BlockValidationState state;
-    if (!m_chainman.ProcessNewBlockHeaders(headers, state, &pindexLast)) {
+    const bool processed{m_chainman.ProcessNewBlockHeaders(headers, state, &pindexLast)};
+    if (!processed) {
         if (state.IsInvalid()) {
             MaybePunishNodeForBlock(pfrom.GetId(), state, via_compact_block, "invalid header received");
             return;
         }
     }
     assert(pindexLast);
+
+    if (processed && received_new_header) {
+        LogBlockHeader(*pindexLast, pfrom, /*via_compact_block=*/false);
+    }
 
     // Consider fetching more headers.
     if (nCount == m_opts.max_headers_result) {
@@ -3049,6 +3086,32 @@ void PeerManagerImpl::ProcessCompactBlockTxns(CNode& pfrom, Peer& peer, const Bl
         ProcessBlock(pfrom, pblock, /*force_processing=*/true);
     }
     return;
+}
+
+void PeerManagerImpl::LogBlockHeader(const CBlockIndex& index, const CNode& peer, bool via_compact_block) {
+    // To prevent log spam, this function should only be called after it was determined that a
+    // header is both new and valid.
+    //
+    // These messages are valuable for detecting potential selfish mining behavior;
+    // if multiple displacing headers are seen near simultaneously across many
+    // nodes in the network, this might be an indication of selfish mining.
+    // In addition it can be used to identify peers which send us a header, but
+    // don't followup with a complete and valid (compact) block.
+    // Having this log by default when not in IBD ensures broad availability of
+    // this data in case investigation is merited.
+    const auto msg = strprintf(
+        "Saw new %sheader hash=%s height=%d peer=%d%s",
+        via_compact_block ? "cmpctblock " : "",
+        index.GetBlockHash().ToString(),
+        index.nHeight,
+        peer.GetId(),
+        peer.LogIP(fLogIPs)
+    );
+    if (m_chainman.IsInitialBlockDownload()) {
+        LogDebug(BCLog::VALIDATION, "%s", msg);
+    } else {
+        LogInfo("%s", msg);
+    }
 }
 
 void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv,
@@ -3987,9 +4050,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             }
         }
 
+        // If AcceptBlockHeader returned true, it set pindex
+        Assert(pindex);
         if (received_new_header) {
-            LogInfo("Saw new cmpctblock header hash=%s peer=%d\n",
-                blockhash.ToString(), pfrom.GetId());
+            LogBlockHeader(*pindex, pfrom, /*via_compact_block=*/true);
         }
 
         bool fProcessBLOCKTXN = false;
@@ -4005,8 +4069,6 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
         {
         LOCK(cs_main);
-        // If AcceptBlockHeader returned true, it set pindex
-        assert(pindex);
         UpdateBlockAvailability(pfrom.GetId(), pindex->GetBlockHash());
 
         CNodeState *nodestate = State(pfrom.GetId());

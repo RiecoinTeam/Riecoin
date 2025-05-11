@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
+# Copyright (c) 2014-present The Bitcoin Core developers
 # Copyright (c) 2013-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -168,6 +168,7 @@ BASE_SCRIPTS = [
     'feature_bind_extra.py',
     'mempool_resurrect.py',
     'wallet_txn_doublespend.py --mineblock',
+    'tool_bitcoin_chainstate.py',
     'tool_wallet.py',
     # 'wallet_txn_clone.py', # Test might not work with Bech32/Bech32M.
     'wallet_txn_clone.py --segwit',
@@ -347,6 +348,7 @@ BASE_SCRIPTS = [
     # 'p2p_handshake.py --v2transport',
     'feature_dirsymlinks.py',
     'feature_help.py',
+    'feature_framework_startup_failures.py',
     'feature_shutdown.py',
     'p2p_ibd_txrelay.py',
     'p2p_seednode.py',
@@ -481,7 +483,7 @@ def main():
 
         exclude_tests = [test.strip() for test in args.exclude.split(",")]
         for exclude_test in exclude_tests:
-            # A space in the name indicates it has arguments such as "wallet_basic.py --descriptors"
+            # A space in the name indicates it has arguments such as "rpc_bind.py --ipv4"
             if ' ' in exclude_test:
                 remove_tests([test for test in test_list if test.replace('.py', '') == exclude_test.replace('.py', '')])
             else:

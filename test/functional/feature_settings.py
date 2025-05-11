@@ -18,6 +18,7 @@ class SettingsTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 1
         self.wallet_names = []
+        self.uses_wallet = None
 
     def test_wallet_settings(self, settings_path):
         if not self.is_wallet_compiled():

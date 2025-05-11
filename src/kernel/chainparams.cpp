@@ -65,14 +65,14 @@ public:
         consensus.nBitsMin = 600*256; // Difficulty 600, starting from fork2Height
         consensus.nPowTargetSpacing = 150; // 2.5 min
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 3024; // 75%
-        consensus.nMinerConfirmationWindow = 4032; // 7 days
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000d3b6857eeeada253b65f96200000"}; // 2325905
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000de8dce9cb0f4fcf7b2df96200000"}; // 2352012
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -113,18 +113,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 2322000,
-                .hash_serialized = AssumeutxoHash{uint256{"09c01ba89fe47314da250b7dccaeaee90a64b7303cf62d3f43e505677be5585b"}},
-                .m_chain_tx_count = 4566965,
-                .blockhash = uint256{"40a3c0aaa790165a9b3d8764e867aec7a0b817d4edfd1a248a04242d0506a7ee"}
+                .height = 2350000,
+                .hash_serialized = AssumeutxoHash{uint256{"c22e8ff760330718bc747515d7e6905f863fb9bd506ebeff5ff2974176401755"}},
+                .m_chain_tx_count = 4601851,
+                .blockhash = uint256{"f45a8a584cafe541540226597c69727f50bb9ad62070d4cb95cac2ea2d002dd0"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 40a3c0aaa790165a9b3d8764e867aec7a0b817d4edfd1a248a04242d0506a7ee
-            .nTime    = 1742504513,
-            .tx_count = 4566965,
-            .dTxRate  = 0.008461742683110736,
+            // Data from RPC: getchaintxstats 65536 f45a8a584cafe541540226597c69727f50bb9ad62070d4cb95cac2ea2d002dd0
+            .nTime    = 1746687553,
+            .tx_count = 4601851,
+            .dTxRate  = 0.008250101460779985,
         };
     }
 };
@@ -142,14 +142,14 @@ public:
         consensus.nBitsMin = 512*256; // Difficulty 512
         consensus.nPowTargetSpacing = 300; // 5 min, 2x less blocks to download for TestNet
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1512; // 75%
-        consensus.nMinerConfirmationWindow = 2016;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000075f8e74698244438e6000"}; // 115939
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000084f48207f56d3a7cbc000"}; // 128913
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -186,18 +186,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 112000,
+                .height = 126000,
                 .hash_serialized = AssumeutxoHash{uint256{"5c21e6d9c581a15a61fdeb905ddfa5ad13d93335dc08e23dbce589c23210df22"}},
-                .m_chain_tx_count = 112014,
-                .blockhash = uint256{"2e8b0c351e6ed2019ebdf567f7396ec034d721029b945a8e9659c721e06a7772"}
+                .m_chain_tx_count = 126014,
+                .blockhash = uint256{"bc9277fe7f4b7328c1bb391deb6f1396e7218e8226c794a165af7c5ef516881c"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 2e8b0c351e6ed2019ebdf567f7396ec034d721029b945a8e9659c721e06a7772
-            .nTime    = 1741902653,
-            .tx_count = 112014,
-            .dTxRate  = 0.003345395783715304,
+            // Data from RPC: getchaintxstats 16384 bc9277fe7f4b7328c1bb391deb6f1396e7218e8226c794a165af7c5ef516881c
+            .nTime    = 1746115558,
+            .tx_count = 126014,
+            .dTxRate  = 0.003328467129558714,
         };
     }
 };
@@ -217,13 +217,13 @@ public:
         consensus.nBitsMin = 288*256; // 288
         consensus.nPowTargetSpacing = 150; // 2.5 min
         consensus.fPowNoRetargeting = true; // No Difficulty Adjustment
-        consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
-        consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 108; // 75%
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 144; // Faster than normal for regtest (144 instead of 2016)
 
         consensus.nMinimumChainWork = uint256{};
 
@@ -264,23 +264,23 @@ public:
         m_assumeutxo_data = {
             {   // For use by unit tests
                 .height = 110,
-                .hash_serialized = AssumeutxoHash{uint256{"6657b736d4fe4db0cbc796789e812d5dba7f5c143764b1b6905612f1830609d1"}},
+                .hash_serialized = AssumeutxoHash{uint256{"b952555c8ab81fec46f3d4253b7af256d766ceb39fb7752b9d18cdf4a0141327"}},
                 .m_chain_tx_count = 111,
-                .blockhash = uint256{"91ed22a65c353d14bd238945e6ceefdcdb1193fef602dc61413a9c4c9b2bf998"}
+                .blockhash = uint256{"7bfe934ca2085c6c5e6b827c9dbabfbc5ac28f0bd965f94ccd7e0c2093467cde"}
             },
             {
                 // For use by fuzz target src/test/fuzz/utxo_snapshot.cpp
                 .height = 200,
-                .hash_serialized = AssumeutxoHash{uint256{"7e3b7780fbd2fa479a01f66950dc8f728dc1b11f03d06d5bf223168520df3a48"}},
+                .hash_serialized = AssumeutxoHash{uint256{"17dcc016d188d16068907cdeb38b75691a118d43053b8cd6a25969419381d13a"}},
                 .m_chain_tx_count = 201,
-                .blockhash = uint256{"5e93653318f294fb5aa339d00bbf8cf1c3515488ad99412c37608b139ea63b27"}
+                .blockhash = uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"}
             },
             {
                 // For use by test/functional/feature_assumeutxo.py
                 .height = 299,
-                .hash_serialized = AssumeutxoHash{uint256{"030663cfbd01e69df8bd572086b45c7e242212a6c36b3386bd39f3d40a8dfb3b"}},
+                .hash_serialized = AssumeutxoHash{uint256{"2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85"}},
                 .m_chain_tx_count = 334,
-                .blockhash = uint256{"3e7998064a7c6cc4d980f5d1405d63566872ea2b23d1b1c9f068a4d3a98854bc"}
+                .blockhash = uint256{"b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80"}
             },
         };
 

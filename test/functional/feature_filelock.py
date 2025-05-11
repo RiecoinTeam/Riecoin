@@ -17,6 +17,7 @@ class FilelockTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
+        self.uses_wallet = None
 
     def setup_network(self):
         self.add_nodes(self.num_nodes, extra_args=None)
@@ -44,15 +45,12 @@ class FilelockTest(BitcoinTestFramework):
         assert pid_file.exists()
 
         if self.is_wallet_compiled():
-            def check_wallet_filelock():
-                wallet_name = ''.join([random.choice(string.ascii_lowercase) for _ in range(6)])
-                self.nodes[0].createwallet(wallet_name=wallet_name)
-                wallet_dir = self.nodes[0].wallets_path
-                self.log.info("Check that we can't start a second bitcoind instance using the same wallet")
-                expected_msg = f"Error: SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['CLIENT_NAME']}?"
-                self.nodes[1].assert_start_raises_init_error(extra_args=[f'-walletdir={wallet_dir}', f'-wallet={wallet_name}', '-noserver'], expected_msg=expected_msg, match=ErrorMatch.PARTIAL_REGEX)
-
-            check_wallet_filelock()
+            wallet_name = ''.join([random.choice(string.ascii_lowercase) for _ in range(6)])
+            self.nodes[0].createwallet(wallet_name=wallet_name)
+            wallet_dir = self.nodes[0].wallets_path
+            self.log.info("Check that we can't start a second riecoind instance using the same wallet")
+            expected_msg = f"Error: SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['CLIENT_NAME']}?"
+            self.nodes[1].assert_start_raises_init_error(extra_args=[f'-walletdir={wallet_dir}', f'-wallet={wallet_name}', '-noserver'], expected_msg=expected_msg, match=ErrorMatch.PARTIAL_REGEX)
 
 if __name__ == '__main__':
     FilelockTest(__file__).main()

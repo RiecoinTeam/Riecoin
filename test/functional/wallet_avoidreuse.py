@@ -5,9 +5,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the avoid_reuse and setwalletflag features."""
 
-from test_framework.address import address_to_scriptpubkey
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_approx,
     assert_equal,
     assert_raises_rpc_error,
@@ -65,7 +65,6 @@ def assert_balances(node, mine, margin=0.001):
         assert_approx(got[k], v, margin)
 
 class AvoidReuseTest(BitcoinTestFramework):
-
     def set_test_params(self):
         self.num_nodes = 2
         # whitelist peers to speed up tx relay / mempool sync
@@ -161,7 +160,7 @@ class AvoidReuseTest(BitcoinTestFramework):
         # Make sure it's starting out as change as expected
         assert node.getaddressinfo(changeaddr)['ischange']
         for logical_tx in node.listtransactions():
-            assert logical_tx.get('address') != changeaddr
+            assert_not_equal(logical_tx.get('address'), changeaddr)
 
         # Spend it
         reset_balance(node, node.getnewaddress())
@@ -169,7 +168,7 @@ class AvoidReuseTest(BitcoinTestFramework):
         # It should still be change
         assert node.getaddressinfo(changeaddr)['ischange']
         for logical_tx in node.listtransactions():
-            assert logical_tx.get('address') != changeaddr
+            assert_not_equal(logical_tx.get('address'), changeaddr)
 
     def test_sending_from_reused_address_without_avoid_reuse(self):
         '''

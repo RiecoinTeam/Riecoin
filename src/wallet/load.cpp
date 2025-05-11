@@ -159,15 +159,7 @@ void StartWallets(WalletContext& context)
         pwallet->postInitProcess();
     }
 
-    // Schedule periodic tx rebroadcasts
     context.scheduler->scheduleEvery([&context] { MaybeResendWalletTxs(context); }, 1min);
-}
-
-void FlushWallets(WalletContext& context)
-{
-    for (const std::shared_ptr<CWallet>& pwallet : GetWallets(context)) {
-        pwallet->Flush();
-    }
 }
 
 void StopWallets(WalletContext& context)
