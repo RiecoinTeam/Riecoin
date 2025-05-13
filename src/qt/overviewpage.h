@@ -32,7 +32,7 @@ class OverviewPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit OverviewPage(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
+    explicit OverviewPage(const PlatformStyle *platformStyle, QWidget *parent = nullptr, bool closed = false);
     ~OverviewPage();
 
     void setClientModel(ClientModel *clientModel);
@@ -44,7 +44,7 @@ public Q_SLOTS:
     void setPrivacy(bool privacy);
 
 Q_SIGNALS:
-    void outOfSyncWarningClicked();
+    void createWalletButtonClicked();
 
 protected:
     void changeEvent(QEvent* e) override;

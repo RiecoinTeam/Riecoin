@@ -19,11 +19,14 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
+#include <qt/walletframe.h>
 
 #include <QAbstractItemDelegate>
 #include <QApplication>
 #include <QDateTime>
+#include <QGroupBox>
 #include <QPainter>
+#include <QPushButton>
 #include <QStatusTipEvent>
 
 #include <algorithm>
@@ -133,7 +136,7 @@ private:
 
 #include <qt/overviewpage.moc>
 
-OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) :
+OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent, bool closed) :
     QWidget(parent),
     ui(new Ui::OverviewPage),
     m_platform_style{platformStyle},
@@ -141,17 +144,11 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
-    // use a SingleColorIcon for the "out of sync warning" icon
-    QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
-    ui->labelWalletStatus->setIcon(icon);
-
     // Show Version.
     ui->version->setText(QString::fromStdString(FormatFullVersion()));
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
-    connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::outOfSyncWarningClicked);
-
     QVBoxLayout *vbox = new QVBoxLayout();
     QHBoxLayout *hbox_buttons = new QHBoxLayout();
     transactionView = new TransactionView(platformStyle, this);
@@ -238,11 +235,6 @@ void OverviewPage::setWalletModel(WalletModel *model)
 
 void OverviewPage::changeEvent(QEvent* e)
 {
-    if (e->type() == QEvent::PaletteChange) {
-        QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
-        ui->labelWalletStatus->setIcon(icon);
-    }
-
     QWidget::changeEvent(e);
 }
 
@@ -279,7 +271,7 @@ void OverviewPage::updateAlerts(const QString &warnings)
 
 void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
-    ui->labelWalletStatus->setVisible(fShow);
+    ui->labelSyncWarning->setVisible(fShow);
 }
 
 void OverviewPage::setMonospacedFont(const QFont& f)

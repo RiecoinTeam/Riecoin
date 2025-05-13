@@ -12,7 +12,6 @@
 #include <qt/createwalletdialog.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/modaloverlay.h>
 #include <qt/networkstyle.h>
 #include <qt/notificator.h>
 #include <qt/openuridialog.h>
@@ -128,8 +127,6 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
         Q_EMIT consoleShown(rpcConsole);
     }
 
-    modalOverlay = new ModalOverlay(enableWallet, this->centralWidget());
-
     // Accept D&D of URIs
     setAcceptDrops(true);
 
@@ -222,10 +219,6 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
         openOptionsDialogWithTab(OptionsDialog::TAB_NETWORK);
     });
 
-    connect(labelBlocksIcon, &GUIUtil::ClickableLabel::clicked, this, &BitcoinGUI::showModalOverlay);
-    connect(labelBlocksText, &GUIUtil::ClickableLabel::clicked, this, &BitcoinGUI::showModalOverlay);
-    connect(progressBar, &GUIUtil::ClickableProgressBar::clicked, this, &BitcoinGUI::showModalOverlay);
-
 #ifdef Q_OS_MACOS
     m_app_nap_inhibitor = new CAppNapInhibitor;
 #endif
@@ -253,7 +246,6 @@ BitcoinGUI::~BitcoinGUI()
 void BitcoinGUI::createActions()
 {
     QActionGroup *tabGroup = new QActionGroup(this);
-    connect(modalOverlay, &ModalOverlay::triggered, tabGroup, &QActionGroup::setEnabled);
 
     overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
     overviewAction->setStatusTip(tr("Show general overview of wallet"));
@@ -607,7 +599,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
         connect(_clientModel, &ClientModel::numConnectionsChanged, this, &BitcoinGUI::setNumConnections);
         connect(_clientModel, &ClientModel::networkActiveChanged, this, &BitcoinGUI::setNetworkActive);
 
-        modalOverlay->setKnownBestHeight(tip_info->header_height, QDateTime::fromSecsSinceEpoch(tip_info->header_time));
         setNumBlocks(tip_info->block_height, QDateTime::fromSecsSinceEpoch(tip_info->block_time), tip_info->verification_progress, false, SynchronizationState::INIT_DOWNLOAD);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &BitcoinGUI::setNumBlocks);
 
@@ -706,7 +697,6 @@ void BitcoinGUI::addWallet(WalletModel* walletModel)
         m_wallet_selector_action->setVisible(true);
     }
 
-    connect(wallet_view, &WalletView::outOfSyncWarningClicked, this, &BitcoinGUI::showModalOverlay);
     connect(wallet_view, &WalletView::coinsSent, this, &BitcoinGUI::gotoOverviewPage);
     connect(wallet_view, &WalletView::message, [this](const QString& title, const QString& message, unsigned int style) {
         this->message(title, message, style);
@@ -1010,13 +1000,14 @@ void BitcoinGUI::setNetworkActive(bool network_active)
         [this, new_state = !network_active] { m_node.setNetworkActive(new_state); });
 }
 
+static constexpr int HEADER_HEIGHT_DELTA_SYNC = 24;
 void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
     int64_t headersTipTime = clientModel->getHeaderTipTime();
     int headersTipHeight = clientModel->getHeaderTipHeight();
     int estHeadersLeft = (GetTime() - headersTipTime) / Params().GetConsensus().nPowTargetSpacing;
     if (estHeadersLeft > HEADER_HEIGHT_DELTA_SYNC)
-        progressBarLabel->setText(tr("Syncing Headers (%1%)…").arg(QString::number(100.0 / (headersTipHeight+estHeadersLeft)*headersTipHeight, 'f', 1)));
+        progressBarLabel->setText(tr("Sync Phase 1/2: Processing Headers (%1, %2%)…").arg(headersTipHeight).arg(QString::number(100.0 / (headersTipHeight+estHeadersLeft)*headersTipHeight, 'f', 1)));
 }
 
 void BitcoinGUI::openOptionsDialogWithTab(OptionsDialog::Tab tab)
@@ -1043,13 +1034,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     }
 #endif
 
-    if (modalOverlay)
-    {
-        if (header)
-            modalOverlay->setKnownBestHeight(count, blockDate);
-        else
-            modalOverlay->tipUpdate(count, blockDate, nVerificationProgress);
-    }
     if (!clientModel)
         return;
 
@@ -1064,7 +1048,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
                 updateHeadersSyncProgressLabel();
                 return;
             }
-            progressBarLabel->setText(tr("Synchronizing with network…"));
+            progressBarLabel->setStyleSheet("QLabel {color: #FF4000;}");
+            progressBarLabel->setText(tr("Sync Phase 2/2: Processing Blocks, %1 left…").arg(QString::number(clientModel->getHeaderTipHeight() - count)));
             updateHeadersSyncProgressLabel();
             break;
         case BlockSource::DISK:
@@ -1078,6 +1063,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
             if (header) {
                 return;
             }
+            progressBarLabel->setStyleSheet("QLabel {color: #FF0000;}");
             progressBarLabel->setText(tr("Connecting to peers…"));
             break;
     }
@@ -1093,10 +1079,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         if(walletFrame)
         {
             walletFrame->showOutOfSyncWarning(false);
-            modalOverlay->showHide(true, true);
+            progressBarLabel->setStyleSheet("");
         }
 #endif // ENABLE_WALLET
-
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
     }
@@ -1118,12 +1103,11 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
             spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
         }
         prevBlocks = count;
-
 #ifdef ENABLE_WALLET
         if(walletFrame)
         {
             walletFrame->showOutOfSyncWarning(true);
-            modalOverlay->showHide();
+            progressBarLabel->setStyleSheet("QLabel {color: #FF0000;}");
         }
 #endif // ENABLE_WALLET
     }
@@ -1461,12 +1445,6 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
     } else if (progressDialog) {
         progressDialog->setValue(nProgress);
     }
-}
-
-void BitcoinGUI::showModalOverlay()
-{
-    if (modalOverlay && (progressBar->isVisible() || modalOverlay->isLayerVisible()))
-        modalOverlay->toggleVisibility();
 }
 
 static bool ThreadSafeMessageBox(BitcoinGUI* gui, const bilingual_str& message, const std::string& caption, unsigned int style)

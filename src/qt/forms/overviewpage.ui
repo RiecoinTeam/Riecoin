@@ -55,36 +55,6 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="labelWalletStatus">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>45</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>The displayed information may be out of date. Your wallet automatically synchronizes with the Riecoin network after a connection is established, but this process has not completed yet.</string>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-              <property name="icon">
-               <iconset>
-                <normaloff>:/icons/warning</normaloff>
-                <disabledoff>:/icons/warning</disabledoff>:/icons/warning</iconset>
-              </property>
-              <property name="iconSize">
-               <size>
-                <width>24</width>
-                <height>24</height>
-               </size>
-              </property>
-             </widget>
-            </item>
-            <item>
              <spacer name="horizontalSpacer_2">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
@@ -309,6 +279,28 @@
             </property>
             <property name="textInteractionFlags">
              <set>Qt::TextSelectableByMouse</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelSyncWarning">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QLabel {color:#FF0000;}</string>
+            </property>
+            <property name="text">
+             <string>&lt;span style=&quot; font-weight:600;&quot;&gt;Currently Syncing, please wait a moment. Balances may be outdated. &lt;/span&gt;&lt;a href=&quot;https://riecoin.xyz/Core/Sync/&quot;&gt;&lt;span style=&quot; font-weight:504; text-decoration: underline; color:#1d99f3;&quot;&gt;Learn More&lt;/span&gt;&lt;/a&gt;</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
             </property>
            </widget>
           </item>

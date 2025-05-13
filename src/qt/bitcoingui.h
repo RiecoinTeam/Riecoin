@@ -39,7 +39,6 @@ class WalletController;
 class WalletFrame;
 class WalletModel;
 class HelpMessageDialog;
-class ModalOverlay;
 enum class SynchronizationState;
 
 namespace interfaces {
@@ -173,7 +172,6 @@ private:
     Notificator* notificator = nullptr;
     RPCConsole* rpcConsole = nullptr;
     HelpMessageDialog* helpMessageDialog = nullptr;
-    ModalOverlay* modalOverlay = nullptr;
 
     QMenu* m_network_context_menu = new QMenu(this);
 
@@ -314,8 +312,6 @@ public Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-
-    void showModalOverlay();
 };
 
 class UnitDisplayStatusBarControl : public QLabel

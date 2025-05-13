@@ -57,7 +57,6 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
 
-    connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::outOfSyncWarningClicked);
     connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);
 
     // Pass through messages from sendCoinsPage

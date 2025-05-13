@@ -95,8 +95,6 @@ add_library(riecoinqt STATIC EXCLUDE_FROM_ALL
   $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.h>
   $<$<PLATFORM_ID:Darwin>:macos_appnap.mm>
-  modaloverlay.cpp
-  modaloverlay.h
   networkstyle.cpp
   networkstyle.h
   notificator.cpp
