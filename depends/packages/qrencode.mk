@@ -1,6 +1,6 @@
 package=qrencode
 $(package)_version=4.1.1
-$(package)_download_path=https://fukuchi.org/works/qrencode/
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
 $(package)_sha256_hash=da448ed4f52aba6bcb0cd48cac0dd51b8692bccc4cd127431402fca6f8171e8e
 $(package)_patches=cmake_fixups.patch

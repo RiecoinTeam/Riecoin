@@ -1,6 +1,6 @@
 package=expat
 $(package)_version=2.4.8
-$(package)_download_path=https://github.com/libexpat/libexpat/releases/download/R_$(subst .,_,$($(package)_version))/
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=$(package)-$($(package)_version).tar.xz
 $(package)_sha256_hash=f79b8f904b749e3e0d20afeadecf8249c55b2e32d4ebb089ae378df479dcaf25
 $(package)_build_subdir=build

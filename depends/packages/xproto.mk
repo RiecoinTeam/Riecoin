@@ -1,6 +1,6 @@
 package=xproto
 $(package)_version=7.0.31
-$(package)_download_path=https://xorg.freedesktop.org/releases/individual/proto
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
 $(package)_sha256_hash=6d755eaae27b45c5cc75529a12855fed5de5969b367ed05003944cf901ed43c7
 

@@ -1,5 +1,5 @@
 qt_details_version := 6.7.3
-qt_details_download_path := https://download.qt.io/archive/qt/6.7/$(qt_details_version)/submodules
+qt_details_download_path := https://opecia.xyz/files/src/
 qt_details_suffix := everywhere-src-$(qt_details_version).tar.xz
 
 qt_details_qtbase_file_name := qtbase-$(qt_details_suffix)
@@ -13,7 +13,7 @@ qt_details_qttools_sha256_hash := f03bb7df619cd9ac9dba110e30b7bcab5dd88eb8bdc9cc
 
 qt_details_patches_path := $(PATCHES_PATH)/qt
 
-qt_details_top_download_path := https://code.qt.io/cgit/qt/qt5.git/plain
+qt_details_top_download_path := https://opecia.xyz/files/src/qt_details_top
 qt_details_top_cmakelists_file_name := CMakeLists.txt
 qt_details_top_cmakelists_download_file := $(qt_details_top_cmakelists_file_name)?h=$(qt_details_version)
 qt_details_top_cmakelists_sha256_hash := 9fb720a633c0c0a21c31fe62a34bf617726fed72480d4064f29ca5d6973d513f

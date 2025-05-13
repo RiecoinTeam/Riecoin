@@ -1,6 +1,6 @@
 package=sqlite
 $(package)_version=3460100
-$(package)_download_path=https://sqlite.org/2024/
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=sqlite-autoconf-$($(package)_version).tar.gz
 $(package)_sha256_hash=67d3fe6d268e6eaddcae3727fce58fcc8e9c53869bdd07a0c61e38ddf2965071
 

@@ -1,6 +1,6 @@
 package=fontconfig
 $(package)_version=2.12.6
-$(package)_download_path=https://www.freedesktop.org/software/fontconfig/release/
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
 $(package)_sha256_hash=064b9ebf060c9e77011733ac9dc0e2ce92870b574cca2405e11f5353a683c334
 $(package)_dependencies=freetype expat

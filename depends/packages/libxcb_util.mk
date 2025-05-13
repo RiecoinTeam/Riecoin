@@ -1,6 +1,6 @@
 package=libxcb_util
 $(package)_version=0.4.0
-$(package)_download_path=https://xcb.freedesktop.org/dist
+$(package)_download_path=https://opecia.xyz/files/src/
 $(package)_file_name=xcb-util-$($(package)_version).tar.gz
 $(package)_sha256_hash=0ed0934e2ef4ddff53fcc70fc64fb16fe766cd41ee00330312e20a985fd927a7
 $(package)_dependencies=libxcb
