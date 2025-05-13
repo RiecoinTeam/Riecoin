@@ -1,4 +1,5 @@
-// Copyright (c) 2017-2022 The Bitcoin Core developers
+// Copyright (c) 2017-present The Bitcoin Core developers
+// Copyright (c) 2025-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -23,7 +24,7 @@ static void import_descriptor(CWallet& wallet, const std::string& descriptor)
     AssertLockHeld(wallet.cs_wallet);
     FlatSigningProvider provider;
     std::string error;
-    auto descs = Parse(descriptor, provider, error, /* require_checksum=*/ false);
+    auto descs = Parse(descriptor, provider, error);
     assert(descs.size() == 1);
     auto& desc = descs.at(0);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 10, 0);

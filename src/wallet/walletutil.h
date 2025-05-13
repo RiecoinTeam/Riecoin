@@ -1,4 +1,5 @@
-// Copyright (c) 2017-2021 The Bitcoin Core developers
+// Copyright (c) 2017-present The Bitcoin Core developers
+// Copyright (c) 2017-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -96,7 +97,7 @@ public:
     {
         std::string error;
         FlatSigningProvider keys;
-        auto descs = Parse(str, keys, error, true);
+        auto descs = Parse(str, keys, error);
         if (descs.empty()) {
             throw std::ios_base::failure("Invalid descriptor: " + error);
         }

@@ -1,4 +1,5 @@
 // Copyright (c) 2021-present The Bitcoin Core developers
+// Copyright (c) 2025-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -31,7 +32,7 @@ std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, CChain& cc
 
         FlatSigningProvider provider;
         std::string error;
-        auto descs = Parse("combo(" + EncodeSecret(key) + ")", provider, error, /* require_checksum=*/ false);
+        auto descs = Parse("combo(" + EncodeSecret(key) + ")", provider, error);
         assert(descs.size() == 1);
         auto& desc = descs.at(0);
         WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
@@ -200,7 +201,7 @@ wallet::ScriptPubKeyMan* CreateDescriptor(CWallet& keystore, const std::string& 
 
     FlatSigningProvider keys;
     std::string error;
-    auto parsed_descs = Parse(desc_str, keys, error, false);
+    auto parsed_descs = Parse(desc_str, keys, error);
     Assert(success == (!parsed_descs.empty()));
     if (!success) return nullptr;
     auto& desc = parsed_descs.at(0);

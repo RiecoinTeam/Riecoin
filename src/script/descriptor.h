@@ -1,4 +1,5 @@
-// Copyright (c) 2018-2021 The Bitcoin Core developers
+// Copyright (c) 2018-present The Bitcoin Core developers
+// Copyright (c) 2025-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -169,13 +170,12 @@ struct Descriptor {
 
 /** Parse a `descriptor` string. Included private keys are put in `out`.
  *
- * If the descriptor has a checksum, it must be valid. If `require_checksum`
- * is set, the checksum is mandatory - otherwise it is optional.
+ * If the descriptor has a checksum, it must be valid.
  *
- * If a parse error occurs, or the checksum is missing/invalid, or anything
+ * If a parse error occurs, or the checksum is invalid, or anything
  * else is wrong, an empty vector is returned.
  */
-std::vector<std::unique_ptr<Descriptor>> Parse(const std::string& descriptor, FlatSigningProvider& out, std::string& error, bool require_checksum = false);
+std::vector<std::unique_ptr<Descriptor>> Parse(const std::string& descriptor, FlatSigningProvider& out, std::string& error);
 
 /** Get the checksum for a `descriptor`.
  *

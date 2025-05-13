@@ -154,7 +154,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
         // Parse descriptor string
         FlatSigningProvider keys;
         std::string error;
-        auto parsed_descs = Parse(descriptor, keys, error, /* require_checksum = */ true);
+        auto parsed_descs = Parse(descriptor, keys, error);
         if (parsed_descs.empty()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, error);
         }

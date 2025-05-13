@@ -1,4 +1,5 @@
 // Copyright (c) 2018-present The Bitcoin Core developers
+// Copyright (c) 2025-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -2326,15 +2327,11 @@ std::unique_ptr<DescriptorImpl> InferScript(const CScript& script, ParseScriptCo
 } // namespace
 
 /** Check a descriptor checksum, and update desc to be the checksum-less part. */
-bool CheckChecksum(std::span<const char>& sp, bool require_checksum, std::string& error, std::string* out_checksum = nullptr)
+bool CheckChecksum(std::span<const char>& sp, std::string& error, std::string* out_checksum = nullptr)
 {
     auto check_split = Split(sp, '#');
     if (check_split.size() > 2) {
         error = "Multiple '#' symbols";
-        return false;
-    }
-    if (check_split.size() == 1 && require_checksum){
-        error = "Missing checksum";
         return false;
     }
     if (check_split.size() == 2) {
@@ -2359,10 +2356,10 @@ bool CheckChecksum(std::span<const char>& sp, bool require_checksum, std::string
     return true;
 }
 
-std::vector<std::unique_ptr<Descriptor>> Parse(const std::string& descriptor, FlatSigningProvider& out, std::string& error, bool require_checksum)
+std::vector<std::unique_ptr<Descriptor>> Parse(const std::string& descriptor, FlatSigningProvider& out, std::string& error)
 {
     std::span<const char> sp{descriptor};
-    if (!CheckChecksum(sp, require_checksum, error)) return {};
+    if (!CheckChecksum(sp, error)) return {};
     uint32_t key_exp_index = 0;
     auto ret = ParseScript(key_exp_index, sp, ParseScriptContext::TOP, out, error);
     if (sp.size() == 0 && !ret.empty()) {
@@ -2381,7 +2378,7 @@ std::string GetDescriptorChecksum(const std::string& descriptor)
     std::string ret;
     std::string error;
     std::span<const char> sp{descriptor};
-    if (!CheckChecksum(sp, false, error, &ret)) return "";
+    if (!CheckChecksum(sp, error, &ret)) return "";
     return ret;
 }
 

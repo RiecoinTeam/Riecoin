@@ -62,7 +62,7 @@ static void AddKey(CWallet& wallet, const CKey& key)
     LOCK(wallet.cs_wallet);
     FlatSigningProvider provider;
     std::string error;
-    auto descs = Parse("combo(" + EncodeSecret(key) + ")", provider, error, /* require_checksum=*/ false);
+    auto descs = Parse("combo(" + EncodeSecret(key) + ")", provider, error);
     assert(descs.size() == 1);
     auto& desc = descs.at(0);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
@@ -545,7 +545,7 @@ BOOST_FIXTURE_TEST_CASE(dummy_input_size_test, TestChain100Setup)
 bool malformed_descriptor(std::ios_base::failure e)
 {
     std::string s(e.what());
-    return s.find("Missing checksum") != std::string::npos;
+    return s.find("is not a valid descriptor function") != std::string::npos;
 }
 
 BOOST_FIXTURE_TEST_CASE(wallet_descriptor_test, BasicTestingSetup)

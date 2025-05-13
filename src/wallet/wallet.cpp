@@ -3447,7 +3447,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans()
                 const std::string& desc_str = desc_val.getValStr();
                 FlatSigningProvider keys;
                 std::string desc_error;
-                auto descs = Parse(desc_str, keys, desc_error, false);
+                auto descs = Parse(desc_str, keys, desc_error);
                 if (descs.empty()) {
                     throw std::runtime_error(std::string(__func__) + ": Invalid descriptor \"" + desc_str + "\" (" + desc_error + ")");
                 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -312,7 +312,7 @@ static RPCHelpMan deriveaddresses()
 
             FlatSigningProvider key_provider;
             std::string error;
-            auto descs = Parse(desc_str, key_provider, error, /* require_checksum = */ true);
+            auto descs = Parse(desc_str, key_provider, error);
             if (descs.empty()) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, error);
             }

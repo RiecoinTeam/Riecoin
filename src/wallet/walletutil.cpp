@@ -1,5 +1,5 @@
-// Copyright (c) 2017-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2017-present The Bitcoin Core developers
+// Copyright (c) 2017-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -88,7 +88,7 @@ WalletDescriptor GenerateWalletDescriptor(const CExtPubKey& master_key, const Ou
     // Make the descriptor
     FlatSigningProvider keys;
     std::string error;
-    std::vector<std::unique_ptr<Descriptor>> desc = Parse(desc_str, keys, error, false);
+    std::vector<std::unique_ptr<Descriptor>> desc = Parse(desc_str, keys, error);
     WalletDescriptor w_desc(std::move(desc.at(0)), creation_time, 0, 0, 0);
     return w_desc;
 }

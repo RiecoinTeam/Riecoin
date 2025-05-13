@@ -1,5 +1,5 @@
-// Copyright (c) 2015-2022 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2015-present The Bitcoin Core developers
+// Copyright (c) 2015-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -210,7 +210,7 @@ std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChai
     } else {
         key_str = EncodeSecret(test.coinbaseKey);
     }
-    auto descs = Parse("combo(" + key_str + ")", provider, error, /* require_checksum=*/ false);
+    auto descs = Parse("combo(" + key_str + ")", provider, error);
     assert(!descs.empty());
     assert(descs.size() == 1);
     auto& desc = descs.at(0);
