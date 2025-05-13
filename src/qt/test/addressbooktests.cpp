@@ -86,8 +86,7 @@ void TestAddAddressesToSendBook(interfaces::Node& node)
 
     auto build_address = [&wallet]() {
         CKey key = GenerateRandomKey();
-        CTxDestination dest(GetDestinationForKey(
-            key.GetPubKey(), wallet->m_default_address_type));
+        CTxDestination dest(WitnessV1Taproot(XOnlyPubKey(key.GetPubKey())));
 
         return std::make_pair(dest, QString::fromStdString(EncodeDestination(dest)));
     };

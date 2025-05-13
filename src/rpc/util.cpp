@@ -1424,6 +1424,11 @@ std::vector<RPCResult> ScriptPubKeyDoc() {
 
 mpz_class GetTarget(const CBlockIndex& blockindex, const uint32_t nBitsMin)
 {
-    mpz_class target{*CHECK_NONFATAL(DeriveTarget(blockindex.GetBlockHeader().GetHashForPoW(), blockindex.nBits, blockindex.GetBlockHeader().GetPoWVersion(), nBitsMin))};
+    auto powVersion(blockindex.GetBlockHeader().GetPoWVersion());
+    if (powVersion == 0) { // Genesis
+        if (nBitsMin == 600*512) powVersion = -1; // MainNet
+        else powVersion = 1;
+    }
+    mpz_class target{*CHECK_NONFATAL(DeriveTarget(blockindex.GetBlockHeader().GetHashForPoW(), blockindex.nBits, powVersion, nBitsMin))};
     return target;
 }

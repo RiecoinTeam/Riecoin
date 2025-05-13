@@ -98,6 +98,8 @@ Most Boost and Python Bitcoin Tests were ported for Riecoin. These should all pa
 ```bash
 build/bin/test_riecoin # Boost Test Suite
 build/test/functional/test_runner.py # Python Functional Tests, use -j N for N jobs
+
+build/bin/test_riecoin-qt # Riecoin-Qt Tests
 ```
 
 Here are examples in order to run a particular test (check the Source Code regarding the names of the Boost Tests),

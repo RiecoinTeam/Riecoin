@@ -1659,31 +1659,21 @@ BOOST_AUTO_TEST_CASE(message_sign)
     auto pubkey = privkey.GetPubKey();
     MessageVerificationResult mvr{MessageVerificationResult::OK};
 
-    // LEGACY pubkey type
-    auto dest_legacy = GetDestinationForKey(pubkey, OutputType::LEGACY);
-    BOOST_CHECK_EQUAL("76a9142e09e87a7b176efdeb6b5257be68de547309181688ac", EncodeDestination(dest_legacy));
-    auto txs_legacy = BIP322Txs::Create(dest_legacy, message, mvr);
-    if (!txs_legacy || mvr != MessageVerificationResult::OK) {
-        BOOST_FAIL("Failed to create BIP-322 txs for legacy address");
-    }
-
-    // P2SH_SEGWIT pubkey type
-    auto dest_p2sh_segwit = GetDestinationForKey(pubkey, OutputType::P2SH_SEGWIT);
-    BOOST_CHECK_EQUAL("a9142e478edaeb1d2583c246fe9379eda73eec80634287", EncodeDestination(dest_p2sh_segwit));
-    auto txs_p2sh_segwit = BIP322Txs::Create(dest_p2sh_segwit, message, mvr);
-    if (!txs_p2sh_segwit || mvr != MessageVerificationResult::OK) {
-        BOOST_FAIL("Failed to create BIP-322 txs for p2sh-segwit address");
-    }
-
     // BECH32
-    auto dest_bech32 = GetDestinationForKey(pubkey, OutputType::BECH32);
+    auto dest_bech32 = WitnessV0KeyHash(pubkey);
     BOOST_CHECK_EQUAL("ric1q9cy7s7nmzah0m6mt2ftmu6x723esjxqkfdtpgd", EncodeDestination(dest_bech32));
     auto txs_bech32 = BIP322Txs::Create(dest_bech32, message, mvr);
     if (!txs_bech32 || mvr != MessageVerificationResult::OK) {
         BOOST_FAIL("Failed to create BIP-322 txs for bech32 address");
     }
 
-    // TODO: BECH32M
+    // BECH32M
+    auto dest_bech32m = WitnessV1Taproot(XOnlyPubKey(pubkey));
+    BOOST_CHECK_EQUAL("ric1p62lrmhd5jlrugwyvlju5rc22ygk08cn0uh3vcfsd5xppucxjvq3qknrj62", EncodeDestination(dest_bech32m));
+    auto txs_bech32m = BIP322Txs::Create(dest_bech32m, message, mvr);
+    if (!txs_bech32m || mvr != MessageVerificationResult::OK) {
+        BOOST_FAIL("Failed to create BIP-322 txs for bech32m address");
+    }
 }
 
 BOOST_AUTO_TEST_CASE(message_verify)
