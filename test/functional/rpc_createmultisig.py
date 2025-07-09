@@ -29,7 +29,6 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 3
-        self.supports_cli = False
 
     def create_keys(self, num_keys):
         self.pub = []

@@ -3,7 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <core_io.h>
 #include <key_io.h>
@@ -21,13 +21,14 @@
 namespace wallet {
 RPCHelpMan getnewaddress()
 {
-    return RPCHelpMan{"getnewaddress",
-                "\nReturns a new Riecoin address for receiving payments.\n"
+    return RPCHelpMan{
+        "getnewaddress",
+        "Returns a new Riecoin address for receiving payments.\n"
                 "If 'label' is specified, it is added to the address book \n"
                 "so payments received with the address will be associated with 'label'.\n",
                 {
                     {"label", RPCArg::Type::STR, RPCArg::Default{""}, "The label name for the address to be linked to. It can also be set to the empty string \"\" to represent the default label. The label does not need to exist, it will be created if there is no label by the given name."},
-                    {"address_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -addresstype"}, "The address type to use. Options are \"bech32\", and \"bech32m\"."},
+                    {"address_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -addresstype"}, "The address type to use. Options are " + FormatAllOutputTypes() + "."},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "address", "The new Riecoin address"
@@ -70,8 +71,9 @@ RPCHelpMan getnewaddress()
 
 RPCHelpMan getrawchangeaddress()
 {
-    return RPCHelpMan{"getrawchangeaddress",
-                "\nReturns a new Riecoin address, for receiving change.\n"
+    return RPCHelpMan{
+        "getrawchangeaddress",
+        "Returns a new Riecoin address, for receiving change.\n"
                 "This is for use with raw transactions, NOT normal use.\n",
                 {
                     {"address_type", RPCArg::Type::STR, RPCArg::DefaultHint{"set by -changetype"}, "The address type to use. Options are \"bech32\", and \"bech32m\"."},
@@ -114,8 +116,9 @@ RPCHelpMan getrawchangeaddress()
 
 RPCHelpMan setlabel()
 {
-    return RPCHelpMan{"setlabel",
-                "\nSets the label associated with the given address.\n",
+    return RPCHelpMan{
+        "setlabel",
+        "Sets the label associated with the given address.\n",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to be associated with a label."},
                     {"label", RPCArg::Type::STR, RPCArg::Optional::NO, "The label to assign to the address."},
@@ -152,8 +155,9 @@ RPCHelpMan setlabel()
 
 RPCHelpMan listaddressgroupings()
 {
-    return RPCHelpMan{"listaddressgroupings",
-                "\nLists groups of addresses which have had their common ownership\n"
+    return RPCHelpMan{
+        "listaddressgroupings",
+        "Lists groups of addresses which have had their common ownership\n"
                 "made public by common use as inputs or as the resulting change\n"
                 "in past transactions\n",
                 {},
@@ -214,7 +218,7 @@ RPCHelpMan keypoolrefill()
 {
     return RPCHelpMan{"keypoolrefill",
                 "Refills each descriptor keypool in the wallet up to the specified number of new keys.\n"
-                "By default, descriptor wallets have 2 active ranged descriptors (\"bech32\" and \"bech32m\"), each with " + util::ToString(DEFAULT_KEYPOOL_SIZE) + " entries.\n" +
+                "By default, descriptor wallets have 2 active ranged descriptors (" + FormatAllOutputTypes() + "), each with " + util::ToString(DEFAULT_KEYPOOL_SIZE) + " entries.\n" +
         HELP_REQUIRING_PASSPHRASE,
                 {
                     {"newsize", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%u, or as set by -keypool", DEFAULT_KEYPOOL_SIZE)}, "The new keypool size"},
@@ -245,6 +249,7 @@ RPCHelpMan keypoolrefill()
     if (pwallet->GetKeyPoolSize() < kpSize) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Error refreshing keypool.");
     }
+    pwallet->RefreshAllTXOs();
 
     return UniValue::VNULL;
 },
@@ -361,8 +366,9 @@ static UniValue DescribeWalletAddress(const CWallet& wallet, const CTxDestinatio
 
 RPCHelpMan getaddressinfo()
 {
-    return RPCHelpMan{"getaddressinfo",
-                "\nReturn information about the given Riecoin address.\n"
+    return RPCHelpMan{
+        "getaddressinfo",
+        "Return information about the given Riecoin address.\n"
                 "Some of the information will only be present if the address is in the active wallet.\n",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address for which to get information."},
@@ -393,7 +399,8 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::STR_HEX, "pubkey", /*optional=*/true, "The hex value of the raw public key for single-key addresses (possibly embedded in P2SH or P2WSH)."},
                         {RPCResult::Type::OBJ, "embedded", /*optional=*/true, "Information about the address embedded in P2SH or P2WSH, if relevant and known.",
                         {
-                            {RPCResult::Type::ELISION, "", "Includes all getaddressinfo output fields for the embedded address, excluding metadata (timestamp, hdkeypath, hdseedid) and relation to the wallet (ismine)."},
+                            {RPCResult::Type::ELISION, "", "Includes all getaddressinfo output fields for the embedded address, excluding metadata (timestamp, hdkeypath, hdseedid)\n"
+                            "and relation to the wallet (ismine)."},
                         }},
                         {RPCResult::Type::BOOL, "iscompressed", /*optional=*/true, "If the pubkey is compressed."},
                         {RPCResult::Type::NUM_TIME, "timestamp", /*optional=*/true, "The creation time of the key, if available, expressed in " + UNIX_EPOCH_TIME + "."},
@@ -503,8 +510,9 @@ RPCHelpMan getaddressinfo()
 
 RPCHelpMan getaddressesbylabel()
 {
-    return RPCHelpMan{"getaddressesbylabel",
-                "\nReturns the list of addresses assigned the specified label.\n",
+    return RPCHelpMan{
+        "getaddressesbylabel",
+        "Returns the list of addresses assigned the specified label.\n",
                 {
                     {"label", RPCArg::Type::STR, RPCArg::Optional::NO, "The label."},
                 },
@@ -563,8 +571,9 @@ RPCHelpMan getaddressesbylabel()
 
 RPCHelpMan listlabels()
 {
-    return RPCHelpMan{"listlabels",
-                "\nReturns the list of all labels, or labels that are assigned to addresses with a specific purpose.\n",
+    return RPCHelpMan{
+        "listlabels",
+        "Returns the list of all labels, or labels that are assigned to addresses with a specific purpose.\n",
                 {
                     {"purpose", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Address purpose to list labels for ('send','receive'). An empty string is the same as not providing this argument."},
                 },

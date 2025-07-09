@@ -10,9 +10,8 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
-#include <util/vector.h>
 
-#include <assert.h>
+#include <cassert>
 #include <optional>
 #include <string>
 
@@ -41,6 +40,11 @@ const std::string& FormatOutputType(OutputType type)
     case OutputType::UNKNOWN: return OUTPUT_TYPE_STRING_UNKNOWN;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+}
+
+std::string FormatAllOutputTypes()
+{
+    return "bech32, bech32m";
 }
 
 CTxDestination AddAndGetDestinationForScript(FlatSigningProvider& keystore, const CScript& script, OutputType type)

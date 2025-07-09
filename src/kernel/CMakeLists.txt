@@ -10,7 +10,7 @@ include(GNUInstallDirs)
 #       consensus engine, this list will shrink to only those
 #       which are absolutely necessary.
 add_library(riecoinkernel
-  bitcoinkernel.cpp
+  riecoinkernel.cpp
   chain.cpp
   checks.cpp
   chainparams.cpp
@@ -88,6 +88,7 @@ target_link_libraries(riecoinkernel
     bitcoin_crypto
     leveldb
     secp256k1
+    $<$<PLATFORM_ID:Windows>:bcrypt>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
   PUBLIC
     Boost::headers
@@ -135,8 +136,8 @@ if(NOT BUILD_SHARED_LIBS)
   list(JOIN all_kernel_static_link_libs " " LIBS_PRIVATE)
 endif()
 
-configure_file(${PROJECT_SOURCE_DIR}/libbitcoinkernel.pc.in ${PROJECT_BINARY_DIR}/libbitcoinkernel.pc @ONLY)
-install(FILES ${PROJECT_BINARY_DIR}/libbitcoinkernel.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig" COMPONENT libriecoinkernel)
+configure_file(${PROJECT_SOURCE_DIR}/libriecoinkernel.pc.in ${PROJECT_BINARY_DIR}/libriecoinkernel.pc @ONLY)
+install(FILES ${PROJECT_BINARY_DIR}/libriecoinkernel.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig" COMPONENT libriecoinkernel)
 
 install(TARGETS riecoinkernel
   RUNTIME

@@ -20,11 +20,11 @@ function(setup_split_debug_script)
 endfunction()
 
 function(add_maintenance_targets)
-  if(NOT PYTHON_COMMAND)
+  if(NOT TARGET Python3::Interpreter)
     return()
   endif()
 
-  foreach(target IN ITEMS riecoind riecoin-qt riecoin-cli riecoin-tx riecoin-wallet test_riecoin bench_riecoin)
+  foreach(target IN ITEMS riecoin riecoind riecoin-qt riecoin-cli riecoin-tx riecoin-wallet test_riecoin bench_riecoin)
     if(TARGET ${target})
       list(APPEND executables $<TARGET_FILE:${target}>)
     endif()
@@ -32,19 +32,19 @@ function(add_maintenance_targets)
 
   add_custom_target(check-symbols
     COMMAND ${CMAKE_COMMAND} -E echo "Running symbol and dynamic library checks..."
-    COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/symbol-check.py ${executables}
+    COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/contrib/guix/symbol-check.py ${executables}
     VERBATIM
   )
 
   add_custom_target(check-security
     COMMAND ${CMAKE_COMMAND} -E echo "Checking binary security..."
-    COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/devtools/security-check.py ${executables}
+    COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/contrib/guix/security-check.py ${executables}
     VERBATIM
   )
 endfunction()
 
 function(add_windows_deploy_target)
-  if(MINGW AND TARGET riecoin-qt AND TARGET riecoind AND TARGET riecoin-cli AND TARGET riecoin-tx AND TARGET riecoin-wallet AND TARGET test_riecoin)
+  if(MINGW AND TARGET riecoin AND TARGET riecoin-qt AND TARGET riecoind AND TARGET riecoin-cli AND TARGET riecoin-tx AND TARGET riecoin-wallet AND TARGET test_riecoin)
     find_program(MAKENSIS_EXECUTABLE makensis)
     if(NOT MAKENSIS_EXECUTABLE)
       add_custom_target(deploy
@@ -60,6 +60,7 @@ function(add_windows_deploy_target)
     add_custom_command(
       OUTPUT ${PROJECT_BINARY_DIR}/riecoin-win64-setup.exe
       COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/release
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:riecoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:riecoin>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:riecoin-qt> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:riecoin-qt>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:riecoind> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:riecoind>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:riecoin-cli> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:riecoin-cli>
@@ -99,7 +100,7 @@ function(add_macos_deploy_target)
     if(CMAKE_HOST_APPLE)
       add_custom_command(
         OUTPUT ${PROJECT_BINARY_DIR}/${osx_volname}.zip
-        COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/macdeploy/macdeployqtplus ${macos_app} ${osx_volname} -translations-dir=${QT_TRANSLATIONS_DIR} -zip
+        COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/contrib/macdeploy/macdeployqtplus ${macos_app} ${osx_volname} -translations-dir=${QT_TRANSLATIONS_DIR} -zip
         DEPENDS ${PROJECT_BINARY_DIR}/${macos_app}/Contents/MacOS/Riecoin-Qt
         VERBATIM
       )
@@ -112,7 +113,7 @@ function(add_macos_deploy_target)
     else()
       add_custom_command(
         OUTPUT ${PROJECT_BINARY_DIR}/dist/${macos_app}/Contents/MacOS/Riecoin-Qt
-        COMMAND OBJDUMP=${CMAKE_OBJDUMP} ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/macdeploy/macdeployqtplus ${macos_app} ${osx_volname} -translations-dir=${QT_TRANSLATIONS_DIR}
+        COMMAND ${CMAKE_COMMAND} -E env OBJDUMP=${CMAKE_OBJDUMP} $<TARGET_FILE:Python3::Interpreter> ${PROJECT_SOURCE_DIR}/contrib/macdeploy/macdeployqtplus ${macos_app} ${osx_volname} -translations-dir=${QT_TRANSLATIONS_DIR}
         DEPENDS ${PROJECT_BINARY_DIR}/${macos_app}/Contents/MacOS/Riecoin-Qt
         VERBATIM
       )

@@ -8,23 +8,18 @@
 
 #include <util/macros.h>
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 // Check that required client information is defined
 #if !defined(CLIENT_VERSION_MONTH) || !defined(CLIENT_VERSION_REVISION) || !defined(CLIENT_VERSION_IS_RELEASE) || !defined(COPYRIGHT_YEAR)
-#error Client version information missing: version is not defined by bitcoin-build-config.h or in any other way
+#error Client version information missing: version is not defined by riecoin-build-config.h or in any other way
 #endif
 
 //! Copyright string used in Windows .rc files
 #define COPYRIGHT_STR "2009-" STRINGIZE(COPYRIGHT_YEAR) " " COPYRIGHT_HOLDERS_FINAL
 
-/**
- * riecoind-res.rc includes this file, but it cannot cope with real c++ code.
- * WINDRES_PREPROC is defined to indicate that its pre-processor is running.
- * Anything other than a define should be guarded below.
- */
-
-#if !defined(WINDRES_PREPROC)
+// Windows .rc files include this header, but they cannot cope with real C++ code.
+#if !defined(RC_INVOKED)
 
 #include <string>
 #include <vector>
@@ -44,6 +39,6 @@ std::string CopyrightHolders(const std::string& strPrefix);
 /** Returns licensing information (for -version) */
 std::string LicenseInfo();
 
-#endif // WINDRES_PREPROC
+#endif // RC_INVOKED
 
 #endif // BITCOIN_CLIENTVERSION_H

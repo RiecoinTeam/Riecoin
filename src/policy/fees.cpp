@@ -20,6 +20,7 @@
 #include <uint256.h>
 #include <util/fs.h>
 #include <util/serfloat.h>
+#include <util/syserror.h>
 #include <util/time.h>
 
 #include <algorithm>
@@ -897,6 +898,14 @@ CFeeRate CBlockPolicyEstimator::estimateSmartFee(int confTarget, FeeCalculation 
      * horizons so we already have monotonically increasing estimates and
      * the purpose of conservative estimates is not to let short term
      * fluctuations lower our estimates by too much.
+     *
+     * Note: In certain rare edge cases, monotonically increasing estimates may
+     * not be guaranteed. Specifically, given two targets N and M, where M > N,
+     * if a sub-estimate for target N fails to return a valid fee rate, while
+     * target M has valid fee rate for that sub-estimate, target M may result
+     * in a higher fee rate estimate than target N.
+     *
+     * See: https://github.com/bitcoin/bitcoin/issues/11800#issuecomment-349697807
      */
     double halfEst = estimateCombinedFee(confTarget/2, HALF_SUCCESS_PCT, true, &tempResult);
     if (feeCalc) {
@@ -947,9 +956,14 @@ void CBlockPolicyEstimator::FlushFeeEstimates()
     AutoFile est_file{fsbridge::fopen(m_estimation_filepath, "wb")};
     if (est_file.IsNull() || !Write(est_file)) {
         LogPrintf("Failed to write fee estimates to %s. Continue anyway.\n", fs::PathToString(m_estimation_filepath));
-    } else {
-        LogPrintf("Flushed fee estimates to %s.\n", fs::PathToString(m_estimation_filepath.filename()));
+        (void)est_file.fclose();
+        return;
     }
+    if (est_file.fclose() != 0) {
+        LogError("Failed to close fee estimates file %s: %s. Continuing anyway.", fs::PathToString(m_estimation_filepath), SysErrorString(errno));
+        return;
+    }
+    LogPrintf("Flushed fee estimates to %s.\n", fs::PathToString(m_estimation_filepath.filename()));
 }
 
 bool CBlockPolicyEstimator::Write(AutoFile& fileout) const

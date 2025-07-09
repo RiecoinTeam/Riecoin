@@ -3,7 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <random.h>
 
@@ -27,8 +27,7 @@
 #include <thread>
 
 #ifdef WIN32
-#include <windows.h>
-#include <wincrypt.h>
+#include <bcrypt.h>
 #else
 #include <fcntl.h>
 #include <sys/time.h>
@@ -287,16 +286,15 @@ void Strengthen(const unsigned char (&seed)[32], SteadyClock::duration dur, CSHA
 void GetOSRand(unsigned char *ent32)
 {
 #if defined(WIN32)
-    HCRYPTPROV hProvider;
-    int ret = CryptAcquireContextW(&hProvider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
-    if (!ret) {
+    constexpr uint32_t STATUS_SUCCESS{0x00000000};
+    NTSTATUS status = BCryptGenRandom(/*hAlgorithm=*/NULL,
+                                      /*pbBuffer=*/ent32,
+                                      /*cbBuffer=*/NUM_OS_RANDOM_BYTES,
+                                      /*dwFlags=*/BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+
+    if (status != STATUS_SUCCESS) {
         RandFailure();
     }
-    ret = CryptGenRandom(hProvider, NUM_OS_RANDOM_BYTES, ent32);
-    if (!ret) {
-        RandFailure();
-    }
-    CryptReleaseContext(hProvider, 0);
 #elif defined(HAVE_GETRANDOM)
     /* Linux. From the getrandom(2) man page:
      * "If the urandom source has been initialized, reads of up to 256 bytes

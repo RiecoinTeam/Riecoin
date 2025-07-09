@@ -12,7 +12,7 @@ add_executable(test_riecoin-qt
   test_main.cpp
   uritests.cpp
   util.cpp
-  ../../init/bitcoin-qt.cpp
+  ../../init/riecoin-qt.cpp
 )
 
 target_link_libraries(test_riecoin-qt

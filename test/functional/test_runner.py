@@ -171,6 +171,7 @@ BASE_SCRIPTS = [
     'tool_bitcoin_chainstate.py',
     'tool_wallet.py',
     # 'wallet_txn_clone.py', # Test might not work with Bech32/Bech32M.
+    # 'tool_utils.py', # The whole Test Data in test/functional/data/util must be adjusted for Riecoin.
     'wallet_txn_clone.py --segwit',
     'rpc_getchaintips.py',
     'rpc_misc.py',
@@ -208,6 +209,7 @@ BASE_SCRIPTS = [
     'rpc_decodescript.py',
     'rpc_blockchain.py --v1transport',
     'rpc_blockchain.py --v2transport',
+    'mining_template_verification.py',
     'wallet_disable.py',
     'wallet_change_address.py',
     'p2p_addr_relay.py',

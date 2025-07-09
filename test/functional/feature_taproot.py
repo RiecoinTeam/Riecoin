@@ -643,6 +643,10 @@ SIG_ADD_ZERO = {"failure": {"sign": zero_appender(default_sign)}}
 DUST_LIMIT = 600
 MIN_FEE = 50000
 
+TX_MAX_STANDARD_VERSION = 3
+TX_STANDARD_VERSIONS = [1, 2, TX_MAX_STANDARD_VERSION]
+TRUC_MAX_VSIZE = 10000 # test doesn't cover in-mempool spends, so only this limit is hit
+
 # === Actual test cases ===
 
 
@@ -1241,8 +1245,8 @@ def sample_spenders():
     # Create a list of scripts which will be built into a taptree
     scripts = [
         # leaf label, followed by CScript
-        ("encodeable_pushdata1", CScript([OP_DROP, OP_PUSHDATA1, b'aa' * 75])),
-        ("nonstd_encodeable_pushdata1", CScript([OP_PUSHDATA1, b'aa'])),
+        ("2byte_push", CScript([OP_DROP, b'\xaa\xaa'])),
+        ("nonstd_2byte_push", CScript.fromhex("4c02aaaa")),
         ("dummyleaf", CScript([])),
     ]
 
@@ -1256,13 +1260,13 @@ def sample_spenders():
     spenders = []
 
     # Named comment, using first leaf from scripts, with empty string as witness data, no optional fail condition
-    add_spender(spenders, comment="tutorial/pushdata1", tap=tap, leaf="encodeable_pushdata1", inputs=[b'\x00'], no_fail=True)
+    add_spender(spenders, comment="tutorial/push", tap=tap, leaf="2byte_push", inputs=[b'\x00'], no_fail=True)
 
     # Spender with alternative failure tapscript via over-riding "failure" dictionary, along with the failure's expected err_msg / ERR_*
-    add_spender(spenders, comment="tutorial/pushdata1redux", tap=tap, leaf="encodeable_pushdata1", inputs=[b'\x00'], failure={"leaf": "dummyleaf"}, **ERR_EVAL_FALSE)
+    add_spender(spenders, comment="tutorial/pushredux", tap=tap, leaf="2byte_push", inputs=[b'\x00'], failure={"leaf": "dummyleaf"}, **ERR_EVAL_FALSE)
 
     # Spender that is non-standard but otherwise valid, with extraneous signature data from inner key for optional failure condition
-    add_spender(spenders, comment="tutorial/nonminpushdata1", tap=tap, leaf="nonstd_encodeable_pushdata1", key=secs[0], standard=False, failure={"inputs": [getter("sign")]}, **ERR_CLEANSTACK)
+    add_spender(spenders, comment="tutorial/nonminpush", tap=tap, leaf="nonstd_2byte_push", key=secs[0], standard=False, failure={"inputs": [getter("sign")]}, **ERR_CLEANSTACK)
 
     # New scripts=[] can be defined, and rinse-repeated as necessary until the spenders list is returned for execution
     return spenders
@@ -1424,9 +1428,8 @@ class TaprootTest(BitcoinTestFramework):
             # Ask the wallet to sign
             fund_tx = tx_from_hex(node.signrawtransactionwithwallet(fund_tx.serialize().hex())["hex"])
             # Construct UTXOData entries
-            fund_tx.rehash()
             for i in range(count_this_tx):
-                utxodata = UTXOData(outpoint=COutPoint(fund_tx.sha256, i), output=fund_tx.vout[i], spender=spenders[done])
+                utxodata = UTXOData(outpoint=COutPoint(fund_tx.txid_int, i), output=fund_tx.vout[i], spender=spenders[done])
                 if utxodata.spender.need_vin_vout_mismatch:
                     mismatching_utxos.append(utxodata)
                 else:
@@ -1445,7 +1448,7 @@ class TaprootTest(BitcoinTestFramework):
         while left:
             # Construct CTransaction with random version, nLocktime
             tx = CTransaction()
-            tx.version = random.choice([1, 2, random.getrandbits(32)])
+            tx.version = random.choice(TX_STANDARD_VERSIONS + [0, TX_MAX_STANDARD_VERSION + 1, random.getrandbits(32)])
             min_sequence = (tx.version != 1 and tx.version != 0) * 0x80000000  # The minimum sequence number to disable relative locktime
             if random.choice([True, False]):
                 tx.nLockTime = random.randrange(LOCKTIME_THRESHOLD, self.lastblocktime - 7200)  # all absolute locktimes in the past
@@ -1537,13 +1540,13 @@ class TaprootTest(BitcoinTestFramework):
                 is_standard_tx = (
                     fail_input is None  # Must be valid to be standard
                     and (all(utxo.spender.is_standard for utxo in input_utxos))  # All inputs must be standard
-                    and tx.version >= 1  # The tx version must be standard
-                    and tx.version <= 2)
-                tx.rehash()
+                    and tx.version in TX_STANDARD_VERSIONS # The tx version must be standard
+                    and not (tx.version == 3 and tx.get_vsize() > TRUC_MAX_VSIZE)  # Topological standardness rules must be followed
+                )
                 msg = ','.join(utxo.spender.comment + ("*" if n == fail_input else "") for n, utxo in enumerate(input_utxos))
                 if is_standard_tx:
                     node.sendrawtransaction(tx.serialize().hex(), 0)
-                    assert node.getmempoolentry(tx.hash) is not None, "Failed to accept into mempool: " + msg
+                    assert node.getmempoolentry(tx.txid_hex) is not None, "Failed to accept into mempool: " + msg
                 else:
                     assert_raises_rpc_error(-26, None, node.sendrawtransaction, tx.serialize().hex(), 0)
                 # Submit in a block
@@ -1569,8 +1572,7 @@ class TaprootTest(BitcoinTestFramework):
         coinbase.vin = [CTxIn(COutPoint(0, 0xffffffff), CScript([OP_1, OP_1]), SEQUENCE_FINAL)]
         coinbase.vout = [CTxOut(5000000000, CScript([OP_1]))]
         coinbase.nLockTime = 0
-        coinbase.rehash()
-        assert coinbase.hash == "f60c73405d499a956d3162e3483c395526ef78286458a4cb17b125aa92e49b20"
+        assert coinbase.txid_hex == "f60c73405d499a956d3162e3483c395526ef78286458a4cb17b125aa92e49b20"
         # Mine it
         block = create_block(hashprev=int(self.nodes[0].getbestblockhash(), 16), coinbase=coinbase)
         block.rehash()
@@ -1652,7 +1654,7 @@ class TaprootTest(BitcoinTestFramework):
         # Construct a deterministic chain of transactions creating UTXOs to the test's spk's (so that they
         # come from distinct txids).
         txn = []
-        lasttxid = coinbase.sha256
+        lasttxid = coinbase.txid_int
         amount = 5000000000
         for i, spk in enumerate(old_spks + tap_spks):
             val = 42000000 * (i + 7)
@@ -1663,11 +1665,10 @@ class TaprootTest(BitcoinTestFramework):
             if i & 1:
                 tx.vout = list(reversed(tx.vout))
             tx.nLockTime = 0
-            tx.rehash()
             amount -= val
-            lasttxid = tx.sha256
+            lasttxid = tx.txid_int
             txn.append(tx)
-            spend_info[spk]['prevout'] = COutPoint(tx.sha256, i & 1)
+            spend_info[spk]['prevout'] = COutPoint(tx.txid_int, i & 1)
             spend_info[spk]['utxo'] = CTxOut(val, spk)
         # Mine those transactions
         self.init_blockinfo(self.nodes[0])

@@ -4,7 +4,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <chain.h>
 #include <chainparams.h>
@@ -44,8 +44,8 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <cstdint>
 #include <memory>
-#include <stdint.h>
 
 using interfaces::BlockRef;
 using interfaces::BlockTemplate;
@@ -105,10 +105,10 @@ static UniValue GetNetworkMiningPower(int lookup, int height, const CChain& acti
 
 static RPCHelpMan getnetworkminingpower()
 {
-    return RPCHelpMan{"getnetworkminingpower",
-                "\nReturns the estimated network mining power based on the last n blocks.\n"
-                "\nThe mining power is normalized such that 1 corresponds to finding a minimum difficulty block every 150 s.\n"
-                "Pass in [blocks] to override # of blocks.\n"
+    return RPCHelpMan{
+        "getnetworkminingpower",
+        "Returns the estimated network mining power based on the last n blocks.\n"
+        "The mining power is normalized such that 1 corresponds to finding a minimum difficulty block every 150 s.\n"
                 "Pass in [height] to estimate the network speed at the time when a certain block was found.\n",
                 {
                     {"nblocks", RPCArg::Type::NUM, RPCArg::Default{120}, "The number of blocks."},
@@ -381,8 +381,7 @@ static RPCHelpMan generateblock()
         block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
         RegenerateCommitments(block, chainman);
 
-        BlockValidationState state;
-        if (!TestBlockValidity(state, chainman.GetParams(), chainman.ActiveChainstate(), block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), /*fCheckPOW=*/false, /*fCheckMerkleRoot=*/false)) {
+        if (BlockValidationState state{TestBlockValidity(chainman.ActiveChainstate(), block, /*check_pow=*/false, /*check_merkle_root=*/false)}; !state.IsValid()) {
             throw JSONRPCError(RPC_VERIFY_ERROR, strprintf("TestBlockValidity failed: %s", state.ToString()));
         }
     }
@@ -408,8 +407,9 @@ static RPCHelpMan generateblock()
 
 static RPCHelpMan getmininginfo()
 {
-    return RPCHelpMan{"getmininginfo",
-                "\nReturns a json object containing mining-related information.",
+    return RPCHelpMan{
+        "getmininginfo",
+        "Returns a json object containing mining-related information.",
                 {},
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
@@ -572,10 +572,11 @@ static UniValue BIP22ValidationResult(const BlockValidationState& state)
     return "valid?";
 }
 
-static std::string gbt_force_name(const std::string& name, bool gbt_force)
+// Prefix rule name with ! if not optional, see BIP9
+static std::string gbt_rule_value(const std::string& name, bool gbt_optional_rule)
 {
     std::string s{name};
-    if (!gbt_force) {
+    if (!gbt_optional_rule) {
         s.insert(s.begin(), '!');
     }
     return s;
@@ -583,8 +584,9 @@ static std::string gbt_force_name(const std::string& name, bool gbt_force)
 
 static RPCHelpMan getblocktemplate()
 {
-    return RPCHelpMan{"getblocktemplate",
-        "\nIf the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
+    return RPCHelpMan{
+        "getblocktemplate",
+        "If the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
         "It returns data needed to construct a block to work on.\n"
         "For full specification, see BIPs 22, 23, 9, and 145:\n"
         "    https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki\n"
@@ -722,13 +724,7 @@ static RPCHelpMan getblocktemplate()
                 return "duplicate-inconclusive";
             }
 
-            // TestBlockValidity only supports blocks built on the current Tip
-            if (block.hashPrevBlock != tip) {
-                return "inconclusive-not-best-prevblk";
-            }
-            BlockValidationState state;
-            TestBlockValidity(state, chainman.GetParams(), chainman.ActiveChainstate(), block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), /*fCheckPOW=*/false, /*fCheckMerkleRoot=*/true);
-            return BIP22ValidationResult(state);
+            return BIP22ValidationResult(TestBlockValidity(chainman.ActiveChainstate(), block, /*check_pow=*/false, /*check_merkle_root=*/true));
         }
 
         const UniValue& aClientRules = oparam.find_value("rules");
@@ -918,8 +914,8 @@ static RPCHelpMan getblocktemplate()
     const auto gbtstatus = chainman.m_versionbitscache.GBTStatus(*pindexPrev, consensusParams);
 
     for (const auto& [name, info] : gbtstatus.signalling) {
-        vbavailable.pushKV(gbt_force_name(name, info.gbt_force), info.bit);
-        if (!info.gbt_force && !setClientRules.count(name)) {
+        vbavailable.pushKV(gbt_rule_value(name, info.gbt_optional_rule), info.bit);
+        if (!info.gbt_optional_rule && !setClientRules.count(name)) {
             // If the client doesn't support this, don't indicate it in the [default] version
             block.nVersion &= ~info.mask;
         }
@@ -927,16 +923,16 @@ static RPCHelpMan getblocktemplate()
 
     for (const auto& [name, info] : gbtstatus.locked_in) {
         block.nVersion |= info.mask;
-        vbavailable.pushKV(gbt_force_name(name, info.gbt_force), info.bit);
-        if (!info.gbt_force && !setClientRules.count(name)) {
+        vbavailable.pushKV(gbt_rule_value(name, info.gbt_optional_rule), info.bit);
+        if (!info.gbt_optional_rule && !setClientRules.count(name)) {
             // If the client doesn't support this, don't indicate it in the [default] version
             block.nVersion &= ~info.mask;
         }
     }
 
     for (const auto& [name, info] : gbtstatus.active) {
-        aRules.push_back(gbt_force_name(name, info.gbt_force));
-        if (!info.gbt_force && !setClientRules.count(name)) {
+        aRules.push_back(gbt_rule_value(name, info.gbt_optional_rule));
+        if (!info.gbt_optional_rule && !setClientRules.count(name)) {
             // Not supported by the client; make sure it's safe to proceed
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Support for '%s' rule requires explicit client support", name));
         }
@@ -1004,8 +1000,9 @@ protected:
 static RPCHelpMan submitblock()
 {
     // We allow 2 arguments for compliance with BIP22. Argument 2 is ignored.
-    return RPCHelpMan{"submitblock",
-        "\nAttempts to submit new block to network.\n"
+    return RPCHelpMan{
+        "submitblock",
+        "Attempts to submit new block to network.\n"
         "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.\n",
         {
             {"hexdata", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "the hex-encoded block data to submit"},
@@ -1054,8 +1051,9 @@ static RPCHelpMan submitblock()
 
 static RPCHelpMan submitheader()
 {
-    return RPCHelpMan{"submitheader",
-                "\nDecode the given hexdata as a header and submit it as a candidate chain tip if valid."
+    return RPCHelpMan{
+        "submitheader",
+        "Decode the given hexdata as a header and submit it as a candidate chain tip if valid."
                 "\nThrows when the header is invalid.\n",
                 {
                     {"hexdata", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "the hex-encoded block header data"},

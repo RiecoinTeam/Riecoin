@@ -1213,7 +1213,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
   <customwidget>
    <class>BitcoinAmountField</class>
    <extends>QLineEdit</extends>
-   <header>qt/bitcoinamountfield.h</header>
+   <header>qt/riecoinamountfield.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

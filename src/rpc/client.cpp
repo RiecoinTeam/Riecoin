@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -8,8 +8,8 @@
 #include <rpc/client.h>
 #include <tinyformat.h>
 
+#include <cstdint>
 #include <set>
-#include <stdint.h>
 #include <string>
 #include <string_view>
 
@@ -132,7 +132,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "fundrawtransaction", 1, "minconf"},
     { "fundrawtransaction", 1, "maxconf"},
     { "fundrawtransaction", 1, "changePosition"},
-    { "fundrawtransaction", 1, "includeWatching"},
     { "fundrawtransaction", 1, "lockUnspents"},
     { "fundrawtransaction", 1, "fee_rate"},
     { "fundrawtransaction", 1, "subtractFeeFromOutputs"},
@@ -151,7 +150,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "walletcreatefundedpsbt", 3, "minconf"},
     { "walletcreatefundedpsbt", 3, "maxconf"},
     { "walletcreatefundedpsbt", 3, "changePosition"},
-    { "walletcreatefundedpsbt", 3, "includeWatching"},
     { "walletcreatefundedpsbt", 3, "lockUnspents"},
     { "walletcreatefundedpsbt", 3, "fee_rate"},
     { "walletcreatefundedpsbt", 3, "subtractFeeFromOutputs"},
@@ -196,7 +194,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "send", 4, "add_to_wallet"},
     { "send", 4, "change_position"},
     { "send", 4, "fee_rate"},
-    { "send", 4, "include_watching"},
     { "send", 4, "inputs"},
     { "send", 4, "locktime"},
     { "send", 4, "lock_unspents"},
@@ -212,7 +209,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendall", 4, "options" },
     { "sendall", 4, "add_to_wallet"},
     { "sendall", 4, "fee_rate"},
-    { "sendall", 4, "include_watching"},
     { "sendall", 4, "inputs"},
     { "sendall", 4, "locktime"},
     { "sendall", 4, "lock_unspents"},

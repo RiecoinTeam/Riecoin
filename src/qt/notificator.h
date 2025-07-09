@@ -5,7 +5,7 @@
 #ifndef BITCOIN_QT_NOTIFICATOR_H
 #define BITCOIN_QT_NOTIFICATOR_H
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <QIcon>
 #include <QObject>

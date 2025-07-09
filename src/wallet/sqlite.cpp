@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <wallet/sqlite.h>
 
@@ -10,15 +10,15 @@
 #include <crypto/common.h>
 #include <logging.h>
 #include <sync.h>
-#include <util/fs_helpers.h>
 #include <util/check.h>
+#include <util/fs_helpers.h>
 #include <util/strencodings.h>
 #include <util/translation.h>
 #include <wallet/db.h>
 
 #include <sqlite3.h>
-#include <stdint.h>
 
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -112,12 +112,12 @@ Mutex SQLiteDatabase::g_sqlite_mutex;
 int SQLiteDatabase::g_sqlite_count = 0;
 
 SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, const DatabaseOptions& options, bool mock)
-    : WalletDatabase(), m_mock(mock), m_dir_path(fs::PathToString(dir_path)), m_file_path(fs::PathToString(file_path)), m_write_semaphore(1), m_use_unsafe_sync(options.use_unsafe_sync)
+    : WalletDatabase(), m_mock(mock), m_dir_path(dir_path), m_file_path(fs::PathToString(file_path)), m_write_semaphore(1), m_use_unsafe_sync(options.use_unsafe_sync)
 {
     {
         LOCK(g_sqlite_mutex);
         LogPrintf("Using SQLite Version %s\n", SQLiteDatabaseVersion());
-        LogPrintf("Using wallet %s\n", m_dir_path);
+        LogPrintf("Using wallet %s\n", fs::PathToString(m_dir_path));
 
         if (++g_sqlite_count == 1) {
             // Setup logging
@@ -253,7 +253,7 @@ void SQLiteDatabase::Open()
 
     if (m_db == nullptr) {
         if (!m_mock) {
-            TryCreateDirectories(fs::PathFromString(m_dir_path));
+            TryCreateDirectories(m_dir_path);
         }
         int ret = sqlite3_open_v2(m_file_path.c_str(), &m_db, flags, nullptr);
         if (ret != SQLITE_OK) {
@@ -445,7 +445,7 @@ void SQLiteBatch::Close()
         try {
             m_database.Open();
             // If TxnAbort failed and we refreshed the connection, the semaphore was not released, so release it here to avoid deadlocks on future writes.
-            m_database.m_write_semaphore.post();
+            m_database.m_write_semaphore.release();
         } catch (const std::runtime_error&) {
             // If open fails, cleanup this object and rethrow the exception
             m_database.Close();
@@ -498,7 +498,7 @@ bool SQLiteBatch::WriteKey(DataStream&& key, DataStream&& value, bool overwrite)
     if (!BindBlobToStatement(stmt, 2, value, "value")) return false;
 
     // Acquire semaphore if not previously acquired when creating a transaction.
-    if (!m_txn) m_database.m_write_semaphore.wait();
+    if (!m_txn) m_database.m_write_semaphore.acquire();
 
     // Execute
     int res = sqlite3_step(stmt);
@@ -508,7 +508,7 @@ bool SQLiteBatch::WriteKey(DataStream&& key, DataStream&& value, bool overwrite)
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
 
-    if (!m_txn) m_database.m_write_semaphore.post();
+    if (!m_txn) m_database.m_write_semaphore.release();
 
     return res == SQLITE_DONE;
 }
@@ -522,7 +522,7 @@ bool SQLiteBatch::ExecStatement(sqlite3_stmt* stmt, std::span<const std::byte> b
     if (!BindBlobToStatement(stmt, 1, blob, "key")) return false;
 
     // Acquire semaphore if not previously acquired when creating a transaction.
-    if (!m_txn) m_database.m_write_semaphore.wait();
+    if (!m_txn) m_database.m_write_semaphore.acquire();
 
     // Execute
     int res = sqlite3_step(stmt);
@@ -532,7 +532,7 @@ bool SQLiteBatch::ExecStatement(sqlite3_stmt* stmt, std::span<const std::byte> b
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
 
-    if (!m_txn) m_database.m_write_semaphore.post();
+    if (!m_txn) m_database.m_write_semaphore.release();
 
     return res == SQLITE_DONE;
 }
@@ -651,12 +651,12 @@ std::unique_ptr<DatabaseCursor> SQLiteBatch::GetNewPrefixCursor(std::span<const 
 bool SQLiteBatch::TxnBegin()
 {
     if (!m_database.m_db || m_txn) return false;
-    m_database.m_write_semaphore.wait();
+    m_database.m_write_semaphore.acquire();
     Assert(!m_database.HasActiveTxn());
     int res = Assert(m_exec_handler)->Exec(m_database, "BEGIN TRANSACTION");
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to begin the transaction\n");
-        m_database.m_write_semaphore.post();
+        m_database.m_write_semaphore.release();
     } else {
         m_txn = true;
     }
@@ -672,7 +672,7 @@ bool SQLiteBatch::TxnCommit()
         LogPrintf("SQLiteBatch: Failed to commit the transaction\n");
     } else {
         m_txn = false;
-        m_database.m_write_semaphore.post();
+        m_database.m_write_semaphore.release();
     }
     return res == SQLITE_OK;
 }
@@ -686,7 +686,7 @@ bool SQLiteBatch::TxnAbort()
         LogPrintf("SQLiteBatch: Failed to abort the transaction\n");
     } else {
         m_txn = false;
-        m_database.m_write_semaphore.post();
+        m_database.m_write_semaphore.release();
     }
     return res == SQLITE_OK;
 }

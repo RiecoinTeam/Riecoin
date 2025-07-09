@@ -4,7 +4,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <init.h>
 
@@ -94,6 +94,7 @@
 #include <walletinitinterface.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
@@ -105,8 +106,7 @@
 #include <vector>
 
 #ifndef WIN32
-#include <cerrno>
-#include <signal.h>
+#include <csignal>
 #include <sys/stat.h>
 #endif
 
@@ -546,11 +546,26 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-peerblockfilters", strprintf("Serve compact block filters to peers per BIP 157 (default: %u)", DEFAULT_PEERBLOCKFILTERS), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-txreconciliation", strprintf("Enable transaction reconciliations per BIP 330 (default: %d)", DEFAULT_TXRECONCILIATION_ENABLE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CONNECTION);
     argsman.AddArg("-port=<port>", strprintf("Listen for connections on <port> (default: %u, testnet: %u, regtest: %u). Not relevant for I2P (see doc/i2p.md). If set to a value x, the default onion listening port will be set to x+1.", defaultChainParams->GetDefaultPort(), testnetChainParams->GetDefaultPort(), regtestChainParams->GetDefaultPort()), ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::CONNECTION);
+    const std::string proxy_doc_for_value =
 #ifdef HAVE_SOCKADDR_UN
-    argsman.AddArg("-proxy=<ip:port|path>", "Connect through SOCKS5 proxy, set -noproxy to disable (default: disabled). May be a local file path prefixed with 'unix:' if the proxy supports it.", ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_ELISION, OptionsCategory::CONNECTION);
+        "<ip>[:<port>]|unix:<path>";
 #else
-    argsman.AddArg("-proxy=<ip:port>", "Connect through SOCKS5 proxy, set -noproxy to disable (default: disabled)", ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_ELISION, OptionsCategory::CONNECTION);
+        "<ip>[:<port>]";
 #endif
+    const std::string proxy_doc_for_unix_socket =
+#ifdef HAVE_SOCKADDR_UN
+        "May be a local file path prefixed with 'unix:' if the proxy supports it. ";
+#else
+        "";
+#endif
+    argsman.AddArg("-proxy=" + proxy_doc_for_value + "[=<network>]",
+                   "Connect through SOCKS5 proxy, set -noproxy to disable. " +
+                   proxy_doc_for_unix_socket +
+                   "Could end in =network to set the proxy only for that network. " +
+                   "The network can be any of ipv4, ipv6, tor or cjdns. " +
+                   "(default: disabled)",
+                   ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_ELISION,
+                   OptionsCategory::CONNECTION);
     argsman.AddArg("-proxyrandomize", strprintf("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)", DEFAULT_PROXYRANDOMIZE), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-seednode=<ip>", "Connect to a node to retrieve peer addresses, and disconnect. This option can be specified multiple times to connect to multiple nodes. During startup, seednodes will be tried before dnsseeds.", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-networkactive", "Enable all P2P network activity (default: 1). Can be changed by the setnetworkactive RPC command", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -624,12 +639,6 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-dustrelayfee=<amt>", strprintf("Fee rate (in %s/kvB) used to define dust, the value of an output such that it will cost more than its value in fees at this fee rate to spend it. (default: %s)", CURRENCY_UNIT, FormatMoney(DUST_RELAY_TX_FEE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-acceptstalefeeestimates", strprintf("Read fee estimates even if they are stale (%sdefault: %u) fee estimates are considered stale if they are %s hours old", "regtest only; ", DEFAULT_ACCEPT_STALE_FEE_ESTIMATES, Ticks<std::chrono::hours>(MAX_FILE_AGE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-bytespersigop", strprintf("Equivalent bytes per sigop in transactions for relay and mining (default: %u)", DEFAULT_BYTES_PER_SIGOP), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
-    argsman.AddArg("-datacarrier", strprintf("Relay and mine data carrier transactions (default: %u)", DEFAULT_ACCEPT_DATACARRIER), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
-    argsman.AddArg("-datacarriersize",
-                   strprintf("Relay and mine transactions whose data-carrying raw scriptPubKey "
-                             "is of this size or less (default: %u)",
-                             MAX_OP_RETURN_RELAY),
-                   ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-permitbaremultisig", strprintf("Relay transactions creating non-P2SH multisig outputs (default: %u)", DEFAULT_PERMIT_BAREMULTISIG), ArgsManager::ALLOW_ANY,
                    OptionsCategory::NODE_RELAY);
     argsman.AddArg("-minrelaytxfee=<amt>", strprintf("Fees (in %s/kvB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)",
@@ -644,7 +653,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
 
     argsman.AddArg("-rest", strprintf("Accept public REST requests (default: %u)", DEFAULT_REST_ENABLE), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
-    argsman.AddArg("-rpcallowip=<ip>", "Allow JSON-RPC connections from specified source. Valid values for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0), a network/CIDR (e.g. 1.2.3.4/24), all ipv4 (0.0.0.0/0), or all ipv6 (::/0). This option can be specified multiple times", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+    argsman.AddArg("-rpcallowip=<ip>", "Allow JSON-RPC connections from specified source. Valid values for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0), a network/CIDR (e.g. 1.2.3.4/24), all ipv4 (0.0.0.0/0), or all ipv6 (::/0). RFC4193 is allowed only if -cjdnsreachable=0. This option can be specified multiple times", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
     argsman.AddArg("-rpcauth=<userpw>", "Username and HMAC-SHA-256 hashed password for JSON-RPC connections. The field <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=<USERNAME>/rpcpassword=<PASSWORD> pair of arguments. This option can be specified multiple times", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::RPC);
     argsman.AddArg("-rpcbind=<addr>[:port]", "Bind to given address to listen for JSON-RPC connections. Do not expose the RPC server to untrusted networks such as the public internet! This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost)", ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::RPC);
     argsman.AddArg("-rpcdoccheck", strprintf("Throw a non-fatal error at runtime if the documentation for an RPC is incorrect (default: %u)", DEFAULT_RPC_DOC_CHECK), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::RPC);
@@ -782,32 +791,6 @@ void InitParameterInteraction(ArgsManager& args)
         if (!clearnet_reachable && args.SoftSetBoolArg("-dnsseed", false)) {
             LogInfo("parameter interaction: -onlynet excludes IPv4 and IPv6 -> setting -dnsseed=0\n");
         }
-    }
-
-    // If settings.json contains a "upnp" option, migrate it to use "natpmp" instead
-    bool settings_changed{false}; // Whether settings.json file needs to be rewritten
-    args.LockSettings([&](common::Settings& settings) {
-        if (auto* upnp{common::FindKey(settings.rw_settings, "upnp")}) {
-            if (common::FindKey(settings.rw_settings, "natpmp") == nullptr) {
-                LogWarning(R"(Adding "natpmp": %s to settings.json to replace obsolete "upnp" setting)", upnp->write());
-                settings.rw_settings["natpmp"] = *upnp;
-            }
-            LogWarning(R"(Removing obsolete "upnp" setting from settings.json)");
-            settings.rw_settings.erase("upnp");
-            settings_changed = true;
-        }
-    });
-    if (settings_changed) args.WriteSettingsFile();
-
-    // We dropped UPnP support but kept the arg as hidden for now to display a friendlier error to user who has the
-    // option in their config, and migrate the setting to -natpmp.
-    if (const auto arg{args.GetBoolArg("-upnp")}) {
-        std::string message;
-        if (args.SoftSetBoolArg("-natpmp", *arg)) {
-            message = strprintf(" Substituting '-natpmp=%s'.", *arg);
-        }
-        LogWarning("Option '-upnp=%s' is given but UPnP support was dropped in version 29.0.%s",
-                *arg, message);
     }
 }
 
@@ -1158,38 +1141,41 @@ bool CheckHostPortOptions(const ArgsManager& args) {
         "-rpcport",
     }) {
         if (const auto port{args.GetArg(port_option)}) {
-            uint16_t n;
-            if (!ParseUInt16(*port, &n) || n == 0) {
+            const auto n{ToIntegral<uint16_t>(*port)};
+            if (!n || *n == 0) {
                 return InitError(InvalidPortErrMsg(port_option, *port));
             }
         }
     }
 
-    for ([[maybe_unused]] const auto& [arg, unix] : std::vector<std::pair<std::string, bool>>{
-        // arg name            UNIX socket support
-        {"-i2psam",                 false},
-        {"-onion",                  true},
-        {"-proxy",                  true},
-        {"-rpcbind",                false},
-        {"-torcontrol",             false},
-        {"-whitebind",              false},
-        {"-zmqpubhashblock",        true},
-        {"-zmqpubhashtx",           true},
-        {"-zmqpubrawblock",         true},
-        {"-zmqpubrawtx",            true},
-        {"-zmqpubsequence",         true},
+    for ([[maybe_unused]] const auto& [param_name, unix, suffix_allowed] : std::vector<std::tuple<std::string, bool, bool>>{
+        // arg name          UNIX socket support  =suffix allowed
+        {"-i2psam",          false,               false},
+        {"-onion",           true,                false},
+        {"-proxy",           true,                true},
+        {"-bind",            false,               true},
+        {"-rpcbind",         false,               false},
+        {"-torcontrol",      false,               false},
+        {"-whitebind",       false,               false},
+        {"-zmqpubhashblock", true,                false},
+        {"-zmqpubhashtx",    true,                false},
+        {"-zmqpubrawblock",  true,                false},
+        {"-zmqpubrawtx",     true,                false},
+        {"-zmqpubsequence",  true,                false},
     }) {
-        for (const std::string& socket_addr : args.GetArgs(arg)) {
+        for (const std::string& param_value : args.GetArgs(param_name)) {
+            const std::string param_value_hostport{
+                suffix_allowed ? param_value.substr(0, param_value.rfind('=')) : param_value};
             std::string host_out;
             uint16_t port_out{0};
-            if (!SplitHostPort(socket_addr, port_out, host_out)) {
+            if (!SplitHostPort(param_value_hostport, port_out, host_out)) {
 #ifdef HAVE_SOCKADDR_UN
                 // Allow unix domain sockets for some options e.g. unix:/some/file/path
-                if (!unix || !socket_addr.starts_with(ADDR_PREFIX_UNIX)) {
-                    return InitError(InvalidPortErrMsg(arg, socket_addr));
+                if (!unix || !param_value.starts_with(ADDR_PREFIX_UNIX)) {
+                    return InitError(InvalidPortErrMsg(param_name, param_value));
                 }
 #else
-                return InitError(InvalidPortErrMsg(arg, socket_addr));
+                return InitError(InvalidPortErrMsg(param_name, param_value));
 #endif
             }
         }
@@ -1399,6 +1385,32 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // Check port numbers
     if (!CheckHostPortOptions(args)) return false;
 
+    // Configure reachable networks before we start the RPC server.
+    // This is necessary for -rpcallowip to distinguish CJDNS from other RFC4193
+    const auto onlynets = args.GetArgs("-onlynet");
+    if (!onlynets.empty()) {
+        g_reachable_nets.RemoveAll();
+        for (const std::string& snet : onlynets) {
+            enum Network net = ParseNetwork(snet);
+            if (net == NET_UNROUTABLE)
+                return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
+            g_reachable_nets.Add(net);
+        }
+    }
+
+    if (!args.IsArgSet("-cjdnsreachable")) {
+        if (!onlynets.empty() && g_reachable_nets.Contains(NET_CJDNS)) {
+            return InitError(
+                _("Outbound connections restricted to CJDNS (-onlynet=cjdns) but "
+                  "-cjdnsreachable is not provided"));
+        }
+        g_reachable_nets.Remove(NET_CJDNS);
+    }
+    // Now g_reachable_nets.Contains(NET_CJDNS) is true if:
+    // 1. -cjdnsreachable is given and
+    // 2.1. -onlynet is not given or
+    // 2.2. -onlynet=cjdns is given
+
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
      * that the server is there and will be ready later).  Warmup mode will
@@ -1511,30 +1523,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
-    const auto onlynets = args.GetArgs("-onlynet");
-    if (!onlynets.empty()) {
-        g_reachable_nets.RemoveAll();
-        for (const std::string& snet : onlynets) {
-            enum Network net = ParseNetwork(snet);
-            if (net == NET_UNROUTABLE)
-                return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
-            g_reachable_nets.Add(net);
-        }
-    }
-
-    if (!args.IsArgSet("-cjdnsreachable")) {
-        if (!onlynets.empty() && g_reachable_nets.Contains(NET_CJDNS)) {
-            return InitError(
-                _("Outbound connections restricted to CJDNS (-onlynet=cjdns) but "
-                  "-cjdnsreachable is not provided"));
-        }
-        g_reachable_nets.Remove(NET_CJDNS);
-    }
-    // Now g_reachable_nets.Contains(NET_CJDNS) is true if:
-    // 1. -cjdnsreachable is given and
-    // 2.1. -onlynet is not given or
-    // 2.2. -onlynet=cjdns is given
-
     // Requesting DNS seeds entails connecting to IPv4/IPv6, which -onlynet options may prohibit:
     // If -dnsseed=1 is explicitly specified, abort. If it's left unspecified by the user, we skip
     // the DNS seeds by adjusting -dnsseed in InitParameterInteraction.
@@ -1545,33 +1533,66 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // Check for host lookup allowed before parsing any network related parameters
     fNameLookup = args.GetBoolArg("-dns", DEFAULT_NAME_LOOKUP);
 
-    Proxy onion_proxy;
-
     bool proxyRandomize = args.GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
-    // -proxy sets a proxy for all outgoing network traffic
-    // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
-    std::string proxyArg = args.GetArg("-proxy", "");
-    if (proxyArg != "" && proxyArg != "0") {
-        Proxy addrProxy;
-        if (IsUnixSocketPath(proxyArg)) {
-            addrProxy = Proxy(proxyArg, /*tor_stream_isolation=*/proxyRandomize);
-        } else {
-            const std::optional<CService> proxyAddr{Lookup(proxyArg, 9050, fNameLookup)};
-            if (!proxyAddr.has_value()) {
-                return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxyArg));
+    // -proxy sets a proxy for outgoing network traffic, possibly per network.
+    // -noproxy, -proxy=0 or -proxy="" can be used to remove the proxy setting, this is the default
+    Proxy ipv4_proxy;
+    Proxy ipv6_proxy;
+    Proxy onion_proxy;
+    Proxy name_proxy;
+    Proxy cjdns_proxy;
+    for (const std::string& param_value : args.GetArgs("-proxy")) {
+        const auto eq_pos{param_value.rfind('=')};
+        const std::string proxy_str{param_value.substr(0, eq_pos)}; // e.g. 127.0.0.1:9050=ipv4 -> 127.0.0.1:9050
+        std::string net_str;
+        if (eq_pos != std::string::npos) {
+            if (eq_pos + 1 == param_value.length()) {
+                return InitError(strprintf(_("Invalid -proxy address or hostname, ends with '=': '%s'"), param_value));
             }
-
-            addrProxy = Proxy(proxyAddr.value(), /*tor_stream_isolation=*/proxyRandomize);
+            net_str = ToLower(param_value.substr(eq_pos + 1)); // e.g. 127.0.0.1:9050=ipv4 -> ipv4
         }
 
-        if (!addrProxy.IsValid())
-            return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxyArg));
+        Proxy proxy;
+        if (!proxy_str.empty() && proxy_str != "0") {
+            if (IsUnixSocketPath(proxy_str)) {
+                proxy = Proxy{proxy_str, /*tor_stream_isolation=*/proxyRandomize};
+            } else {
+                const std::optional<CService> addr{Lookup(proxy_str, DEFAULT_TOR_SOCKS_PORT, fNameLookup)};
+                if (!addr.has_value()) {
+                    return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxy_str));
+                }
+                proxy = Proxy{addr.value(), /*tor_stream_isolation=*/proxyRandomize};
+            }
+            if (!proxy.IsValid()) {
+                return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxy_str));
+            }
+        }
 
-        SetProxy(NET_IPV4, addrProxy);
-        SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_CJDNS, addrProxy);
-        SetNameProxy(addrProxy);
-        onion_proxy = addrProxy;
+        if (net_str.empty()) { // For all networks.
+            ipv4_proxy = ipv6_proxy = name_proxy = cjdns_proxy = onion_proxy = proxy;
+        } else if (net_str == "ipv4") {
+            ipv4_proxy = name_proxy = proxy;
+        } else if (net_str == "ipv6") {
+            ipv6_proxy = name_proxy = proxy;
+        } else if (net_str == "tor" || net_str == "onion") {
+            onion_proxy = proxy;
+        } else if (net_str == "cjdns") {
+            cjdns_proxy = proxy;
+        } else {
+            return InitError(strprintf(_("Unrecognized network in -proxy='%s': '%s'"), param_value, net_str));
+        }
+    }
+    if (ipv4_proxy.IsValid()) {
+        SetProxy(NET_IPV4, ipv4_proxy);
+    }
+    if (ipv6_proxy.IsValid()) {
+        SetProxy(NET_IPV6, ipv6_proxy);
+    }
+    if (name_proxy.IsValid()) {
+        SetNameProxy(name_proxy);
+    }
+    if (cjdns_proxy.IsValid()) {
+        SetProxy(NET_CJDNS, cjdns_proxy);
     }
 
     const bool onlynet_used_with_onion{!onlynets.empty() && g_reachable_nets.Contains(NET_ONION)};
@@ -1592,7 +1613,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             if (IsUnixSocketPath(onionArg)) {
                 onion_proxy = Proxy(onionArg, /*tor_stream_isolation=*/proxyRandomize);
             } else {
-                const std::optional<CService> addr{Lookup(onionArg, 9050, fNameLookup)};
+                const std::optional<CService> addr{Lookup(onionArg, DEFAULT_TOR_SOCKS_PORT, fNameLookup)};
                 if (!addr.has_value() || !addr->IsValid()) {
                     return InitError(strprintf(_("Invalid -onion address or hostname: '%s'"), onionArg));
                 }
@@ -1627,7 +1648,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
 #ifdef ENABLE_ZMQ
     g_zmq_notification_interface = CZMQNotificationInterface::Create(
-        [&chainman = node.chainman](std::vector<uint8_t>& block, const CBlockIndex& index) {
+        [&chainman = node.chainman](std::vector<std::byte>& block, const CBlockIndex& index) {
             assert(chainman);
             return chainman->m_blockman.ReadRawBlock(block, WITH_LOCK(cs_main, return index.GetBlockPos()));
         });
@@ -1794,10 +1815,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 #if HAVE_SYSTEM
     const std::string block_notify = args.GetArg("-blocknotify", "");
     if (!block_notify.empty()) {
-        uiInterface.NotifyBlockTip_connect([block_notify](SynchronizationState sync_state, const CBlockIndex* pBlockIndex) {
-            if (sync_state != SynchronizationState::POST_INIT || !pBlockIndex) return;
+        uiInterface.NotifyBlockTip_connect([block_notify](SynchronizationState sync_state, const CBlockIndex& block, double /* verification_progress */) {
+            if (sync_state != SynchronizationState::POST_INIT) return;
             std::string command = block_notify;
-            ReplaceAll(command, "%s", pBlockIndex->GetBlockHash().GetHex());
+            ReplaceAll(command, "%s", block.GetBlockHash().GetHex());
             std::thread t(runCommand, command);
             t.detach(); // thread runs free
         });
@@ -1823,7 +1844,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         // Start indexes initial sync
         if (!StartIndexBackgroundSync(node)) {
-            bilingual_str err_str = _("Failed to start indexes, shutting down..");
+            bilingual_str err_str = _("Failed to start indexes, shutting down…");
             chainman.GetNotifications().fatalError(err_str);
             return;
         }

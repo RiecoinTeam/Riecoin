@@ -72,7 +72,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000de8dce9cb0f4fcf7b2df96200000"}; // 2352012
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000eb4144938cfeabc85d5f96200000"}; // 2385839
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -113,18 +113,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 2350000,
-                .hash_serialized = AssumeutxoHash{uint256{"c22e8ff760330718bc747515d7e6905f863fb9bd506ebeff5ff2974176401755"}},
-                .m_chain_tx_count = 4601851,
-                .blockhash = uint256{"f45a8a584cafe541540226597c69727f50bb9ad62070d4cb95cac2ea2d002dd0"}
+                .height = 2382000,
+                .hash_serialized = AssumeutxoHash{uint256{"16f0747a1df4965db840d52372cd8c0f11dfab38996fa814cbae6e0a9dc06754"}},
+                .m_chain_tx_count = 4641756,
+                .blockhash = uint256{"2292a5e40fae16900e978166010d2f85dee184f1c59ec772a99b9d403fb862e8"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 f45a8a584cafe541540226597c69727f50bb9ad62070d4cb95cac2ea2d002dd0
-            .nTime    = 1746687553,
-            .tx_count = 4601851,
-            .dTxRate  = 0.008250101460779985,
+            // Data from RPC: getchaintxstats 65536 2292a5e40fae16900e978166010d2f85dee184f1c59ec772a99b9d403fb862e8
+            .nTime    = 1751478225,
+            .tx_count = 4641756,
+            .dTxRate  = 0.008372299428962006,
         };
     }
 };
@@ -149,7 +149,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000084f48207f56d3a7cbc000"}; // 128913
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000097d9f444597746ae00000"}; // 145834
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -186,18 +186,18 @@ public:
 
         m_assumeutxo_data = {
             {
-                .height = 126000,
+                .height = 142000,
                 .hash_serialized = AssumeutxoHash{uint256{"5c21e6d9c581a15a61fdeb905ddfa5ad13d93335dc08e23dbce589c23210df22"}},
                 .m_chain_tx_count = 126014,
-                .blockhash = uint256{"bc9277fe7f4b7328c1bb391deb6f1396e7218e8226c794a165af7c5ef516881c"}
+                .blockhash = uint256{"fc94debbac1f7fcb2af9f94b77d4a3946a7a7a3e2d743411d5775f88559fe2be"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 bc9277fe7f4b7328c1bb391deb6f1396e7218e8226c794a165af7c5ef516881c
-            .nTime    = 1746115558,
-            .tx_count = 126014,
-            .dTxRate  = 0.003328467129558714,
+            // Data from RPC: getchaintxstats 16384 fc94debbac1f7fcb2af9f94b77d4a3946a7a7a3e2d743411d5775f88559fe2be
+            .nTime    = 1750902471,
+            .tx_count = 142014,
+            .dTxRate  = 0.00334002057749494,
         };
     }
 };
@@ -285,9 +285,9 @@ public:
         };
 
         chainTxData = ChainTxData{
-            0,
-            0,
-            0
+            .nTime = 0,
+            .tx_count = 0,
+            .dTxRate = 0.001, // Set a non-zero rate to make it testable
         };
 
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};

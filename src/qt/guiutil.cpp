@@ -1,14 +1,14 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/guiutil.h>
 
-#include <qt/bitcoinaddressvalidator.h>
-#include <qt/bitcoinunits.h>
 #include <qt/platformstyle.h>
 #include <qt/qvalidatedlineedit.h>
+#include <qt/riecoinaddressvalidator.h>
+#include <qt/riecoinunits.h>
 #include <qt/sendcoinsrecipient.h>
 
 #include <addresstype.h>
@@ -65,7 +65,7 @@
 #include <QSize>
 #include <QStandardPaths>
 #include <QString>
-#include <QTextDocument> // for Qt::mightBeRichText
+#include <QTextDocument>
 #include <QThread>
 #include <QUrlQuery>
 #include <QtGlobal>

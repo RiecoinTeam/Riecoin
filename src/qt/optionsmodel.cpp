@@ -3,13 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <qt/optionsmodel.h>
 
-#include <qt/bitcoinunits.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
+#include <qt/riecoinunits.h>
 
 #include <common/args.h>
 #include <interfaces/node.h>
@@ -18,17 +18,16 @@
 #include <netbase.h>
 #include <node/caches.h>
 #include <node/chainstatemanager_args.h>
+#include <univalue.h>
 #include <util/string.h>
-#include <validation.h>    // For DEFAULT_SCRIPTCHECK_THREADS
-#include <wallet/wallet.h> // For DEFAULT_SPEND_ZEROCONF_CHANGE
+#include <validation.h>
+#include <wallet/wallet.h>
 
 #include <QDebug>
 #include <QLatin1Char>
 #include <QSettings>
 #include <QStringList>
 #include <QVariant>
-
-#include <univalue.h>
 
 const char *DEFAULT_GUI_PROXY_HOST = "127.0.0.1";
 

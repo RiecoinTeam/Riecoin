@@ -57,6 +57,7 @@ add_executable(fuzz
   kitchen_sink.cpp
   load_external_block_file.cpp
   locale.cpp
+  merkle.cpp
   merkleblock.cpp
   message.cpp
   miniscript.cpp
@@ -124,10 +125,7 @@ add_executable(fuzz
   txgraph.cpp
   txorphan.cpp
   txrequest.cpp
-  # Visual Studio 2022 version 17.12 introduced a bug
-  # that causes an internal compiler error.
-  # See: https://github.com/bitcoin/bitcoin/issues/31303
-  $<$<VERSION_LESS:${MSVC_VERSION},1942>:utxo_snapshot.cpp>
+  utxo_snapshot.cpp
   utxo_total_supply.cpp
   validation_load_mempool.cpp
   vecdeque.cpp
@@ -137,9 +135,9 @@ target_link_libraries(fuzz
   core_interface
   fuzzer_interface
   test_fuzz
-  bitcoin_cli
-  bitcoin_common
-  bitcoin_util
+  riecoin_cli
+  riecoin_common
+  riecoin_util
   minisketch
   leveldb
   univalue

@@ -8,7 +8,7 @@
 #include <util/vector.h>
 
 #include <array>
-#include <assert.h>
+#include <cassert>
 #include <numeric>
 #include <optional>
 

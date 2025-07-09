@@ -37,8 +37,9 @@ using interfaces::FoundBlock;
 namespace wallet {
 RPCHelpMan importprunedfunds()
 {
-    return RPCHelpMan{"importprunedfunds",
-                "\nImports funds without rescan. Corresponding address or script must previously be included in wallet. Aimed towards pruned wallets. The end-user is responsible to import additional transactions that subsequently spend the imported outputs or rescan after the point in the blockchain the transaction is included.\n",
+    return RPCHelpMan{
+        "importprunedfunds",
+        "Imports funds without rescan. Corresponding address or script must previously be included in wallet. Aimed towards pruned wallets. The end-user is responsible to import additional transactions that subsequently spend the imported outputs or rescan after the point in the blockchain the transaction is included.\n",
                 {
                     {"rawtransaction", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "A raw transaction in hex funding an already-existing address in wallet"},
                     {"txoutproof", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hex output from gettxoutproof that contains the transaction"},
@@ -54,7 +55,6 @@ RPCHelpMan importprunedfunds()
     if (!DecodeHexTx(tx, request.params[0].get_str())) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed. Make sure the tx has at least one input.");
     }
-    uint256 hashTx = tx.GetHash();
 
     DataStream ssMB{ParseHexV(request.params[1], "proof")};
     CMerkleBlock merkleBlock;
@@ -74,7 +74,7 @@ RPCHelpMan importprunedfunds()
     }
 
     std::vector<uint256>::const_iterator it;
-    if ((it = std::find(vMatch.begin(), vMatch.end(), hashTx)) == vMatch.end()) {
+    if ((it = std::find(vMatch.begin(), vMatch.end(), tx.GetHash())) == vMatch.end()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction given doesn't exist in proof");
     }
 
@@ -93,8 +93,9 @@ RPCHelpMan importprunedfunds()
 
 RPCHelpMan removeprunedfunds()
 {
-    return RPCHelpMan{"removeprunedfunds",
-                "\nDeletes the specified transaction from the wallet. Meant for use with pruned wallets and as a companion to importprunedfunds. This will affect wallet balances.\n",
+    return RPCHelpMan{
+        "removeprunedfunds",
+        "Deletes the specified transaction from the wallet. Meant for use with pruned wallets and as a companion to importprunedfunds. This will affect wallet balances.\n",
                 {
                     {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hex-encoded id of the transaction you are deleting"},
                 },
@@ -111,8 +112,8 @@ RPCHelpMan removeprunedfunds()
 
     LOCK(pwallet->cs_wallet);
 
-    uint256 hash(ParseHashV(request.params[0], "txid"));
-    std::vector<uint256> vHash;
+    Txid hash{Txid::FromUint256(ParseHashV(request.params[0], "txid"))};
+    std::vector<Txid> vHash;
     vHash.push_back(hash);
     if (auto res = pwallet->RemoveTxs(vHash); !res) {
         throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(res).original);
@@ -264,25 +265,21 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             auto spk_manager_res = wallet.AddWalletDescriptor(w_desc, keys, label, desc_internal);
 
             if (!spk_manager_res) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, util::ErrorString(spk_manager_res).original);
+                throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Could not add descriptor '%s': %s", descriptor, util::ErrorString(spk_manager_res).original));
             }
 
-            auto spk_manager = spk_manager_res.value();
-
-            if (spk_manager == nullptr) {
-                throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Could not add descriptor '%s'", descriptor));
-            }
+            auto& spk_manager = spk_manager_res.value().get();
 
             // Set descriptor as active if necessary
             if (active) {
                 if (!w_desc.descriptor->GetOutputType()) {
                     warnings.push_back("Unknown output type, cannot set descriptor to active.");
                 } else {
-                    wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), desc_internal);
+                    wallet.AddActiveScriptPubKeyMan(spk_manager.GetID(), *w_desc.descriptor->GetOutputType(), desc_internal);
                 }
             } else {
                 if (w_desc.descriptor->GetOutputType()) {
-                    wallet.DeactivateScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), desc_internal);
+                    wallet.DeactivateScriptPubKeyMan(spk_manager.GetID(), *w_desc.descriptor->GetOutputType(), desc_internal);
                 }
             }
         }
@@ -298,9 +295,10 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
 
 RPCHelpMan importdescriptors()
 {
-    return RPCHelpMan{"importdescriptors",
-                "\nImport descriptors. This will trigger a rescan of the blockchain based on the earliest timestamp of all descriptors being imported. Requires a new wallet backup.\n"
-            "When importing descriptors with multipath key expressions, if the multipath specifier contains exactly two elements, the descriptor produced from the second elements will be imported as an internal descriptor.\n"
+    return RPCHelpMan{
+        "importdescriptors",
+        "Import descriptors. This will trigger a rescan of the blockchain based on the earliest timestamp of all descriptors being imported. Requires a new wallet backup.\n"
+        "When importing descriptors with multipath key expressions, if the multipath specifier contains exactly two elements, the descriptor produced from the second element will be imported as an internal descriptor.\n"
             "\nNote: This call can take over an hour to complete if using an early timestamp; during that time, other rpc calls\n"
             "may report that the imported keys, addresses or scripts exist but related transactions are still missing.\n"
             "The rescan is significantly faster if block filters are available (using startup option \"-blockfilterindex=1\").\n",
@@ -359,11 +357,6 @@ RPCHelpMan importdescriptors()
     // the user could have gotten from another RPC command prior to now
     wallet.BlockUntilSyncedToCurrentChain();
 
-    //  Make sure wallet is a descriptor wallet
-    if (!pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "importdescriptors is not available for non-descriptor wallets");
-    }
-
     WalletRescanReserver reserver(*pwallet);
     if (!reserver.reserve(/*with_passphrase=*/true)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
@@ -402,6 +395,7 @@ RPCHelpMan importdescriptors()
             }
         }
         pwallet->ConnectScriptPubKeyManNotifiers();
+        pwallet->RefreshAllTXOs();
     }
 
     // Rescan the blockchain using the lowest timestamp
@@ -465,7 +459,7 @@ RPCHelpMan listdescriptors()
 {
     return RPCHelpMan{
         "listdescriptors",
-        "\nList descriptors imported into a descriptor-enabled wallet.\n",
+        "List all descriptors present in a wallet.\n",
         {
             {"private", RPCArg::Type::BOOL, RPCArg::Default{false}, "Show private descriptors."}
         },
@@ -495,10 +489,6 @@ RPCHelpMan listdescriptors()
 {
     const std::shared_ptr<const CWallet> wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return UniValue::VNULL;
-
-    if (!wallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "listdescriptors is not available for non-descriptor wallets");
-    }
 
     const bool priv = !request.params[0].isNull() && request.params[0].get_bool();
     if (priv) {
@@ -576,8 +566,9 @@ RPCHelpMan listdescriptors()
 
 RPCHelpMan backupwallet()
 {
-    return RPCHelpMan{"backupwallet",
-                "\nSafely copies the current wallet file to the specified destination, which can either be a directory or a path with a filename.\n",
+    return RPCHelpMan{
+        "backupwallet",
+        "Safely copies the current wallet file to the specified destination, which can either be a directory or a path with a filename.\n",
                 {
                     {"destination", RPCArg::Type::STR, RPCArg::Optional::NO, "The destination directory or file"},
                 },
@@ -612,9 +603,9 @@ RPCHelpMan restorewallet()
 {
     return RPCHelpMan{
         "restorewallet",
-        "\nRestores and loads a wallet from backup.\n"
-        "\nThe rescan is significantly faster if a descriptor wallet is restored"
-        "\nand block filters are available (using startup option \"-blockfilterindex=1\").\n",
+        "Restores and loads a wallet from backup.\n"
+        "\nThe rescan is significantly faster if block filters are available"
+        "\n(using startup option \"-blockfilterindex=1\").\n",
         {
             {"wallet_name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name that will be applied to the restored wallet"},
             {"backup_file", RPCArg::Type::STR, RPCArg::Optional::NO, "The backup file that will be used to restore the wallet."},

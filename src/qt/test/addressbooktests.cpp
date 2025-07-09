@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022 The Bitcoin Core developers
+// Copyright (c) 2017-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -84,12 +84,10 @@ void TestAddAddressesToSendBook(interfaces::Node& node)
         wallet->SetupDescriptorScriptPubKeyMans();
     }
 
-    auto build_address = [&wallet]() {
-        CKey key = GenerateRandomKey();
-        CTxDestination dest(WitnessV1Taproot(XOnlyPubKey(key.GetPubKey())));
-
+    auto build_address{[]() {
+        const WitnessV1Taproot dest{XOnlyPubKey(GenerateRandomKey().GetPubKey())};
         return std::make_pair(dest, QString::fromStdString(EncodeDestination(dest)));
-    };
+    }};
 
     CTxDestination r_key_dest, s_key_dest;
 

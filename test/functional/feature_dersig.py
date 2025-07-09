@@ -65,7 +65,6 @@ class BIP66Test(BitcoinTestFramework):
         self.coinbase_txids = [self.nodes[0].getblock(b)['tx'][0] for b in self.generate(self.miniwallet, DERSIG_HEIGHT - 2)]
 
         spendtx = self.create_tx(self.coinbase_txids[0])
-        spendtx.rehash()
 
         tip = self.nodes[0].getbestblockhash()
         block_time = self.nodes[0].getblockheader(tip)['mediantime'] + 1
@@ -93,12 +92,11 @@ class BIP66Test(BitcoinTestFramework):
         coin_txid = self.coinbase_txids[1]
         spendtx = self.create_tx(coin_txid)
         unDERify(spendtx)
-        spendtx.rehash()
 
         # First we show that this tx is valid except for DERSIG by getting it
         # rejected from the mempool for exactly that reason.
-        spendtx_txid = spendtx.hash
-        spendtx_wtxid = spendtx.getwtxid()
+        spendtx_txid = spendtx.txid_hex
+        spendtx_wtxid = spendtx.wtxid_hex
         assert_equal(
             [{
                 'txid': spendtx_txid,

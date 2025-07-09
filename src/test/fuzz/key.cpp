@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 The Bitcoin Core developers
+// Copyright (c) 2020-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -150,12 +150,12 @@ FUZZ_TARGET(key, .init = initialize_key)
         assert(fillable_signing_provider_pub.HaveKey(pubkey.GetID()));
 
         TxoutType which_type_tx_pubkey;
-        const bool is_standard_tx_pubkey = IsStandard(tx_pubkey_script, std::nullopt, which_type_tx_pubkey);
+        const bool is_standard_tx_pubkey = IsStandard(tx_pubkey_script, which_type_tx_pubkey);
         assert(is_standard_tx_pubkey);
         assert(which_type_tx_pubkey == TxoutType::PUBKEY);
 
         TxoutType which_type_tx_multisig;
-        const bool is_standard_tx_multisig = IsStandard(tx_multisig_script, std::nullopt, which_type_tx_multisig);
+        const bool is_standard_tx_multisig = IsStandard(tx_multisig_script, which_type_tx_multisig);
         assert(is_standard_tx_multisig);
         assert(which_type_tx_multisig == TxoutType::MULTISIG);
 
@@ -172,6 +172,23 @@ FUZZ_TARGET(key, .init = initialize_key)
         assert(v_solutions_ret_tx_multisig[0].size() == 1);
         assert(v_solutions_ret_tx_multisig[1].size() == 33);
         assert(v_solutions_ret_tx_multisig[2].size() == 1);
+
+        OutputType output_type{};
+        const CTxDestination tx_destination(WitnessV1Taproot(XOnlyPubKey(pubkey)));
+        assert(output_type == OutputType::BECH32M);
+        assert(IsValidDestination(tx_destination));
+        assert(WitnessV1Taproot{pubkey} == *std::get_if<WitnessV1Taproot>(&tx_destination));
+
+        const CScript script_for_destination = GetScriptForDestination(tx_destination);
+        assert(script_for_destination.size() == 25);
+
+        const std::string destination_address = EncodeDestination(tx_destination);
+        assert(DecodeDestination(destination_address) == tx_destination);
+
+        CKeyID key_id = pubkey.GetID();
+        assert(!key_id.IsNull());
+        assert(key_id == CKeyID{key_id});
+        assert(key_id == GetKeyForDestination(fillable_signing_provider, tx_destination));
 
         CPubKey pubkey_out;
         const bool ok_get_pubkey = fillable_signing_provider.GetPubKey(key_id, pubkey_out);

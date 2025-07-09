@@ -11,6 +11,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
+    wallet_importprivkey,
 )
 from test_framework.wallet_util import generate_keypair, WalletUnlock
 
@@ -42,14 +43,12 @@ class CreateWalletTest(BitcoinTestFramework):
         w1 = node.get_wallet_rpc('w1')
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w1.getnewaddress)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w1.getrawchangeaddress)
-        w1.importdescriptors([{
-            'desc': f'tr(' + w0.getaddressinfo(address1)['scriptPubKey'] + ')',
-            'timestamp': 'now',
-        }])
+        import_res = w1.importdescriptors([{"desc": w0.getaddressinfo(address1)['desc'], "timestamp": "now"}])
+        assert_equal(import_res[0]["success"], True)
+        assert_equal(sorted(w1.getwalletinfo()["flags"]), sorted(["last_hardened_xpub_cached", "descriptor_wallet", "disable_private_keys"]))
 
         self.log.info('Test that private keys cannot be imported')
         privkey, pubkey = generate_keypair(wif=True)
-        assert_raises_rpc_error(-4, 'Cannot import private keys to a wallet with private keys disabled', w1.importprivkey, privkey)
         result = w1.importdescriptors([{'desc': descsum_create('wpkh(' + privkey + ')'), 'timestamp': 'now'}])
         assert not result[0]['success']
         assert 'warnings' not in result[0]
@@ -61,10 +60,8 @@ class CreateWalletTest(BitcoinTestFramework):
         w2 = node.get_wallet_rpc('w2')
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w2.getnewaddress)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w2.getrawchangeaddress)
-        w2.importdescriptors([{
-            'desc': f'tr(' + w0.getaddressinfo(address1)['scriptPubKey'] + ')',
-            'timestamp': 'now',
-        }])
+        import_res = w2.importdescriptors([{"desc": w0.getaddressinfo(address1)['desc'], "timestamp": "now"}])
+        assert_equal(import_res[0]["success"], True)
 
         self.log.info("Test blank creation with private keys enabled.")
         self.nodes[0].createwallet(wallet_name='w3', disable_private_keys=False, blank=True)
@@ -73,7 +70,7 @@ class CreateWalletTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getnewaddress)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getrawchangeaddress)
         # Import private key
-        w3.importprivkey(generate_keypair(wif=True)[0])
+        wallet_importprivkey(w3, generate_keypair(wif=True)[0], "now")
         # Imported private keys are currently ignored by the keypool
         assert_equal(w3.getwalletinfo()['keypoolsize'], 0)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", w3.getnewaddress)
@@ -166,6 +163,19 @@ class CreateWalletTest(BitcoinTestFramework):
 
         self.log.info('Using a passphrase with private keys disabled returns error')
         assert_raises_rpc_error(-4, 'Passphrase provided but private keys are disabled. A passphrase is only used to encrypt private keys, so cannot be used for wallets with private keys disabled.', self.nodes[0].createwallet, wallet_name='w9', disable_private_keys=True, passphrase='thisisapassphrase')
+
+        self.log.info("Check that the version number is being logged correctly")
+        with node.assert_debug_log(expected_msgs=[], unexpected_msgs=["Last client version = ", "Wallet file version = "]):
+            node.createwallet("version_check")
+        wallet = node.get_wallet_rpc("version_check")
+        wallet_version = wallet.getwalletinfo()["walletversion"]
+        client_version = node.getnetworkinfo()["version"]
+        wallet.unloadwallet()
+        with node.assert_debug_log(
+            expected_msgs=[f"Last client version = {client_version}", f"Wallet file version = {wallet_version}"],
+            unexpected_msgs=["Wallet file version = 10500"]
+        ):
+            node.loadwallet("version_check")
 
 if __name__ == '__main__':
     CreateWalletTest(__file__).main()

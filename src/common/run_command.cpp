@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
+#include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <common/run_command.h>
 
@@ -24,7 +24,7 @@ UniValue RunCommandParseJSON(const std::string& str_command, const std::string& 
 
     if (str_command.empty()) return UniValue::VNULL;
 
-    auto c = sp::Popen(str_command, sp::input{sp::PIPE}, sp::output{sp::PIPE}, sp::error{sp::PIPE});
+    auto c = sp::Popen(str_command, sp::input{sp::PIPE}, sp::output{sp::PIPE}, sp::error{sp::PIPE}, sp::close_fds{true});
     if (!str_std_in.empty()) {
         c.send(str_std_in);
     }

@@ -5,7 +5,7 @@
 
 include(AddWindowsResources)
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in bitcoin-build-config.h USE_SOURCE_PERMISSIONS @ONLY)
+configure_file(${PROJECT_SOURCE_DIR}/cmake/riecoin-build-config.h.in riecoin-build-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 #=============================
@@ -85,9 +85,9 @@ if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
 endif()
 
 add_custom_target(generate_build_info
-  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h
-  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
-  COMMENT "Generating bitcoin-build-info.h"
+  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/riecoin-build-info.h
+  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/riecoin-build-info.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
+  COMMENT "Generating riecoin-build-info.h"
   VERBATIM
 )
 add_library(riecoin_clientversion STATIC EXCLUDE_FROM_ALL
@@ -203,11 +203,12 @@ if(ENABLE_WALLET)
 
   if(BUILD_WALLET_TOOL)
     add_executable(riecoin-wallet
-      bitcoin-wallet.cpp
-      init/bitcoin-wallet.cpp
+      riecoin-wallet.cpp
+      init/riecoin-wallet.cpp
       wallet/wallettool.cpp
     )
     add_windows_resources(riecoin-wallet riecoin-wallet-res.rc)
+    add_windows_application_manifest(riecoin-wallet)
     target_link_libraries(riecoin-wallet
       core_interface
       riecoin_wallet
@@ -332,14 +333,23 @@ target_link_libraries(riecoin_node
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
 
+# Riecoin wrapper executable that can call other executables.
+if(BUILD_BITCOIN_BIN)
+  add_executable(riecoin riecoin.cpp)
+  add_windows_resources(riecoin riecoin-res.rc)
+  add_windows_application_manifest(riecoin)
+  target_link_libraries(riecoin core_interface riecoin_util)
+  install_binary_component(riecoin)
+endif()
 
 # Riecoin Core riecoind.
 if(BUILD_DAEMON)
   add_executable(riecoind
-    bitcoind.cpp
-    init/bitcoind.cpp
+    riecoind.cpp
+    init/riecoind.cpp
   )
   add_windows_resources(riecoind riecoind-res.rc)
+  add_windows_application_manifest(riecoind)
   target_link_libraries(riecoind
     core_interface
     riecoin_node
@@ -348,33 +358,33 @@ if(BUILD_DAEMON)
   install_binary_component(riecoind HAS_MANPAGE)
 endif()
 if(ENABLE_IPC AND BUILD_DAEMON)
-  add_executable(bitcoin-node
-    bitcoind.cpp
-    init/bitcoin-node.cpp
+  add_executable(riecoin-node
+    riecoind.cpp
+    init/riecoin-node.cpp
   )
-  target_link_libraries(bitcoin-node
+  target_link_libraries(riecoin-node
     core_interface
     riecoin_node
-    bitcoin_ipc
+    riecoin_ipc
     $<TARGET_NAME_IF_EXISTS:riecoin_wallet>
   )
-  install_binary_component(bitcoin-node)
+  install_binary_component(riecoin-node)
 endif()
 
 if(ENABLE_IPC AND BUILD_TESTS)
-    # bitcoin_ipc_test library target is defined here in src/CMakeLists.txt
+    # riecoin_ipc_test library target is defined here in src/CMakeLists.txt
     # instead of src/test/CMakeLists.txt so capnp files in src/test/ are able to
     # reference capnp files in src/ipc/capnp/ by relative path. The Cap'n Proto
     # compiler only allows importing by relative path when the importing and
     # imported files are underneath the same compilation source prefix, so the
     # source prefix must be src/, not src/test/
-    add_library(bitcoin_ipc_test STATIC EXCLUDE_FROM_ALL
+    add_library(riecoin_ipc_test STATIC EXCLUDE_FROM_ALL
       test/ipc_test.cpp
     )
-    target_capnp_sources(bitcoin_ipc_test ${PROJECT_SOURCE_DIR}
+    target_capnp_sources(riecoin_ipc_test ${PROJECT_SOURCE_DIR}
       test/ipc_test.capnp
     )
-    add_dependencies(bitcoin_ipc_test bitcoin_ipc_headers)
+    add_dependencies(riecoin_ipc_test riecoin_ipc_headers)
 endif()
 
 
@@ -389,10 +399,11 @@ target_link_libraries(riecoin_cli
 )
 
 
-# Bitcoin Core RPC client
+# Riecoin Core RPC client
 if(BUILD_CLI)
-  add_executable(riecoin-cli bitcoin-cli.cpp)
+  add_executable(riecoin-cli riecoin-cli.cpp)
   add_windows_resources(riecoin-cli riecoin-cli-res.rc)
+  add_windows_application_manifest(riecoin-cli)
   target_link_libraries(riecoin-cli
     core_interface
     riecoin_cli
@@ -406,8 +417,9 @@ endif()
 
 
 if(BUILD_TX)
-  add_executable(riecoin-tx bitcoin-tx.cpp)
+  add_executable(riecoin-tx riecoin-tx.cpp)
   add_windows_resources(riecoin-tx riecoin-tx-res.rc)
+  add_windows_application_manifest(riecoin-tx)
   target_link_libraries(riecoin-tx
     core_interface
     riecoin_common
@@ -428,8 +440,8 @@ if(BUILD_KERNEL_LIB)
 endif()
 
 if(BUILD_UTIL_CHAINSTATE)
-  add_executable(bitcoin-chainstate
-    bitcoin-chainstate.cpp
+  add_executable(riecoin-chainstate
+    riecoin-chainstate.cpp
   )
   # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
   #       in the future after reordering Guix script commands to
@@ -437,13 +449,13 @@ if(BUILD_UTIL_CHAINSTATE)
   # Relevant discussions:
   # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
   # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-  set_target_properties(bitcoin-chainstate PROPERTIES
+  set_target_properties(riecoin-chainstate PROPERTIES
     SKIP_BUILD_RPATH OFF
   )
-  target_link_libraries(bitcoin-chainstate
+  target_link_libraries(riecoin-chainstate
     PRIVATE
       core_interface
-      bitcoinkernel
+      riecoinkernel
   )
 endif()
 

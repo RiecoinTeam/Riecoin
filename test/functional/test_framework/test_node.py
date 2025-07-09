@@ -27,7 +27,6 @@ from .authproxy import (
     JSONRPCException,
     serialization_fallback,
 )
-from .descriptors import descsum_create
 from .messages import NODE_P2P_V2
 from .p2p import P2P_SERVICES, P2P_SUBVERSION
 from .util import (
@@ -48,6 +47,8 @@ BITCOIND_PROC_WAIT_TIMEOUT = 60
 # The size of the blocks xor key
 # from InitBlocksdirXorKey::xor_key.size()
 NUM_XOR_BYTES = 8
+CLI_MAX_ARG_SIZE = 131071 # many systems have a 128kb limit per arg (MAX_ARG_STRLEN)
+
 # The null blocks key (all 0s)
 NULL_BLK_XOR_KEY = bytes([0] * NUM_XOR_BYTES)
 BITCOIN_PID_FILENAME_DEFAULT = "riecoind.pid"
@@ -109,7 +110,7 @@ class TestNode():
         # Configuration for logging is set as command-line args rather than in the riecoin.conf file.
         # This means that starting a bitcoind using the temp dir to debug a failed test won't
         # spam debug.log.
-        self.args = self.binaries.daemon_argv() + [
+        self.args = self.binaries.node_argv() + [
             f"-datadir={self.datadir_path}",
             "-logtimemicros",
             "-debug",
@@ -149,7 +150,8 @@ class TestNode():
         self.running = False
         self.process = None
         self.rpc_connected = False
-        self.rpc = None
+        self._rpc = None # Should usually not be accessed directly in tests to allow for --usecli mode
+        self.reuse_http_connections = True # Must be set before calling get_rpc_proxy() i.e. before restarting node
         self.url = None
         self.log = logging.getLogger('TestFramework.node%d' % i)
         # Cache perf subprocesses here by their data output filename.
@@ -203,10 +205,10 @@ class TestNode():
     def __getattr__(self, name):
         """Dispatches any unrecognised messages to the RPC connection or a CLI instance."""
         if self.use_cli:
-            return getattr(RPCOverloadWrapper(self.cli), name)
+            return getattr(self.cli, name)
         else:
-            assert self.rpc_connected and self.rpc is not None, self._node_msg("Error: no RPC connection")
-            return getattr(RPCOverloadWrapper(self.rpc), name)
+            assert self.rpc_connected and self._rpc is not None, self._node_msg("Error: no RPC connection")
+            return getattr(self._rpc, name)
 
     def start(self, extra_args=None, *, cwd=None, stdout=None, stderr=None, env=None, **kwargs):
         """Start the node."""
@@ -258,8 +260,13 @@ class TestNode():
         """Sets up an RPC connection to the bitcoind process. Returns False if unable to connect."""
         # Poll at a rate of four times per second
         poll_per_s = 4
+
         suppressed_errors = collections.defaultdict(int)
-        latest_error = ""
+        latest_error = None
+        def suppress_error(category: str, e: Exception):
+            suppressed_errors[category] += 1
+            return (category, repr(e))
+
         for _ in range(poll_per_s * self.rpc_timeout):
             if self.process.poll() is not None:
                 # Attach abrupt shutdown error/s to the exception message
@@ -276,6 +283,7 @@ class TestNode():
                     timeout=self.rpc_timeout // 2,  # Shorter timeout to allow for one retry in case of ETIMEDOUT
                     coveragedir=self.coverage_dir,
                 )
+                rpc.auth_service_proxy_instance.reuse_http_connections = self.reuse_http_connections
                 rpc.getblockcount()
                 # If the call to getblockcount() succeeds then the RPC connection is up
                 if wait_for_import:
@@ -304,8 +312,8 @@ class TestNode():
                 self.rpc_connected = True
                 if self.use_cli:
                     return
-                self.rpc = rpc
-                self.url = self.rpc.rpc_url
+                self._rpc = rpc
+                self.url = self._rpc.rpc_url
                 return
             except JSONRPCException as e:
                 # Suppress these as they are expected during initialization.
@@ -313,8 +321,7 @@ class TestNode():
                 # -342 Service unavailable, could be starting up or shutting down
                 if e.error['code'] not in [-28, -342]:
                     raise  # unknown JSON RPC exception
-                suppressed_errors[f"JSONRPCException {e.error['code']}"] += 1
-                latest_error = repr(e)
+                latest_error = suppress_error(f"JSONRPCException {e.error['code']}", e)
             except OSError as e:
                 error_num = e.errno
                 # Work around issue where socket timeouts don't have errno set.
@@ -330,16 +337,14 @@ class TestNode():
                     errno.ECONNREFUSED  # Port not yet open?
                 ]:
                     raise  # unknown OS error
-                suppressed_errors[f"OSError {errno.errorcode[error_num]}"] += 1
-                latest_error = repr(e)
+                latest_error = suppress_error(f"OSError {errno.errorcode[error_num]}", e)
             except ValueError as e:
                 # Suppress if cookie file isn't generated yet and no rpcuser or rpcpassword; bitcoind may be starting.
                 if "No RPC credentials" not in str(e):
                     raise
-                suppressed_errors["missing_credentials"] += 1
-                latest_error = repr(e)
+                latest_error = suppress_error("missing_credentials", e)
             time.sleep(1.0 / poll_per_s)
-        self._raise_assertion_error(f"Unable to connect to riecoind after {self.rpc_timeout}s (ignored errors: {str(dict(suppressed_errors))}, latest error: {latest_error})")
+        self._raise_assertion_error(f"Unable to connect to riecoind after {self.rpc_timeout}s (ignored errors: {dict(suppressed_errors)!s}{'' if latest_error is None else f', latest: {latest_error[0]!r}/{latest_error[1]}'})")
 
     def wait_for_cookie_credentials(self):
         """Ensures auth cookie credentials can be read, e.g. for testing CLI with -rpcwait before RPC connection is up."""
@@ -383,11 +388,11 @@ class TestNode():
 
     def get_wallet_rpc(self, wallet_name):
         if self.use_cli:
-            return RPCOverloadWrapper(self.cli("-rpcwallet={}".format(wallet_name)))
+            return self.cli("-rpcwallet={}".format(wallet_name))
         else:
-            assert self.rpc_connected and self.rpc, self._node_msg("RPC not connected")
+            assert self.rpc_connected and self._rpc, self._node_msg("RPC not connected")
             wallet_path = "wallet/{}".format(urllib.parse.quote(wallet_name))
-            return RPCOverloadWrapper(self.rpc / wallet_path)
+            return self._rpc / wallet_path
 
     def stop_node(self, expected_stderr='', *, wait=0, wait_until_stopped=True):
         """Stop the node."""
@@ -435,7 +440,7 @@ class TestNode():
         self.running = False
         self.process = None
         self.rpc_connected = False
-        self.rpc = None
+        self._rpc = None
         self.log.debug("Node stopped")
         return True
 
@@ -864,7 +869,7 @@ def arg_to_cli(arg):
         return str(arg).lower()
     elif arg is None:
         return 'null'
-    elif isinstance(arg, dict) or isinstance(arg, list):
+    elif isinstance(arg, dict) or isinstance(arg, list) or isinstance(arg, tuple):
         return json.dumps(arg, default=serialization_fallback)
     else:
         return str(arg)
@@ -901,16 +906,28 @@ class TestNodeCLI():
     def send_cli(self, clicommand=None, *args, **kwargs):
         """Run riecoin-cli command. Deserializes returned string as python object."""
         pos_args = [arg_to_cli(arg) for arg in args]
-        named_args = [str(key) + "=" + arg_to_cli(value) for (key, value) in kwargs.items()]
+        named_args = [key + "=" + arg_to_cli(value) for (key, value) in kwargs.items() if value is not None]
         p_args = self.binaries.rpc_argv() + [f"-datadir={self.datadir}"] + self.options
         if named_args:
             p_args += ["-named"]
+        base_arg_pos = len(p_args)
         if clicommand is not None:
             p_args += [clicommand]
         p_args += pos_args + named_args
+        max_arg_size = max(len(arg) for arg in p_args)
+        stdin_data = self.input
+        if max_arg_size > CLI_MAX_ARG_SIZE:
+            self.log.debug(f"Cli: Command size {max_arg_size} too large, using stdin")
+            rpc_args = "\n".join([arg for arg in p_args[base_arg_pos:]])
+            if stdin_data is not None:
+                stdin_data += "\n" + rpc_args
+            else:
+                stdin_data = rpc_args
+            p_args = p_args[:base_arg_pos] + ['-stdin']
+
         self.log.debug("Running riecoin-cli {}".format(p_args[2:]))
         process = subprocess.Popen(p_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        cli_stdout, cli_stderr = process.communicate(input=self.input)
+        cli_stdout, cli_stderr = process.communicate(input=stdin_data)
         returncode = process.poll()
         if returncode:
             match = re.match(r'error code: ([-0-9]+)\nerror message:\n(.*)', cli_stderr)
@@ -925,80 +942,3 @@ class TestNodeCLI():
             return json.loads(cli_stdout, parse_float=decimal.Decimal)
         except (json.JSONDecodeError, decimal.InvalidOperation):
             return cli_stdout.rstrip("\n")
-
-class RPCOverloadWrapper():
-    def __init__(self, rpc):
-        self.rpc = rpc
-
-    def __getattr__(self, name):
-        return getattr(self.rpc, name)
-
-    def importprivkey(self, privkey, *, label=None, rescan=None):
-        wallet_info = self.getwalletinfo()
-        if 'descriptors' not in wallet_info or ('descriptors' in wallet_info and not wallet_info['descriptors']):
-            return self.__getattr__('importprivkey')(privkey, label, rescan)
-        desc = descsum_create('combo(' + privkey + ')')
-        req = [{
-            'desc': desc,
-            'timestamp': 0 if rescan else 'now',
-            'label': label if label else '',
-        }]
-        import_res = self.importdescriptors(req)
-        if not import_res[0]['success']:
-            raise JSONRPCException(import_res[0]['error'])
-
-    def addmultisigaddress(self, nrequired, keys, *, label=None, address_type=None):
-        wallet_info = self.getwalletinfo()
-        if 'descriptors' not in wallet_info or ('descriptors' in wallet_info and not wallet_info['descriptors']):
-            return self.__getattr__('addmultisigaddress')(nrequired, keys, label, address_type)
-        cms = self.createmultisig(nrequired, keys, address_type)
-        req = [{
-            'desc': cms['descriptor'],
-            'timestamp': 0,
-            'label': label if label else '',
-        }]
-        import_res = self.importdescriptors(req)
-        if not import_res[0]['success']:
-            raise JSONRPCException(import_res[0]['error'])
-        return cms
-
-    def importpubkey(self, pubkey, *, label=None, rescan=None):
-        wallet_info = self.getwalletinfo()
-        if 'descriptors' not in wallet_info or ('descriptors' in wallet_info and not wallet_info['descriptors']):
-            return self.__getattr__('importpubkey')(pubkey, label, rescan)
-        desc = descsum_create('combo(' + pubkey + ')')
-        req = [{
-            'desc': desc,
-            'timestamp': 0 if rescan else 'now',
-            'label': label if label else '',
-        }]
-        import_res = self.importdescriptors(req)
-        if not import_res[0]['success']:
-            raise JSONRPCException(import_res[0]['error'])
-
-    def importaddress(self, address, *, label=None, rescan=None, p2sh=None):
-        wallet_info = self.getwalletinfo()
-        if 'descriptors' not in wallet_info or ('descriptors' in wallet_info and not wallet_info['descriptors']):
-            return self.__getattr__('importaddress')(address, label, rescan, p2sh)
-        is_hex = False
-        try:
-            int(address ,16)
-            is_hex = True
-            desc = descsum_create('raw(' + address + ')')
-        except Exception:
-            desc = descsum_create('addr(' + address + ')')
-        reqs = [{
-            'desc': desc,
-            'timestamp': 0 if rescan else 'now',
-            'label': label if label else '',
-        }]
-        if is_hex and p2sh:
-            reqs.append({
-                'desc': descsum_create('p2sh(raw(' + address + '))'),
-                'timestamp': 0 if rescan else 'now',
-                'label': label if label else '',
-            })
-        import_res = self.importdescriptors(reqs)
-        for res in import_res:
-            if not res['success']:
-                raise JSONRPCException(res['error'])

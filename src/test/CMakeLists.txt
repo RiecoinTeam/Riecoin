@@ -105,6 +105,7 @@ add_executable(test_riecoin
   transaction_tests.cpp
   translation_tests.cpp
   txdownload_tests.cpp
+  txgraph_tests.cpp
   txindex_tests.cpp
   txpackage_tests.cpp
   txreconciliation_tests.cpp
@@ -141,6 +142,8 @@ target_raw_data_sources(test_riecoin NAMESPACE test::data
   data/asmap.raw
 )
 
+add_windows_application_manifest(test_riecoin)
+
 target_link_libraries(test_riecoin
   core_interface
   test_util
@@ -158,7 +161,7 @@ if(ENABLE_WALLET)
 endif()
 
 if(ENABLE_IPC)
-  target_link_libraries(bitcoin_ipc_test
+  target_link_libraries(riecoin_ipc_test
     PRIVATE
       core_interface
       univalue
@@ -169,7 +172,7 @@ if(ENABLE_IPC)
     PRIVATE
       ipc_tests.cpp
   )
-  target_link_libraries(test_riecoin bitcoin_ipc_test bitcoin_ipc)
+  target_link_libraries(test_riecoin riecoin_ipc_test riecoin_ipc)
 endif()
 
 function(add_boost_test source_file)
