@@ -1,5 +1,5 @@
 // Copyright (c) 2017-2021 The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) 2017-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,6 +8,7 @@
 #include <chain.h>
 #include <coins.h>
 #include <consensus/amount.h>
+#include <consensus/blacklist.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <policy/policy.h>
@@ -176,6 +177,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         const COutPoint &prevout = tx.vin[i].prevout;
         const Coin& coin = inputs.AccessCoin(prevout);
         assert(!coin.IsSpent());
+
+        if (nSpendHeight > 2382000 && blacklist.isDisabled(coin.out.scriptPubKey))
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-disabled-script");
 
         // If prev is coinbase, check that it's matured
         if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {

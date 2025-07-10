@@ -45,6 +45,15 @@ struct CheckpointData {
     }
 };
 
+struct Blacklist {
+    /** Known Scammer or other High Risk Scripts. */
+    std::vector<CScript> disabledScripts;
+
+    bool isDisabled(const CScript script) const {
+        return std::find(disabledScripts.begin(), disabledScripts.end(), script) != disabledScripts.end();
+    }
+};
+
 struct AssumeutxoHash : public BaseHash<uint256> {
     explicit AssumeutxoHash(const uint256& hash) : BaseHash(hash) {}
 };
