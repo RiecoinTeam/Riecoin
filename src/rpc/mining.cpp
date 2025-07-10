@@ -603,7 +603,6 @@ static RPCHelpMan getblocktemplate()
                 }},
                 {"rules", RPCArg::Type::ARR, RPCArg::Optional::NO, "A list of strings",
                 {
-                    {"segwit", RPCArg::Type::STR, RPCArg::Optional::NO, "(literal) indicates client side segwit support"},
                     {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "other client side supported softfork deployment"},
                 }},
                 {"longpollid", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "delay processing request until the result would vary significantly from the \"longpollid\" of a prior template"},
@@ -820,11 +819,6 @@ static RPCHelpMan getblocktemplate()
     }
 
     const Consensus::Params& consensusParams = chainman.GetParams().GetConsensus();
-
-    // GBT must be called with 'segwit' set in the rules
-    if (setClientRules.count("segwit") != 1) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
-    }
 
     // Update block
     static CBlockIndex* pindexPrev;

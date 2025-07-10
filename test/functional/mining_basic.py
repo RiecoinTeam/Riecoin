@@ -364,9 +364,6 @@ class MiningTest(BitcoinTestFramework):
         block.vtx = [coinbase_tx]
         block.hashMerkleRoot = block.calc_merkle_root()
 
-        self.log.info("getblocktemplate: segwit rule must be set")
-        assert_raises_rpc_error(-8, "getblocktemplate must be called with the segwit rule set", node.getblocktemplate, {})
-
         self.log.info("submitblock: Test block decode failure")
         assert_raises_rpc_error(-22, "Block decode failed", node.submitblock, block.serialize()[:-15].hex())
 
