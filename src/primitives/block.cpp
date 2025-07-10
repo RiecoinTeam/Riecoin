@@ -48,7 +48,7 @@ int32_t CBlockHeader::GetPoWVersion() const
 {
     if ((nNonce & 1) == 1) // "Legacy" PoW
         return -1;
-    else if ((nNonce & 65535) == 2) // PoW after second fork
+    else if ((nNonce & 31) == 2) // PoW after second fork
         return 1;
     else // Invalid PoW
         return 0;

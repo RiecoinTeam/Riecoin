@@ -28,7 +28,7 @@ get_directory_property(precious_variables CACHE_VARIABLES)
 # Project / Package metadata
 #=============================
 set(CLIENT_NAME "Riecoin Core")
-set(CLIENT_VERSION_MONTH 2505)
+set(CLIENT_VERSION_MONTH 2507)
 set(CLIENT_VERSION_REVISION 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")

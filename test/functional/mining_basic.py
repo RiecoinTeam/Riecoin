@@ -318,12 +318,8 @@ class MiningTest(BitcoinTestFramework):
         assert 'currentblocktx' not in mining_info
         assert 'currentblockweight' not in mining_info
         assert_equal(mining_info['bits'], nbits_str(REGTEST_N_BITS))
-        assert_equal(mining_info['target'][0:3], target_str(REGTEST_TARGET)[0:3])
-        assert_equal(len(mining_info['target']), len(target_str(REGTEST_TARGET)))
         assert_equal(mining_info['difficulty'], 288)
         assert_equal(mining_info['next']['height'], 201)
-        assert_equal(mining_info['next']['target'][0:3], target_str(REGTEST_TARGET)[0:3])
-        assert_equal(len(mining_info['next']['target']), len(target_str(REGTEST_TARGET)))
         assert_equal(mining_info['next']['bits'], nbits_str(REGTEST_N_BITS))
         assert_equal(mining_info['next']['difficulty'], 288)
         assert_equal(mining_info['networkminingpower'], Decimal('1.'))

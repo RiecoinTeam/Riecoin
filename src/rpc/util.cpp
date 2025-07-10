@@ -1401,14 +1401,3 @@ std::vector<RPCResult> ScriptPubKeyDoc() {
              {RPCResult::Type::STR, "type", "The type (one of: " + GetAllOutputTypes() + ")"},
          };
 }
-
-mpz_class GetTarget(const CBlockIndex& blockindex, const uint32_t nBitsMin)
-{
-    auto powVersion(blockindex.GetBlockHeader().GetPoWVersion());
-    if (powVersion == 0) { // Genesis
-        if (nBitsMin == 600*512) powVersion = -1; // MainNet
-        else powVersion = 1;
-    }
-    mpz_class target{*CHECK_NONFATAL(DeriveTarget(blockindex.GetBlockHeader().GetHashForPoW(), blockindex.nBits, powVersion, nBitsMin))};
-    return target;
-}

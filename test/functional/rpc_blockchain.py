@@ -150,7 +150,6 @@ class BlockchainTest(BitcoinTestFramework):
             'mediantime',
             'pruned',
             'size_on_disk',
-            'target',
             'time',
             'verificationprogress',
             'warnings',

@@ -162,7 +162,6 @@ UniValue blockheaderToJSON(const CBlockIndex& tip, const CBlockIndex& blockindex
     result.pushKV("mediantime", blockindex.GetMedianTimePast());
     result.pushKV("nonce", blockindex.nNonce.GetHex());
     result.pushKV("bits", strprintf("%08x", blockindex.nBits));
-    result.pushKV("target", GetTarget(tip, nBitsMin).get_str(16));
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex.nChainWork.GetHex());
     result.pushKV("nTx", blockindex.nTx);
@@ -577,7 +576,6 @@ static RPCHelpMan getblockheader()
                             {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
                             {RPCResult::Type::STR_HEX, "nonce", "The nonce"},
                             {RPCResult::Type::STR_HEX, "bits", "nBits: integer representation of the block difficulty target"},
-                            {RPCResult::Type::STR_HEX, "target", "The difficulty target"},
                             {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                             {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
                             {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
@@ -753,7 +751,6 @@ static RPCHelpMan getblock()
                     {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
                     {RPCResult::Type::STR_HEX, "nonce", "The nonce"},
                     {RPCResult::Type::STR_HEX, "bits", "nBits: integer representation of the block difficulty target"},
-                    {RPCResult::Type::STR_HEX, "target", "The difficulty target"},
                     {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                     {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the chain up to this block (in hex)"},
                     {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
@@ -1332,17 +1329,27 @@ static RPCHelpMan getresult()
     int32_t powVersion;
     if ((nNonce.GetUint64(0) & 1) == 1)
         powVersion = -1;
-    else if ((nNonce.GetUint64(0) & 65535) == 2)
+    else if ((nNonce.GetUint64(0) & 31) == 2)
         powVersion = 1;
     else
         return "0";
 
-    mpz_class target(*DeriveTarget(block.GetHashForPoW(), block.nBits, powVersion, chainman.GetConsensus().nBitsMin)), offset;
-    if (powVersion == -1)
+    uint64_t nBitsOffset(0U);
+    mpz_class target, offset;
+    if (powVersion == -1) {
+        target = *DeriveTarget(block.GetHashForPoW(), block.nBits, nBitsOffset, powVersion, chainman.GetConsensus().nBitsMin);
         mpz_import(offset.get_mpz_t(), 8, -1, sizeof(uint32_t), 0, 0, nNonce.begin()); // [31-0 Offset]
+    }
     else if (powVersion == 1)
     {
-        const uint8_t* rawOffset(nNonce.begin()); // [31-30 Primorial Number|29-14 Primorial Factor|13-2 Primorial Offset|1-0 Reserved/Version]
+        if ((nNonce.GetUint64(0) & 65535U) != 2U) {
+            uint64_t nBits64(block.nBits);
+            nBitsOffset = (nNonce.GetUint64(0) & 65504U) << 8U;
+            if (nBits64 + nBitsOffset > 4294967295ULL)
+                nBitsOffset = 4294967295ULL - nBitsOffset;
+        }
+        target = *DeriveTarget(block.GetHashForPoW(), block.nBits, nBitsOffset, powVersion, chainman.GetConsensus().nBitsMin);
+        const uint8_t* rawOffset(nNonce.begin()); // [31-30 Primorial Number|29-14 Primorial Factor|13-2 Primorial Offset|1-0 Difficulty Offset/Version]
         const uint16_t primorialNumber(reinterpret_cast<const uint16_t*>(&rawOffset[30])[0]);
         mpz_class primorial(1), primorialFactor, primorialOffset;
         for (uint16_t i(0) ; i < primorialNumber ; i++)
@@ -1442,7 +1449,6 @@ RPCHelpMan getblockchaininfo()
                 {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
                 {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},
                 {RPCResult::Type::STR_HEX, "bits", "nBits: integer representation of the block difficulty target"},
-                {RPCResult::Type::STR_HEX, "target", "The difficulty target"},
                 {RPCResult::Type::NUM, "difficulty", "the current difficulty"},
                 {RPCResult::Type::NUM_TIME, "time", "The block time expressed in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
@@ -1477,7 +1483,6 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("headers", chainman.m_best_header ? chainman.m_best_header->nHeight : -1);
     obj.pushKV("bestblockhash", tip.GetBlockHash().GetHex());
     obj.pushKV("bits", strprintf("%08x", tip.nBits));
-    obj.pushKV("target", GetTarget(tip, chainman.GetConsensus().nBitsMin).get_str(16));
     obj.pushKV("difficulty", GetDifficulty(tip));
     obj.pushKV("time", tip.GetBlockTime());
     obj.pushKV("mediantime", tip.GetMedianTimePast());
@@ -3462,7 +3467,6 @@ const std::vector<RPCResult> RPCHelpForChainstate{
     {RPCResult::Type::NUM, "blocks", "number of blocks in this chainstate"},
     {RPCResult::Type::STR_HEX, "bestblockhash", "blockhash of the tip"},
     {RPCResult::Type::STR_HEX, "bits", "nBits: integer representation of the block difficulty target"},
-    {RPCResult::Type::STR_HEX, "target", "The difficulty target"},
     {RPCResult::Type::NUM, "difficulty", "difficulty of the tip"},
     {RPCResult::Type::NUM, "verificationprogress", "progress towards the network tip"},
     {RPCResult::Type::STR_HEX, "snapshot_blockhash", /*optional=*/true, "the base block of the snapshot this chainstate is based on, if any"},
@@ -3506,7 +3510,6 @@ return RPCHelpMan{
         data.pushKV("blocks",                (int)chain.Height());
         data.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
         data.pushKV("bits", strprintf("%08x", tip->nBits));
-        data.pushKV("target", GetTarget(*tip, chainman.GetConsensus().nBitsMin).get_str(16));
         data.pushKV("difficulty", GetDifficulty(*tip));
         data.pushKV("verificationprogress", chainman.GuessVerificationProgress(tip));
         data.pushKV("coins_db_cache_bytes",  cs.m_coinsdb_cache_size_bytes);

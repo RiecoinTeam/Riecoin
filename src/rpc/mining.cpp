@@ -419,7 +419,6 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "currentblocktx", /*optional=*/true, "The number of block transactions (excluding coinbase) of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::STR_HEX, "bits", "The current nBits, integer representation of the block difficulty target"},
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
-                        {RPCResult::Type::STR_HEX, "target", "The current target"},
                         {RPCResult::Type::NUM, "networkminingpower", "The network mining power"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
                         {RPCResult::Type::STR, "chain", "current network name (" LIST_CHAIN_NAMES ")"},
@@ -428,7 +427,6 @@ static RPCHelpMan getmininginfo()
                             {RPCResult::Type::NUM, "height", "The next height"},
                             {RPCResult::Type::STR_HEX, "bits", "The next target nBits"},
                             {RPCResult::Type::NUM, "difficulty", "The next difficulty"},
-                            {RPCResult::Type::STR_HEX, "target", "The next target"}
                         }},
                         RPCResult{RPCResult::Type::ARR, "warnings", "any network and blockchain warnings",
                         {
@@ -454,7 +452,6 @@ static RPCHelpMan getmininginfo()
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
     obj.pushKV("bits", strprintf("%08x", tip.nBits));
     obj.pushKV("difficulty", GetDifficulty(tip));
-    obj.pushKV("target", GetTarget(tip, chainman.GetConsensus().nBitsMin).get_str(16));
     obj.pushKV("networkminingpower", getnetworkminingpower().HandleRequest(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain", chainman.GetParams().GetChainTypeString());
@@ -466,7 +463,6 @@ static RPCHelpMan getmininginfo()
     next.pushKV("height", next_index.nHeight);
     next.pushKV("bits", strprintf("%08x", next_index.nBits));
     next.pushKV("difficulty", GetDifficulty(next_index));
-    next.pushKV("target", GetTarget(next_index, chainman.GetConsensus().nBitsMin).get_str(16));
     obj.pushKV("next", next);
     obj.pushKV("warnings", node::GetWarningsForRpc(*CHECK_NONFATAL(node.warnings)));
     return obj;

@@ -253,10 +253,6 @@ class AssumeutxoTest(BitcoinTestFramework):
         # Both states should have the same nBits and similar target
         assert_equal(normal['bits'], nbits_str(REGTEST_N_BITS))
         assert_equal(normal['bits'], snapshot['bits'])
-        assert_equal(normal['target'][0:3], target_str(REGTEST_TARGET)[0:3])
-        assert_equal(normal['target'][0:3], snapshot['target'][0:3])
-        assert_equal(len(normal['target']), len(target_str(REGTEST_TARGET)))
-        assert_equal(len(normal['target']), len(snapshot['target']))
 
         # Now lets sync the nodes and wait for the background validation to finish
         self.connect_nodes(0, 3)

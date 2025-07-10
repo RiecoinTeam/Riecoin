@@ -133,10 +133,11 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     }
 }
 
-std::optional<uint32_t> DeriveTrailingZeros(unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin)
+std::optional<uint32_t> DeriveTrailingZeros(unsigned int nBits, unsigned int nBitsOffset, const int32_t powVersion, const uint32_t nBitsMin)
 {
     if (nBits < nBitsMin)
         return {};
+    nBits += nBitsOffset;
     uint32_t trailingZeros;
     if (powVersion == -1)
         trailingZeros = (nBits & 0x007FFFFFU) >> 8U;
@@ -152,7 +153,7 @@ std::optional<uint32_t> DeriveTrailingZeros(unsigned int nBits, const int32_t po
     return trailingZeros;
 }
 
-std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, const int32_t powVersion, const uint32_t nBitsMin)
+std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, unsigned int nBitsOffset, const int32_t powVersion, const uint32_t nBitsMin)
 {
     mpz_class target(256);
     if (powVersion == -1) { // Target = 1 . 00000000 . hash . 00...0 = 2^(D - 1) + H*2^(D – 265)
@@ -173,7 +174,7 @@ std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, const in
         return {};
 
     // Now padding Target with zeros such that its size is the Difficulty (PoW Version -1) or such that Target = ~2^Difficulty (else)
-    const auto trailingZeros(DeriveTrailingZeros(nBits, powVersion, nBitsMin));
+    const auto trailingZeros(DeriveTrailingZeros(nBits, nBitsOffset, powVersion, nBitsMin));
     if (!trailingZeros)
         return {};
     target <<= *trailingZeros;
@@ -226,6 +227,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256 nOnce, const Con
 
 bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nOnce, const Consensus::Params& params)
 {
+    uint64_t nBitsOffset(0ULL);
     if (hash == params.hashGenesisBlockForPoW)
         return true;
 
@@ -237,18 +239,24 @@ bool CheckProofOfWorkImpl(uint256 hash, unsigned int nBits, uint256 nOnce, const
             return false;
         powVersion = -1;
     }
-    else if ((nOnce.GetUint64(0) & 65535) == 2) {
+    else if ((nOnce.GetUint64(0) & 31U) == 2U) {
         if (nBits < params.nBitsMin)
             return false;
+        if ((nOnce.GetUint64(0) & 65535U) != 2U) {
+            uint64_t nBits64(nBits);
+            nBitsOffset = (nOnce.GetUint64(0) & 65504U) << 8U;
+            if (nBits64 + nBitsOffset > 4294967295ULL)
+                nBitsOffset = 4294967295ULL - nBits64;
+        }
         powVersion = 1;
     }
     else
         return false;
 
-    const auto trailingZeros(DeriveTrailingZeros(nBits, powVersion, params.nBitsMin));
+    const auto trailingZeros(DeriveTrailingZeros(nBits, nBitsOffset, powVersion, params.nBitsMin));
     if (!trailingZeros)
         return false;
-    const std::optional<mpz_class> target(DeriveTarget(hash, nBits, powVersion, params.nBitsMin));
+    const std::optional<mpz_class> target(DeriveTarget(hash, nBits, nBitsOffset, powVersion, params.nBitsMin));
     if (!target)
         return false;
     mpz_class offset, offsetLimit(1);
