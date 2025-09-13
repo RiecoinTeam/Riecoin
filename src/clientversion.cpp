@@ -94,6 +94,6 @@ std::string LicenseInfo()
            "\n Discord: <https://discord.gg/2sJEayC>" +
            "\n Mastodon: <https://steloj.xyz/@Riecoin>\n\n" +
            _("This is experimental software.") + "\n" +
-           strprintf(_("Distributed under the MIT software license, see the accompanying file %s or %s"), "COPYING", "<https://opensource.org/license/MIT>").translated +
+           strprintf(_("Distributed under the GPLv3 license, see %s"), "<https://www.gnu.org/licenses/gpl-3.0.en.html>").translated +
            "\n";
 }
