@@ -24,54 +24,8 @@ if (ENABLE_IPC AND NOT WITH_EXTERNAL_LIBMULTIPROCESS)
   include(../cmake/libmultiprocess.cmake)
   add_libmultiprocess(ipc/libmultiprocess)
 endif()
-#=============================
-# secp256k1 subtree
-#=============================
-message("")
-message("Configuring secp256k1 subtree...")
-set(SECP256K1_DISABLE_SHARED ON CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
-set(SECP256K1_ENABLE_MODULE_MUSIG OFF CACHE BOOL "" FORCE)
-set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
-set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
-set(SECP256K1_BUILD_EXHAUSTIVE_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
-if(NOT BUILD_TESTS)
-  # Always skip the ctime tests, if we are building no other tests.
-  # Otherwise, they are built if Valgrind is available. See SECP256K1_VALGRIND.
-  set(SECP256K1_BUILD_CTIME_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
-endif()
-set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-include(GetTargetInterface)
-# -fsanitize and related flags apply to both C++ and C,
-# so we can pass them down to libsecp256k1 as CFLAGS and LDFLAGS.
-get_target_interface(SECP256K1_APPEND_CFLAGS "" sanitize_interface COMPILE_OPTIONS)
-string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CPPFLAGS}" SECP256K1_APPEND_CFLAGS)
-string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CFLAGS}" SECP256K1_APPEND_CFLAGS)
-set(SECP256K1_APPEND_CFLAGS ${SECP256K1_APPEND_CFLAGS} CACHE STRING "" FORCE)
-get_target_interface(SECP256K1_APPEND_LDFLAGS "" sanitize_interface LINK_OPTIONS)
-string(STRIP "${SECP256K1_APPEND_LDFLAGS} ${APPEND_LDFLAGS}" SECP256K1_APPEND_LDFLAGS)
-set(SECP256K1_APPEND_LDFLAGS ${SECP256K1_APPEND_LDFLAGS} CACHE STRING "" FORCE)
-# We want to build libsecp256k1 with the most tested RelWithDebInfo configuration.
-enable_language(C)
-foreach(config IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
-  if(config STREQUAL "")
-    continue()
-  endif()
-  string(TOUPPER "${config}" config)
-  set(CMAKE_C_FLAGS_${config} "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-endforeach()
-# If the CFLAGS environment variable is defined during building depends
-# and configuring this build system, its content might be duplicated.
-if(DEFINED ENV{CFLAGS})
-  deduplicate_flags(CMAKE_C_FLAGS)
-endif()
-set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
-add_subdirectory(secp256k1)
-set_target_properties(secp256k1 PROPERTIES
-  EXCLUDE_FROM_ALL TRUE
-)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+include(../cmake/secp256k1.cmake)
+add_secp256k1(secp256k1)
 
 # Set top-level target output locations.
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -162,6 +116,7 @@ add_library(riecoin_common STATIC EXCLUDE_FROM_ALL
   key.cpp
   key_io.cpp
   merkleblock.cpp
+  musig.cpp
   net_permissions.cpp
   net_types.cpp
   netaddress.cpp
@@ -278,13 +233,14 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   node/timeoffsets.cpp
   node/transaction.cpp
   node/txdownloadman_impl.cpp
+  node/txorphanage.cpp
   node/txreconciliation.cpp
   node/utxo_snapshot.cpp
   node/warnings.cpp
   noui.cpp
   policy/ephemeral_policy.cpp
-  policy/fees.cpp
-  policy/fees_args.cpp
+  policy/fees/block_policy_estimator.cpp
+  policy/fees/block_policy_estimator_args.cpp
   policy/packages.cpp
   policy/rbf.cpp
   policy/settings.cpp
@@ -308,7 +264,6 @@ add_library(riecoin_node STATIC EXCLUDE_FROM_ALL
   txdb.cpp
   txgraph.cpp
   txmempool.cpp
-  txorphanage.cpp
   txrequest.cpp
   validation.cpp
   validationinterface.cpp
@@ -338,8 +293,8 @@ if(BUILD_BITCOIN_BIN)
   add_executable(riecoin riecoin.cpp)
   add_windows_resources(riecoin riecoin-res.rc)
   add_windows_application_manifest(riecoin)
-  target_link_libraries(riecoin core_interface riecoin_util)
-  install_binary_component(riecoin)
+  target_link_libraries(riecoin core_interface riecoin_common riecoin_util)
+  install_binary_component(riecoin HAS_MANPAGE)
 endif()
 
 # Riecoin Core riecoind.
@@ -368,7 +323,7 @@ if(ENABLE_IPC AND BUILD_DAEMON)
     riecoin_ipc
     $<TARGET_NAME_IF_EXISTS:riecoin_wallet>
   )
-  install_binary_component(riecoin-node)
+  install_binary_component(riecoin-node INTERNAL)
 endif()
 
 if(ENABLE_IPC AND BUILD_TESTS)
@@ -437,26 +392,30 @@ endif()
 
 if(BUILD_KERNEL_LIB)
   add_subdirectory(kernel)
-endif()
-
-if(BUILD_UTIL_CHAINSTATE)
-  add_executable(riecoin-chainstate
-    riecoin-chainstate.cpp
-  )
-  # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
-  #       in the future after reordering Guix script commands to
-  #       perform binary checks after the installation step.
-  # Relevant discussions:
-  # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
-  # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-  set_target_properties(riecoin-chainstate PROPERTIES
-    SKIP_BUILD_RPATH OFF
-  )
-  target_link_libraries(riecoin-chainstate
-    PRIVATE
-      core_interface
-      riecoinkernel
-  )
+  if (BUILD_KERNEL_TEST)
+    add_subdirectory(test/kernel)
+  endif()
+  if(BUILD_UTIL_CHAINSTATE)
+    add_executable(riecoin-chainstate
+      riecoin-chainstate.cpp
+    )
+    add_windows_application_manifest(riecoin-chainstate)
+    # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
+    #       in the future after reordering Guix script commands to
+    #       perform binary checks after the installation step.
+    # Relevant discussions:
+    # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
+    # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
+    set_target_properties(riecoin-chainstate PROPERTIES
+      SKIP_BUILD_RPATH OFF
+    )
+    target_link_libraries(riecoin-chainstate
+      PRIVATE
+        core_interface
+        riecoinkernel
+    )
+    install_binary_component(riecoin-chainstate INTERNAL)
+  endif()
 endif()
 
 

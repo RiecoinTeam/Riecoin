@@ -458,6 +458,17 @@ private:
         }
         return str;
     }
+    static std::string ServicesList(const UniValue& services)
+    {
+        std::string str{services.size() ? services[0].get_str() : ""};
+        for (size_t i{1}; i < services.size(); ++i) {
+            str += ", " + services[i].get_str();
+        }
+        for (auto& c: str) {
+            c = (c == '_' ? ' ' : ToLower(c));
+        }
+        return str;
+    }
 
 public:
     static constexpr int ID_PEERINFO = 0;
@@ -550,7 +561,8 @@ public:
         }
 
         // Generate report header.
-        std::string result{strprintf("%s client %s%s - server %i%s\n\n", CLIENT_NAME, FormatFullVersion(), ChainToString(), networkinfo["protocolversion"].getInt<int>(), networkinfo["subversion"].get_str())};
+        const std::string services{DetailsRequested() ? strprintf(" - services %s", FormatServices(networkinfo["localservicesnames"])) : ""};
+        std::string result{strprintf("%s client %s%s - server %i%s%s\n\n", CLIENT_NAME, FormatFullVersion(), ChainToString(), networkinfo["protocolversion"].getInt<int>(), networkinfo["subversion"].get_str(), services)};
 
         // Report detailed peer connections list sorted by direction and minimum ping time.
         if (DetailsRequested() && !m_peers.empty()) {
@@ -631,7 +643,10 @@ public:
             }
         }
 
-        // Report local addresses, ports, and scores.
+        // Report local services, addresses, ports, and scores.
+        if (!DetailsRequested()) {
+            result += strprintf("\n\nLocal services: %s", ServicesList(networkinfo["localservicesnames"]));
+        }
         result += "\n\nLocal addresses";
         const std::vector<UniValue>& local_addrs{networkinfo["localaddresses"].getValues()};
         if (local_addrs.empty()) {
@@ -1308,10 +1323,6 @@ static int CommandLineRPC(int argc, char *argv[])
 
 MAIN_FUNCTION
 {
-#ifdef WIN32
-    common::WinCmdLineArgs winArgs;
-    std::tie(argc, argv) = winArgs.get();
-#endif
     SetupEnvironment();
     if (!SetupNetworking()) {
         tfm::format(std::cerr, "Error: Initializing networking failed\n");

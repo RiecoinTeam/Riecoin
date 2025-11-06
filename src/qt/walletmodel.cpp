@@ -180,8 +180,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             setAddress.insert(rcp.address);
             ++nAddresses;
 
-            CRecipient recipient{DecodeDestination(rcp.address.toStdString()), rcp.amount, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
+            vecSend.emplace_back(CRecipient{DecodeDestination(rcp.address.toStdString()), rcp.amount, rcp.fSubtractFeeFromAmount});
 
             total += rcp.amount;
         }
@@ -270,7 +269,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction)
                 // Check if we have a new address or an updated label
                 std::string name;
                 if (!m_wallet->getAddress(
-                     dest, &name, /* is_mine= */ nullptr, /* purpose= */ nullptr))
+                     dest, &name, /*purpose=*/nullptr))
                 {
                     m_wallet->setAddressBook(dest, strLabel, wallet::AddressPurpose::SEND);
                 }

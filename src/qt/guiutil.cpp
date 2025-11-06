@@ -412,7 +412,7 @@ void handleCloseWindowShortcut(QWidget* w)
 
 void openDebugLogfile()
 {
-    fs::path pathDebug = gArgs.GetDataDirNet() / "debug.log";
+    fs::path pathDebug = LogInstance().m_file_path;
 
     /* Open debug.log with the associated application */
     if (fs::exists(pathDebug))
@@ -424,7 +424,7 @@ bool openBitcoinConf()
     fs::path pathConfig = gArgs.GetConfigFilePath();
 
     /* Create the file */
-    std::ofstream configFile{pathConfig, std::ios_base::app};
+    std::ofstream configFile{pathConfig.std_path(), std::ios_base::app};
 
     if (!configFile.good())
         return false;
@@ -584,7 +584,7 @@ fs::path static GetAutostartFilePath()
 
 bool GetStartOnSystemStartup()
 {
-    std::ifstream optionFile{GetAutostartFilePath()};
+    std::ifstream optionFile{GetAutostartFilePath().std_path()};
     if (!optionFile.good())
         return false;
     // Scan through file for "Hidden=true":
@@ -616,7 +616,7 @@ bool SetStartOnSystemStartup(bool fAutoStart)
 
         fs::create_directories(GetAutostartDir());
 
-        std::ofstream optionFile{GetAutostartFilePath(), std::ios_base::out | std::ios_base::trunc};
+        std::ofstream optionFile{GetAutostartFilePath().std_path(), std::ios_base::out | std::ios_base::trunc};
         if (!optionFile.good())
             return false;
         ChainType chain = gArgs.GetChainType();

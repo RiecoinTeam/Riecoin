@@ -28,7 +28,7 @@ get_directory_property(precious_variables CACHE_VARIABLES)
 # Project / Package metadata
 #=============================
 set(CLIENT_NAME "Riecoin Core")
-set(CLIENT_VERSION_MONTH 2507)
+set(CLIENT_VERSION_MONTH 2511)
 set(CLIENT_VERSION_REVISION 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
@@ -107,6 +107,7 @@ option(BUILD_TX "Build riecoin-tx executable." ${BUILD_TESTS})
 
 option(BUILD_UTIL_CHAINSTATE "Build experimental riecoin-chainstate executable." OFF)
 option(BUILD_KERNEL_LIB "Build experimental riecoinkernel library." ${BUILD_UTIL_CHAINSTATE})
+option(BUILD_KERNEL_TEST "Build tests for the experimental riecoinkernel library." ${BUILD_KERNEL_LIB})
 
 option(ENABLE_WALLET "Enable wallet." ON)
 if(ENABLE_WALLET)
@@ -145,7 +146,7 @@ endif()
 
 cmake_dependent_option(WITH_DBUS "Enable DBus support." ON "NOT CMAKE_SYSTEM_NAME MATCHES \"(Windows|Darwin)\" AND BUILD_GUI" OFF)
 
-option(ENABLE_IPC "Build multiprocess riecoin-node and riecoin-gui executables in addition to monolithic riecoind and riecoin-qt executables. Requires libmultiprocess library. Experimental." OFF)
+cmake_dependent_option(ENABLE_IPC "Build multiprocess riecoin-node and riecoin-gui executables in addition to monolithic riecoind and riecoin-qt executables." ON "NOT WIN32" OFF)
 cmake_dependent_option(WITH_EXTERNAL_LIBMULTIPROCESS "Build with external libmultiprocess library instead of with local git subtree when ENABLE_IPC is enabled. This is not normally recommended, but can be useful for developing libmultiprocess itself." OFF "ENABLE_IPC" OFF)
 if(ENABLE_IPC AND WITH_EXTERNAL_LIBMULTIPROCESS)
   find_package(Libmultiprocess REQUIRED COMPONENTS Lib)
@@ -213,6 +214,7 @@ if(BUILD_FOR_FUZZING)
   set(BUILD_TX OFF)
   set(BUILD_UTIL_CHAINSTATE OFF)
   set(BUILD_KERNEL_LIB OFF)
+  set(BUILD_KERNEL_TEST OFF)
   set(BUILD_WALLET_TOOL OFF)
   set(BUILD_GUI OFF)
   set(ENABLE_EXTERNAL_SIGNER OFF)
@@ -220,6 +222,7 @@ if(BUILD_FOR_FUZZING)
   set(BUILD_TESTS OFF)
   set(BUILD_GUI_TESTS OFF)
   set(BUILD_BENCH OFF)
+  set(ENABLE_IPC OFF)
   set(BUILD_FUZZ_BINARY ON)
 
   target_compile_definitions(core_interface INTERFACE
@@ -595,7 +598,7 @@ mark_as_advanced(Python3_FIND_FRAMEWORK Python3_FIND_UNVERSIONED_NAMES)
 find_package(Python3 3.10 COMPONENTS Interpreter)
 if(NOT TARGET Python3::Interpreter)
   list(APPEND configure_warnings
-    "Minimum required Python not found. Rpcauth tests are disabled."
+    "Minimum required Python not found."
   )
 endif()
 
@@ -632,14 +635,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 else()
   set(CMAKE_SKIP_BUILD_RPATH TRUE)
-  set(CMAKE_SKIP_INSTALL_RPATH TRUE)
 endif()
 add_subdirectory(test)
 add_subdirectory(doc)
 
 add_subdirectory(src)
-
-include(cmake/tests.cmake)
 
 include(Maintenance)
 setup_split_debug_script()
@@ -671,6 +671,7 @@ message("  riecoin-tx .......................... ${BUILD_TX}")
 message("  riecoin-wallet ...................... ${BUILD_WALLET_TOOL}")
 message("  riecoin-chainstate (experimental) ... ${BUILD_UTIL_CHAINSTATE}")
 message("  libriecoinkernel (experimental) ..... ${BUILD_KERNEL_LIB}")
+message("  kernel-test (experimental) .......... ${BUILD_KERNEL_TEST}")
 message("Optional features:")
 message("  wallet support ...................... ${ENABLE_WALLET}")
 message("  external signer ..................... ${ENABLE_EXTERNAL_SIGNER}")

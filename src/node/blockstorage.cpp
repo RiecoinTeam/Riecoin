@@ -31,6 +31,7 @@
 #include <util/batchpriority.h>
 #include <util/check.h>
 #include <util/fs.h>
+#include <util/obfuscation.h>
 #include <util/signalinterrupt.h>
 #include <util/strencodings.h>
 #include <util/syserror.h>
@@ -161,12 +162,13 @@ bool CBlockIndexWorkComparator::operator()(const CBlockIndex* pa, const CBlockIn
     if (pa->nChainWork > pb->nChainWork) return false;
     if (pa->nChainWork < pb->nChainWork) return true;
 
-    // ... then by earliest time received, ...
+    // ... then by earliest activatable time, ...
     if (pa->nSequenceId < pb->nSequenceId) return false;
     if (pa->nSequenceId > pb->nSequenceId) return true;
 
     // Use pointer address as tie breaker (should only happen with blocks
-    // loaded from disk, as those all have id 0).
+    // loaded from disk, as those share the same id: 0 for blocks on the
+    // best chain, 1 for all others).
     if (pa < pb) return false;
     if (pa > pb) return true;
 
@@ -217,7 +219,7 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, CBlockInde
     // We assign the sequence id to blocks only when the full data is available,
     // to avoid miners withholding blocks but broadcasting headers, to get a
     // competitive advantage.
-    pindexNew->nSequenceId = 0;
+    pindexNew->nSequenceId = SEQ_ID_INIT_FROM_DISK;
 
     pindexNew->phashBlock = &((*mi).first);
     BlockMap::iterator miPrev = m_block_index.find(block.hashPrevBlock);
@@ -298,7 +300,7 @@ void BlockManager::FindFilesToPruneManual(
         setFilesToPrune.insert(fileNumber);
         count++;
     }
-    LogPrintf("[%s] Prune (Manual): prune_height=%d removed %d blk/rev pairs\n",
+    LogInfo("[%s] Prune (Manual): prune_height=%d removed %d blk/rev pairs",
         chain.GetRole(), last_block_can_prune, count);
 }
 
@@ -418,7 +420,7 @@ bool BlockManager::LoadBlockIndex(const std::optional<uint256>& snapshot_blockha
         // to disk, we must bootstrap the value for assumedvalid chainstates
         // from the hardcoded assumeutxo chainparams.
         base->m_chain_tx_count = au_data.m_chain_tx_count;
-        LogPrintf("[snapshot] set m_chain_tx_count=%d for %s\n", au_data.m_chain_tx_count, snapshot_blockhash->ToString());
+        LogInfo("[snapshot] set m_chain_tx_count=%d for %s", au_data.m_chain_tx_count, snapshot_blockhash->ToString());
     } else {
         // If this isn't called with a snapshot blockhash, make sure the cached snapshot height
         // is null. This is relevant during snapshot completion, when the blockman may be loaded
@@ -508,11 +510,11 @@ bool BlockManager::LoadBlockIndexDB(const std::optional<uint256>& snapshot_block
     // Load block file info
     m_block_tree_db->ReadLastBlockFile(max_blockfile_num);
     m_blockfile_info.resize(max_blockfile_num + 1);
-    LogPrintf("%s: last block file = %i\n", __func__, max_blockfile_num);
+    LogInfo("Loading block index db: last block file = %i", max_blockfile_num);
     for (int nFile = 0; nFile <= max_blockfile_num; nFile++) {
         m_block_tree_db->ReadBlockFileInfo(nFile, m_blockfile_info[nFile]);
     }
-    LogPrintf("%s: last block file info: %s\n", __func__, m_blockfile_info[max_blockfile_num].ToString());
+    LogInfo("Loading block index db: last block file info: %s", m_blockfile_info[max_blockfile_num].ToString());
     for (int nFile = max_blockfile_num + 1; true; nFile++) {
         CBlockFileInfo info;
         if (m_block_tree_db->ReadBlockFileInfo(nFile, info)) {
@@ -523,7 +525,7 @@ bool BlockManager::LoadBlockIndexDB(const std::optional<uint256>& snapshot_block
     }
 
     // Check presence of blk files
-    LogPrintf("Checking all blk files are present...\n");
+    LogInfo("Checking all blk files are present...");
     std::set<int> setBlkDataFiles;
     for (const auto& [_, block_index] : m_block_index) {
         if (block_index.nStatus & BLOCK_HAVE_DATA) {
@@ -549,7 +551,7 @@ bool BlockManager::LoadBlockIndexDB(const std::optional<uint256>& snapshot_block
     // Check whether we have ever pruned block & undo files
     m_block_tree_db->ReadFlag("prunedblockfiles", m_have_pruned);
     if (m_have_pruned) {
-        LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
+        LogInfo("Loading block index db: Block files have previously been pruned");
     }
 
     // Check whether we need to continue reindexing
@@ -630,7 +632,7 @@ void BlockManager::CleanupBlockRevFiles() const
     // Glob all blk?????.dat and rev?????.dat files from the blocks directory.
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
-    LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
+    LogInfo("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune");
     for (fs::directory_iterator it(m_opts.blocks_dir); it != fs::directory_iterator(); it++) {
         const std::string path = fs::PathToString(it->path().filename());
         if (fs::is_regular_file(*it) &&
@@ -788,13 +790,13 @@ void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const
 
 AutoFile BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 {
-    return AutoFile{m_block_file_seq.Open(pos, fReadOnly), m_xor_key};
+    return AutoFile{m_block_file_seq.Open(pos, fReadOnly), m_obfuscation};
 }
 
 /** Open an undo file (rev?????.dat) */
 AutoFile BlockManager::OpenUndoFile(const FlatFilePos& pos, bool fReadOnly) const
 {
-    return AutoFile{m_undo_file_seq.Open(pos, fReadOnly), m_xor_key};
+    return AutoFile{m_undo_file_seq.Open(pos, fReadOnly), m_obfuscation};
 }
 
 fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
@@ -1127,7 +1129,7 @@ static auto InitBlocksdirXorKey(const BlockManager::Options& opts)
 {
     // Bytes are serialized without length indicator, so this is also the exact
     // size of the XOR-key file.
-    std::array<std::byte, 8> xor_key{};
+    std::array<std::byte, Obfuscation::KEY_SIZE> obfuscation{};
 
     // Consider this to be the first run if the blocksdir contains only hidden
     // files (those which start with a .). Checking for a fully-empty dir would
@@ -1144,14 +1146,14 @@ static auto InitBlocksdirXorKey(const BlockManager::Options& opts)
     if (opts.use_xor && first_run) {
         // Only use random fresh key when the boolean option is set and on the
         // very first start of the program.
-        FastRandomContext{}.fillrand(xor_key);
+        FastRandomContext{}.fillrand(obfuscation);
     }
 
     const fs::path xor_key_path{opts.blocks_dir / "xor.dat"};
     if (fs::exists(xor_key_path)) {
         // A pre-existing xor key file has priority.
         AutoFile xor_key_file{fsbridge::fopen(xor_key_path, "rb")};
-        xor_key_file >> xor_key;
+        xor_key_file >> obfuscation;
     } else {
         // Create initial or missing xor key file
         AutoFile xor_key_file{fsbridge::fopen(xor_key_path,
@@ -1161,7 +1163,7 @@ static auto InitBlocksdirXorKey(const BlockManager::Options& opts)
             "wbx"
 #endif
         )};
-        xor_key_file << xor_key;
+        xor_key_file << obfuscation;
         if (xor_key_file.fclose() != 0) {
             throw std::runtime_error{strprintf("Error closing XOR key file %s: %s",
                                                fs::PathToString(xor_key_path),
@@ -1169,20 +1171,20 @@ static auto InitBlocksdirXorKey(const BlockManager::Options& opts)
         }
     }
     // If the user disabled the key, it must be zero.
-    if (!opts.use_xor && xor_key != decltype(xor_key){}) {
+    if (!opts.use_xor && obfuscation != decltype(obfuscation){}) {
         throw std::runtime_error{
             strprintf("The blocksdir XOR-key can not be disabled when a random key was already stored! "
                       "Stored key: '%s', stored path: '%s'.",
-                      HexStr(xor_key), fs::PathToString(xor_key_path)),
+                      HexStr(obfuscation), fs::PathToString(xor_key_path)),
         };
     }
-    LogInfo("Using obfuscation key for blocksdir *.dat files (%s): '%s'\n", fs::PathToString(opts.blocks_dir), HexStr(xor_key));
-    return std::vector<std::byte>{xor_key.begin(), xor_key.end()};
+    LogInfo("Using obfuscation key for blocksdir *.dat files (%s): '%s'\n", fs::PathToString(opts.blocks_dir), HexStr(obfuscation));
+    return Obfuscation{obfuscation};
 }
 
 BlockManager::BlockManager(const util::SignalInterrupt& interrupt, Options opts)
     : m_prune_mode{opts.prune_target > 0},
-      m_xor_key{InitBlocksdirXorKey(opts)},
+      m_obfuscation{InitBlocksdirXorKey(opts)},
       m_opts{std::move(opts)},
       m_block_file_seq{FlatFileSeq{m_opts.blocks_dir, "blk", m_opts.fast_prune ? 0x4000 /* 16kB */ : BLOCKFILE_CHUNK_SIZE}},
       m_undo_file_seq{FlatFileSeq{m_opts.blocks_dir, "rev", UNDOFILE_CHUNK_SIZE}},
@@ -1236,17 +1238,17 @@ void ImportBlocks(ChainstateManager& chainman, std::span<const fs::path> import_
             if (file.IsNull()) {
                 break; // This error is logged in OpenBlockFile
             }
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
+            LogInfo("Reindexing block file blk%05u.dat...", (unsigned int)nFile);
             chainman.LoadExternalBlockFile(file, &pos, &blocks_with_unknown_parent);
             if (chainman.m_interrupt) {
-                LogPrintf("Interrupt requested. Exit %s\n", __func__);
+                LogInfo("Interrupt requested. Exit reindexing.");
                 return;
             }
             nFile++;
         }
         WITH_LOCK(::cs_main, chainman.m_blockman.m_block_tree_db->WriteReindexing(false));
         chainman.m_blockman.m_blockfiles_indexed = true;
-        LogPrintf("Reindexing finished\n");
+        LogInfo("Reindexing finished");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         chainman.ActiveChainstate().LoadGenesisBlock();
     }
@@ -1255,10 +1257,10 @@ void ImportBlocks(ChainstateManager& chainman, std::span<const fs::path> import_
     for (const fs::path& path : import_paths) {
         AutoFile file{fsbridge::fopen(path, "rb")};
         if (!file.IsNull()) {
-            LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
+            LogInfo("Importing blocks file %s...", fs::PathToString(path));
             chainman.LoadExternalBlockFile(file);
             if (chainman.m_interrupt) {
-                LogPrintf("Interrupt requested. Exit %s\n", __func__);
+                LogInfo("Interrupt requested. Exit block importing.");
                 return;
             }
         } else {

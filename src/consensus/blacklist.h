@@ -214,7 +214,9 @@ static const Blacklist blacklist = {
 		CScript() << OP_DUP << OP_HASH160 << "b8c8497a69adc4e964a1bf396e1c430b8c505105"_hex << OP_EQUALVERIFY << OP_CHECKSIG,
 		CScript() << OP_DUP << OP_HASH160 << "989e621a775ebf8ea25c9aae0ffbd98613d09572"_hex << OP_EQUALVERIFY << OP_CHECKSIG,
 		// XeggeX (Exchange Exit Scam)
-		CScript() << OP_1 << "b4b4f66c2920b8425e99e8f1e89597d1e7307b4de1c91b0337830c4218b4fd75"_hex // ric1pkj60vmpfyzuyyh5earc739vh68nnq76du8y3kqehsvxyyx95l46smnrs0x
+		CScript() << OP_1 << "b4b4f66c2920b8425e99e8f1e89597d1e7307b4de1c91b0337830c4218b4fd75"_hex, // ric1pkj60vmpfyzuyyh5earc739vh68nnq76du8y3kqehsvxyyx95l46smnrs0x
+		// SpecTrade (Exchange Exit Scam)
+		CScript() << OP_1 << "c19e658a0ed6120f8db45a28bce492e1c95700809127ee5e152995784b548b24"_hex // ric1pcx0xtzsw6cfqlrd5tg5teeyju8y4wqyqjyn7uhs49x2hsj653vjqmye8nr
 	}
 };
 

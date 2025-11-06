@@ -817,7 +817,7 @@ static bool rest_tx(const std::any& context, HTTPRequest* req, const std::string
     std::string hashStr;
     const RESTResponseFormat rf = ParseDataFormat(hashStr, uri_part);
 
-    auto hash{uint256::FromHex(hashStr)};
+    auto hash{Txid::FromHex(hashStr)};
     if (!hash) {
         return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
     }
@@ -829,7 +829,7 @@ static bool rest_tx(const std::any& context, HTTPRequest* req, const std::string
     const NodeContext* const node = GetNodeContext(context, req);
     if (!node) return false;
     uint256 hashBlock = uint256();
-    const CTransactionRef tx{GetTransaction(/*block_index=*/nullptr, node->mempool.get(), *hash, hashBlock, node->chainman->m_blockman)};
+    const CTransactionRef tx{GetTransaction(/*block_index=*/nullptr, node->mempool.get(), *hash,  node->chainman->m_blockman, hashBlock)};
     if (!tx) {
         return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }

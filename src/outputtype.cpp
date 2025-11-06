@@ -21,7 +21,7 @@ static const std::string OUTPUT_TYPE_STRING_BECH32 = "bech32";
 static const std::string OUTPUT_TYPE_STRING_BECH32M = "bech32m";
 static const std::string OUTPUT_TYPE_STRING_UNKNOWN = "unknown";
 
-std::optional<OutputType> ParseOutputType(const std::string& type)
+std::optional<OutputType> ParseOutputType(std::string_view type)
 {
     if (type == OUTPUT_TYPE_STRING_BECH32)
         return OutputType::BECH32;
@@ -44,7 +44,7 @@ const std::string& FormatOutputType(OutputType type)
 
 std::string FormatAllOutputTypes()
 {
-    return "bech32, bech32m";
+    return "\"bech32\", \"bech32m\"";
 }
 
 CTxDestination AddAndGetDestinationForScript(FlatSigningProvider& keystore, const CScript& script, OutputType type)

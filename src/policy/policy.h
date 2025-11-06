@@ -97,7 +97,7 @@ static constexpr unsigned int MAX_DUST_OUTPUTS_PER_TX{1};
  * Note that this does not affect consensus validity; see GetBlockScriptFlags()
  * for that.
  */
-static constexpr unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS{SCRIPT_VERIFY_P2SH |
+static constexpr script_verify_flags MANDATORY_SCRIPT_VERIFY_FLAGS{SCRIPT_VERIFY_P2SH |
                                                              SCRIPT_VERIFY_DERSIG |
                                                              SCRIPT_VERIFY_NULLDUMMY |
                                                              SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
@@ -111,7 +111,7 @@ static constexpr unsigned int MANDATORY_SCRIPT_VERIFY_FLAGS{SCRIPT_VERIFY_P2SH |
  * the additional (non-mandatory) rules here, to improve forwards and
  * backwards compatibility.
  */
-static constexpr unsigned int STANDARD_SCRIPT_VERIFY_FLAGS{MANDATORY_SCRIPT_VERIFY_FLAGS |
+static constexpr script_verify_flags STANDARD_SCRIPT_VERIFY_FLAGS{MANDATORY_SCRIPT_VERIFY_FLAGS |
                                                              SCRIPT_VERIFY_STRICTENC |
                                                              SCRIPT_VERIFY_MINIMALDATA |
                                                              SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS |
@@ -127,7 +127,7 @@ static constexpr unsigned int STANDARD_SCRIPT_VERIFY_FLAGS{MANDATORY_SCRIPT_VERI
                                                              SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_PUBKEYTYPE};
 
 /** For convenience, standard but not mandatory verify flags. */
-static constexpr unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS{STANDARD_SCRIPT_VERIFY_FLAGS & ~MANDATORY_SCRIPT_VERIFY_FLAGS};
+static constexpr script_verify_flags STANDARD_NOT_MANDATORY_VERIFY_FLAGS{STANDARD_SCRIPT_VERIFY_FLAGS & ~MANDATORY_SCRIPT_VERIFY_FLAGS};
 
 /** Used as the flags parameter to sequence and nLocktime checks in non-consensus code. */
 static constexpr unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS{LOCKTIME_VERIFY_SEQUENCE};
@@ -144,6 +144,7 @@ std::vector<uint32_t> GetDust(const CTransaction& tx, CFeeRate dust_relay_rate);
 // Changing the default transaction version requires a two step process: first
 // adapting relay policy by bumping TX_MAX_STANDARD_VERSION, and then later
 // allowing the new transaction version in the wallet/RPC.
+static constexpr decltype(CTransaction::version) TX_MIN_STANDARD_VERSION{1};
 static constexpr decltype(CTransaction::version) TX_MAX_STANDARD_VERSION{3};
 
 /**
@@ -165,6 +166,11 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 * Also enforce a maximum stack item size limit and no annexes for tapscript spends.
 */
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+/**
+ * Check whether this transaction spends any witness program but P2A, including not-yet-defined ones.
+ * May return `false` early for consensus-invalid transactions.
+ */
+bool SpendsNonAnchorWitnessProg(const CTransaction& tx, const CCoinsViewCache& prevouts);
 
 /** Compute the virtual transaction size (weight reinterpreted as bytes). */
 int64_t GetVirtualTransactionSize(int64_t nWeight, int64_t nSigOpCost, unsigned int bytes_per_sigop);

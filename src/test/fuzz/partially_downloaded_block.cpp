@@ -67,7 +67,7 @@ FUZZ_TARGET(partially_downloaded_block, .init = initialize_pdb)
     // The coinbase is always available
     available.insert(0);
 
-    std::vector<CTransactionRef> extra_txn;
+    std::vector<std::pair<Wtxid, CTransactionRef>> extra_txn;
     for (size_t i = 1; i < block->vtx.size(); ++i) {
         auto tx{block->vtx[i]};
 
@@ -75,11 +75,11 @@ FUZZ_TARGET(partially_downloaded_block, .init = initialize_pdb)
         bool add_to_mempool{fuzzed_data_provider.ConsumeBool()};
 
         if (add_to_extra_txn) {
-            extra_txn.emplace_back(tx);
+            extra_txn.emplace_back(tx->GetWitnessHash(), tx);
             available.insert(i);
         }
 
-        if (add_to_mempool && !pool.exists(GenTxid::Txid(tx->GetHash()))) {
+        if (add_to_mempool && !pool.exists(tx->GetHash())) {
             LOCK2(cs_main, pool.cs);
             AddToMempool(pool, ConsumeTxMemPoolEntry(fuzzed_data_provider, *tx));
             available.insert(i);

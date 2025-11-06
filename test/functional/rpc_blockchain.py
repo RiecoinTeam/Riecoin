@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-present The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test RPCs related to blockchainstate.
@@ -195,8 +195,6 @@ class BlockchainTest(BitcoinTestFramework):
         assert_greater_than(res['size_on_disk'], 0)
 
         assert_equal(res['bits'], nbits_str(REGTEST_N_BITS))
-        assert_equal(res['target'][0:3], target_str(REGTEST_TARGET)[0:3])
-        assert_equal(len(res['target']), len(target_str(REGTEST_TARGET)))
 
     def check_signalling_deploymentinfo_result(self, gdi_result, height, blockhash, status_next):
         assert height >= 144 and height <= 287
@@ -204,6 +202,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(gdi_result, {
           "hash": blockhash,
           "height": height,
+          "script_flags": ["CHECKLOCKTIMEVERIFY","CHECKSEQUENCEVERIFY","DERSIG","NULLDUMMY","P2SH","TAPROOT","WITNESS"],
           "deployments": {
             'testdummy': {
                 'type': 'bip9',
@@ -434,8 +433,6 @@ class BlockchainTest(BitcoinTestFramework):
         assert_is_hash_string(header['previousblockhash'])
         assert_is_hash_string(header['merkleroot'])
         assert_equal(header['bits'], nbits_str(REGTEST_N_BITS))
-        assert_equal(header['target'][0:3], target_str(REGTEST_TARGET)[0:3])
-        assert_equal(len(header['target']), len(target_str(REGTEST_TARGET)))
         assert isinstance(header['time'], int)
         assert_equal(header['mediantime'], TIME_RANGE_MTP)
         assert isinstance(header['nonce'], str)
@@ -448,8 +445,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_is_hex_string(header_hex)
 
         header = from_hex(CBlockHeader(), header_hex)
-        header.calc_sha256()
-        assert_equal(header.hash, besthash)
+        assert_equal(header.hash_hex, besthash)
 
         assert 'previousblockhash' not in node.getblockheader(node.getblockhash(0))
         assert 'nextblockhash' not in node.getblockheader(node.getbestblockhash())
@@ -558,7 +554,8 @@ class BlockchainTest(BitcoinTestFramework):
         node.reconsiderblock(rollback_hash)
         # The chain has probably already been restored by the time reconsiderblock returns,
         # but poll anyway.
-        self.wait_until(lambda: node.waitfornewblock(timeout=100)['hash'] == current_hash)
+        self.wait_until(lambda: node.waitfornewblock(current_tip=rollback_header['previousblockhash'])['hash'] == current_hash)
+
         assert_raises_rpc_error(-1, "Negative timeout", node.waitfornewblock, -1)
 
     def _test_waitforblockheight(self):
@@ -585,9 +582,9 @@ class BlockchainTest(BitcoinTestFramework):
             return b
 
         b21f = solve_and_send_block(int(b20hash, 16), 21, b20['time'] + 1)
-        b22f = solve_and_send_block(b21f.sha256, 22, b21f.nTime + 1)
+        b22f = solve_and_send_block(b21f.hash_int, 22, b21f.nTime + 1)
 
-        node.invalidateblock(b22f.hash)
+        node.invalidateblock(b22f.hash_hex)
 
         def assert_waitforheight(height, timeout=2):
             assert_equal(
@@ -693,19 +690,19 @@ class BlockchainTest(BitcoinTestFramework):
         block = create_block(int(blockhash, 16), create_coinbase(current_height + 1, nValue=100), block_time)
         block.solve()
         node.submitheader(block.serialize().hex())
-        assert_raises_rpc_error(-1, "Block not available (not fully downloaded)", lambda: node.getblock(block.hash))
+        assert_raises_rpc_error(-1, "Block not available (not fully downloaded)", lambda: node.getblock(block.hash_hex))
 
         self.log.info("Test getblock when block data is available but undo data isn't")
         # Submits a block building on the header-only block, so it can't be connected and has no undo data
         tx = create_tx_with_script(block.vtx[0], 0, script_sig=bytes([OP_TRUE]), amount=50 * COIN)
-        block_noundo = create_block(block.sha256, create_coinbase(current_height + 2, nValue=100), block_time + 1, txlist=[tx])
+        block_noundo = create_block(block.hash_int, create_coinbase(current_height + 2, nValue=100), block_time + 1, txlist=[tx])
         block_noundo.solve()
         node.submitblock(block_noundo.serialize().hex())
 
-        assert_fee_not_in_block(block_noundo.hash, 2)
-        assert_fee_not_in_block(block_noundo.hash, 3)
-        assert_vin_does_not_contain_prevout(block_noundo.hash, 2)
-        assert_vin_does_not_contain_prevout(block_noundo.hash, 3)
+        assert_fee_not_in_block(block_noundo.hash_hex, 2)
+        assert_fee_not_in_block(block_noundo.hash_hex, 3)
+        assert_vin_does_not_contain_prevout(block_noundo.hash_hex, 2)
+        assert_vin_does_not_contain_prevout(block_noundo.hash_hex, 3)
 
         self.log.info("Test getblock when block is missing")
         move_block_file('blk00000.dat', 'blk00000.dat.bak')

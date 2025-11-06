@@ -20,8 +20,6 @@
 #include <util/string.h>
 
 #ifdef WIN32
-#include <codecvt>
-#include <shellapi.h>
 #include <shlobj.h>
 #endif
 
@@ -265,7 +263,13 @@ std::optional<unsigned int> ArgsManager::GetArgFlags(const std::string& name) co
             return search->second.m_flags;
         }
     }
-    return std::nullopt;
+    return m_default_flags;
+}
+
+void ArgsManager::SetDefaultFlags(std::optional<unsigned int> flags)
+{
+    LOCK(cs_args);
+    m_default_flags = flags;
 }
 
 fs::path ArgsManager::GetPathArg(std::string arg, const fs::path& default_value) const
@@ -588,6 +592,14 @@ void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
     }
 }
 
+void ArgsManager::ClearArgs()
+{
+    LOCK(cs_args);
+    m_settings = {};
+    m_available_args.clear();
+    m_network_only_args.clear();
+}
+
 void ArgsManager::CheckMultipleCLIArgs() const
 {
     LOCK(cs_args);
@@ -708,6 +720,7 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
 
 const std::vector<std::string> TEST_OPTIONS_DOC{
     "addrman (use deterministic addrman)",
+    "reindex_after_failure_noninteractive_yes (When asked for a reindex after failure interactively, simulate as-if answered with 'yes')",
 };
 
 bool HasTestOption(const ArgsManager& args, const std::string& test_option)
@@ -851,30 +864,3 @@ void ArgsManager::LogArgs() const
     }
     logArgsPrefix("Command-line arg:", "", m_settings.command_line_options);
 }
-
-namespace common {
-#ifdef WIN32
-WinCmdLineArgs::WinCmdLineArgs()
-{
-    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_cvt;
-    argv = new char*[argc];
-    args.resize(argc);
-    for (int i = 0; i < argc; i++) {
-        args[i] = utf8_cvt.to_bytes(wargv[i]);
-        argv[i] = &*args[i].begin();
-    }
-    LocalFree(wargv);
-}
-
-WinCmdLineArgs::~WinCmdLineArgs()
-{
-    delete[] argv;
-}
-
-std::pair<int, char**> WinCmdLineArgs::get()
-{
-    return std::make_pair(argc, argv);
-}
-#endif
-} // namespace common

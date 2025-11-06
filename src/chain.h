@@ -38,6 +38,9 @@ static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 15;
  * MAX_FUTURE_BLOCK_TIME.
  */
 static constexpr int64_t TIMESTAMP_WINDOW = MAX_FUTURE_BLOCK_TIME;
+//! Init values for CBlockIndex nSequenceId when loaded from disk
+static constexpr int32_t SEQ_ID_BEST_CHAIN_FROM_DISK = 0;
+static constexpr int32_t SEQ_ID_INIT_FROM_DISK = 1;
 
 /**
  * Maximum gap between node time and block time used
@@ -194,7 +197,9 @@ public:
     arith_uint256 nNonce{0};
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
-    int32_t nSequenceId{0};
+    //! Initialized to SEQ_ID_INIT_FROM_DISK{1} when loading blocks from disk, except for blocks
+    //! belonging to the best chain which overwrite it to SEQ_ID_BEST_CHAIN_FROM_DISK{0}.
+    int32_t nSequenceId{SEQ_ID_INIT_FROM_DISK};
 
     //! (memory only) Maximum nTime in the chain up to and including this block.
     int64_t nTimeMax{0};
@@ -295,7 +300,7 @@ public:
     std::string ToString() const;
 
     //! Check whether this block index entry is valid up to the passed validity level.
-    bool IsValid(enum BlockStatus nUpTo = BLOCK_VALID_TRANSACTIONS) const
+    bool IsValid(enum BlockStatus nUpTo) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
     {
         AssertLockHeld(::cs_main);
@@ -469,9 +474,6 @@ public:
 
     /** Set/initialize a chain with a given tip. */
     void SetTip(CBlockIndex& block);
-
-    /** Return a CBlockLocator that refers to the tip in of this chain. */
-    CBlockLocator GetLocator() const;
 
     /** Find the last common block between this chain and a block index entry. */
     const CBlockIndex* FindFork(const CBlockIndex* pindex) const;

@@ -8,6 +8,7 @@
 
 #include <blockfilter.h>
 #include <common/settings.h>
+#include <node/types.h>
 #include <primitives/transaction.h>
 #include <util/result.h>
 
@@ -144,13 +145,6 @@ public:
     //! pruned), and contains transactions.
     virtual bool haveBlockOnDisk(int height) = 0;
 
-    //! Get locator for the current chain tip.
-    virtual CBlockLocator getTipLocator() = 0;
-
-    //! Return a locator that refers to a block in the active chain.
-    //! If specified block is not in the active chain, return locator for the latest ancestor that is in the chain.
-    virtual CBlockLocator getActiveChainLocator(const uint256& block_hash) = 0;
-
     //! Return height of the highest block on chain in common with the locator,
     //! which will either be the original block used to create the locator,
     //! or one of its ancestors.
@@ -209,21 +203,27 @@ public:
     virtual RBFTransactionState isRBFOptIn(const CTransaction& tx) = 0;
 
     //! Check if transaction is in mempool.
-    virtual bool isInMempool(const uint256& txid) = 0;
+    virtual bool isInMempool(const Txid& txid) = 0;
 
     //! Check if transaction has descendants in mempool.
-    virtual bool hasDescendantsInMempool(const uint256& txid) = 0;
+    virtual bool hasDescendantsInMempool(const Txid& txid) = 0;
 
-    //! Transaction is added to memory pool, if the transaction fee is below the
-    //! amount specified by max_tx_fee, and broadcast to all peers if relay is set to true.
-    //! Return false if the transaction could not be added due to the fee or for another reason.
+    //! Process a local transaction, optionally adding it to the mempool and
+    //! optionally broadcasting it to the network.
+    //! @param[in] tx Transaction to process.
+    //! @param[in] max_tx_fee Don't add the transaction to the mempool or
+    //! broadcast it if its fee is higher than this.
+    //! @param[in] broadcast_method Whether to add the transaction to the
+    //! mempool and how/whether to broadcast it.
+    //! @param[out] err_string Set if an error occurs.
+    //! @return False if the transaction could not be added due to the fee or for another reason.
     virtual bool broadcastTransaction(const CTransactionRef& tx,
-        const CAmount& max_tx_fee,
-        bool relay,
-        std::string& err_string) = 0;
+                                      const CAmount& max_tx_fee,
+                                      node::TxBroadcast broadcast_method,
+                                      std::string& err_string) = 0;
 
     //! Calculate mempool ancestor and descendant counts for the given transaction.
-    virtual void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) = 0;
+    virtual void getTransactionAncestry(const Txid& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) = 0;
 
     //! For each outpoint, calculate the fee-bumping cost to spend this outpoint at the specified
     //  feerate, including bumping its ancestors. For example, if the target feerate is 10sat/vbyte

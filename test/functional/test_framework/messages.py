@@ -81,6 +81,9 @@ MAX_OP_RETURN_RELAY = 100_000
 
 DEFAULT_MEMPOOL_EXPIRY_HOURS = 336  # hours
 
+TX_MIN_STANDARD_VERSION = 1
+TX_MAX_STANDARD_VERSION = 3
+
 MAGIC_BYTES = {
     "mainnet": b"\xfc\xbc\xb2\xdb",
     "testnet2404": b"\x0e\x09\x11\x05",
@@ -698,7 +701,7 @@ class CTransaction:
 
 
 class CBlockHeader:
-    __slots__ = ("hash", "hashMerkleRoot", "hashPrevBlock", "nBits", "nNonce", "nTime", "nVersion", "sha256", "sha256PoW")
+    __slots__ = ("hashMerkleRoot", "hashPrevBlock", "nBits", "nNonce", "nTime", "nVersion")
 
     def __init__(self, header=None):
         if header is None:
@@ -710,10 +713,6 @@ class CBlockHeader:
             self.nTime = header.nTime
             self.nBits = header.nBits
             self.nNonce = header.nNonce
-            self.sha256 = header.sha256
-            self.sha256PoW = header.sha256PoW
-            self.hash = header.hash
-            self.calc_sha256()
 
     def set_null(self):
         self.nVersion = 4
@@ -722,9 +721,6 @@ class CBlockHeader:
         self.nTime = 0
         self.nBits = 0
         self.nNonce = uint256_from_str(bytearray.fromhex("0000000000000000000000000000000000000000000000000000000000000000"))
-        self.sha256 = None
-        self.sha256PoW = None
-        self.hash = None
 
     def deserialize(self, f):
         self.nVersion = int.from_bytes(f.read(4), "little", signed=True)
@@ -733,37 +729,35 @@ class CBlockHeader:
         self.nTime = int.from_bytes(f.read(8), "little", signed=True)
         self.nBits = int.from_bytes(f.read(4), "little")
         self.nNonce = deser_uint256(f)
-        self.sha256 = None
-        self.hash = None
 
     def serialize(self):
+        return self._serialize_header()
+
+    def _serialize_header(self, with_nNonce=True):
         r = b""
         r += self.nVersion.to_bytes(4, "little", signed=True)
         r += ser_uint256(self.hashPrevBlock)
         r += ser_uint256(self.hashMerkleRoot)
         r += self.nTime.to_bytes(8, "little", signed=True)
         r += self.nBits.to_bytes(4, "little")
-        r += ser_uint256(self.nNonce)
+        if with_nNonce:
+            r += ser_uint256(self.nNonce)
         return r
 
-    def calc_sha256(self):
-        if self.sha256 is None:
-            r = b""
-            r += self.nVersion.to_bytes(4, "little", signed=True)
-            r += ser_uint256(self.hashPrevBlock)
-            r += ser_uint256(self.hashMerkleRoot)
-            r += self.nTime.to_bytes(8, "little", signed=True)
-            r += self.nBits.to_bytes(4, "little")
-            self.sha256PoW = uint256_from_str(hash256(r))
-            r += ser_uint256(self.nNonce)
-            self.sha256 = uint256_from_str(hash256(r))
-            self.hash = hash256(r)[::-1].hex()
+    @property
+    def hash_hex(self):
+        """Return block header hash as hex string."""
+        return hash256(self._serialize_header())[::-1].hex()
 
-    def rehash(self):
-        self.sha256 = None
-        self.sha256PoW = None
-        self.calc_sha256()
-        return self.sha256
+    @property
+    def hash_int(self):
+        """Return block header hash as integer."""
+        return uint256_from_str(hash256(self._serialize_header()))
+
+    @property
+    def hash_int_pow(self):
+        """Return block header hash for PoW (nNonce not included) as integer."""
+        return uint256_from_str(hash256(self._serialize_header(with_nNonce=False)))
 
     def __repr__(self):
         return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%s)" \
@@ -834,12 +828,11 @@ class CBlock(CBlockHeader):
         D = self.nBits//256
         Df = self.nBits % 256
         L = (10*Df*Df*Df + 7383*Df*Df + 5840720*Df + 3997440)//8388608
-        target = (1 << D) + L*(1 << (D - 8)) + self.sha256PoW*(1 << (D - 264))
+        target = (1 << D) + L*(1 << (D - 8)) + self.hash_int_pow*(1 << (D - 264))
         offset = self.nNonce//65536 + 1
         return is_fermat_prime(target + offset) # only look for prime numbers in RegTest
 
     def is_valid(self):
-        self.calc_sha256()
         if not self.has_valid_pow():
             return False
         for tx in self.vtx:
@@ -851,10 +844,7 @@ class CBlock(CBlockHeader):
 
     def solve(self):
         self.nNonce = uint256_from_str(bytearray.fromhex("0200000000000000000000000000000000000000000000000000000000000000"))
-        while True:
-            self.rehash()
-            if self.has_valid_pow():
-                break
+        while not self.has_valid_pow():
             self.nNonce += 131072
 
     # Calculate the block weight using witness and non-witness

@@ -165,15 +165,13 @@ class CreateWalletTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, 'Passphrase provided but private keys are disabled. A passphrase is only used to encrypt private keys, so cannot be used for wallets with private keys disabled.', self.nodes[0].createwallet, wallet_name='w9', disable_private_keys=True, passphrase='thisisapassphrase')
 
         self.log.info("Check that the version number is being logged correctly")
-        with node.assert_debug_log(expected_msgs=[], unexpected_msgs=["Last client version = ", "Wallet file version = "]):
+        with node.assert_debug_log(expected_msgs=[], unexpected_msgs=["Last client version = "]):
             node.createwallet("version_check")
         wallet = node.get_wallet_rpc("version_check")
-        wallet_version = wallet.getwalletinfo()["walletversion"]
         client_version = node.getnetworkinfo()["version"]
         wallet.unloadwallet()
         with node.assert_debug_log(
-            expected_msgs=[f"Last client version = {client_version}", f"Wallet file version = {wallet_version}"],
-            unexpected_msgs=["Wallet file version = 10500"]
+            expected_msgs=[f"Last client version = {client_version}"]
         ):
             node.loadwallet("version_check")
 

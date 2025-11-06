@@ -290,23 +290,18 @@ class InvalidMessagesTest(BitcoinTestFramework):
         blockheader.hashPrevBlock = int(blockheader_tip_hash, 16)
         blockheader.nTime = int(time.time())
         blockheader.nBits = blockheader_tip.nBits
-        blockheader.rehash()
         blockheader.nNonce = 2
-        while True:
-            blockheader.rehash()
-            if CBlock(blockheader).has_valid_pow():
-                break
+        while not CBlock(blockheader).has_valid_pow():
             blockheader.nNonce += 131072
         peer = self.nodes[0].add_p2p_connection(P2PInterface())
         peer.send_and_ping(msg_headers([blockheader]))
         assert_equal(self.nodes[0].getblockchaininfo()['headers'], 1)
         chaintips = self.nodes[0].getchaintips()
         assert_equal(chaintips[0]['status'], 'headers-only')
-        assert_equal(chaintips[0]['hash'], blockheader.hash)
+        assert_equal(chaintips[0]['hash'], blockheader.hash_hex)
 
         # invalidate PoW
         blockheader.nNonce += 65536
-        blockheader.rehash()
         with self.nodes[0].assert_debug_log(['Misbehaving', 'invalid header received']):
             peer.send_without_ping(msg_headers([blockheader]))
             peer.wait_for_disconnect()

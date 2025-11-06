@@ -13,6 +13,7 @@ add_executable(bench_riecoin
   bech32.cpp
   bip324_ecdh.cpp
   block_assemble.cpp
+  blockencodings.cpp
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
@@ -36,6 +37,7 @@ add_executable(bench_riecoin
   mempool_eviction.cpp
   mempool_stress.cpp
   merkle_root.cpp
+  obfuscation.cpp
   parse_hex.cpp
   peer_eviction.cpp
   poly1305.cpp
@@ -50,10 +52,12 @@ add_executable(bench_riecoin
   streams_findbyte.cpp
   strencodings.cpp
   txgraph.cpp
+  txorphanage.cpp
   util_time.cpp
   verify_script.cpp
-  xor.cpp
 )
+
+add_windows_application_manifest(bench_bitcoin)
 
 include(TargetDataSources)
 target_raw_data_sources(bench_riecoin NAMESPACE benchmark::data
@@ -84,4 +88,4 @@ add_test(NAME bench_sanity_check
   COMMAND bench_riecoin -sanity-check
 )
 
-install_binary_component(bench_riecoin)
+install_binary_component(bench_riecoin INTERNAL)

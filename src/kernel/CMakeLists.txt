@@ -9,6 +9,7 @@ include(GNUInstallDirs)
 #       library, as more and more modules are decoupled from the
 #       consensus engine, this list will shrink to only those
 #       which are absolutely necessary.
+#       The Library has not been tested beyond being compilable.
 add_library(riecoinkernel
   riecoinkernel.cpp
   chain.cpp
@@ -21,6 +22,10 @@ add_library(riecoinkernel
   mempool_removal_reason.cpp
   ../arith_uint256.cpp
   ../chain.cpp
+  ../chainparams.cpp
+  ../chainparamsbase.cpp
+  ../common/args.cpp
+  ../common/settings.cpp
   ../coins.cpp
   ../compressor.cpp
   ../consensus/merkle.cpp
@@ -54,7 +59,6 @@ add_library(riecoinkernel
   ../script/script_error.cpp
   ../script/sigcache.cpp
   ../script/solver.cpp
-  ../signet.cpp
   ../streams.cpp
   ../support/lockedpool.cpp
   ../sync.cpp
@@ -80,60 +84,32 @@ add_library(riecoinkernel
   ../validation.cpp
   ../validationinterface.cpp
   ../versionbits.cpp
+  $<TARGET_OBJECTS:riecoin_clientversion>
+  $<TARGET_OBJECTS:bitcoin_crypto>
+  $<TARGET_OBJECTS:leveldb>
+  $<TARGET_OBJECTS:crc32c>
 )
 target_link_libraries(riecoinkernel
   PRIVATE
     core_interface
-    riecoin_clientversion
-    bitcoin_crypto
-    leveldb
-    secp256k1
+    secp256k1_objs
+    univalue
     $<$<PLATFORM_ID:Windows>:bcrypt>
+    $<TARGET_NAME_IF_EXISTS:GMP::GMP>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
   PUBLIC
     Boost::headers
 )
 
-# libriecoinkernel requires default symbol visibility, explicitly
-# specify that here so that things still work even when user
-# configures with -DREDUCE_EXPORTS=ON
-#
-# Note this is a quick hack that will be removed as we
-# incrementally define what to export from the library.
-set_target_properties(riecoinkernel PROPERTIES
-  CXX_VISIBILITY_PRESET default
-)
+target_include_directories(riecoinkernel PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/leveldb/include>)
 
-# Add a convenience libriecoinkernel target as a synonym for riecoinkernel
+# Add a convenience libriecoinkernel target as a synonym for riecoinkernel.
 add_custom_target(libriecoinkernel)
 add_dependencies(libriecoinkernel riecoinkernel)
 
-# When building the static library, install all static libraries the
-# riecoinkernel depends on.
-if(NOT BUILD_SHARED_LIBS)
-  # Recursively get all the static libraries a target depends on and put them in libs_out
-  function(get_target_static_link_libs target libs_out)
-    get_target_property(linked_libraries ${target} LINK_LIBRARIES)
-    foreach(dep ${linked_libraries})
-      if(TARGET ${dep})
-        add_dependencies(libriecoinkernel ${dep})
-        get_target_property(dep_type ${dep} TYPE)
-        if(dep_type STREQUAL "STATIC_LIBRARY")
-          list(APPEND ${libs_out} ${dep})
-          get_target_static_link_libs(${dep} ${libs_out})
-        endif()
-      endif()
-    endforeach()
-    set(${libs_out} ${${libs_out}} PARENT_SCOPE)
-  endfunction()
-
-  set(all_kernel_static_link_libs "")
-  get_target_static_link_libs(riecoinkernel all_kernel_static_link_libs)
-
-  install(TARGETS ${all_kernel_static_link_libs} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT libriecoinkernel)
-  list(TRANSFORM all_kernel_static_link_libs PREPEND "-l")
-  # LIBS_PRIVATE is substituted in the pkg-config file.
-  list(JOIN all_kernel_static_link_libs " " LIBS_PRIVATE)
+get_target_property(riecoinkernel_type riecoinkernel TYPE)
+if(riecoinkernel_type STREQUAL "STATIC_LIBRARY")
+  target_compile_definitions(riecoinkernel PUBLIC RIECOINKERNEL_STATIC)
 endif()
 
 configure_file(${PROJECT_SOURCE_DIR}/libriecoinkernel.pc.in ${PROJECT_BINARY_DIR}/libriecoinkernel.pc @ONLY)
@@ -150,3 +126,5 @@ install(TARGETS riecoinkernel
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT libriecoinkernel
 )
+
+install(FILES riecoinkernel.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT libriecoinkernel)

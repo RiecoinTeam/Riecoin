@@ -68,7 +68,7 @@ bool IsSQLiteFile(const fs::path& path)
     if (ec) LogWarning("Error reading file_size: %s [%s]", ec.message(), fs::PathToString(path));
     if (size < 512) return false;
 
-    std::ifstream file{path, std::ios::binary};
+    std::ifstream file{path.std_path(), std::ios::binary};
     if (!file.is_open()) return false;
 
     // Magic is at beginning and is 16 bytes long

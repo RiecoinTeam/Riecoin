@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2014-present The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Run regression test suite.
@@ -15,6 +15,7 @@ For a description of arguments recognized by test scripts, see
 
 import argparse
 from collections import deque
+from concurrent import futures
 import configparser
 import csv
 import datetime
@@ -110,6 +111,7 @@ BASE_SCRIPTS = [
     # 'rpc_psbt.py', # Needs adjustments for Bech32/Bech32M.
     'wallet_fundrawtransaction.py',
     'wallet_bumpfee.py',
+    'wallet_v3_txs.py',
     'wallet_backup.py',
     # 'feature_segwit.py --v1transport', # Needs adjustments for Bech32/Bech32M. Should no longer test preactivation.
     # 'feature_segwit.py --v2transport',
@@ -125,7 +127,7 @@ BASE_SCRIPTS = [
     'p2p_dns_seeds.py',
     'wallet_groups.py',
     'p2p_blockfilters.py',
-    # 'feature_assumevalid.py', # Fails after changing nPowTargetTimespan/nPowTargetSpacing, but really no idea why and how to fix...
+    # 'feature_assumevalid.py', # -AssumeValid works differently in Riecoin, need to be adjusted with some Hardcoded RegTest Chain.
     'wallet_taproot.py',
     'feature_bip68_sequence.py',
     'rpc_packages.py',
@@ -150,6 +152,7 @@ BASE_SCRIPTS = [
     'rpc_orphans.py',
     'wallet_listreceivedby.py',
     'wallet_abandonconflict.py',
+    'wallet_anchor.py',
     'feature_reindex.py',
     'feature_reindex_readonly.py',
     'wallet_labels.py',
@@ -285,6 +288,7 @@ BASE_SCRIPTS = [
     'p2p_leak.py',
     'wallet_encryption.py',
     'feature_dersig.py',
+    'feature_reindex_init.py',
     # 'feature_cltv.py', # Needs to be rewritten without (pre)activation
     'rpc_uptime.py',
     'feature_discover.py',
@@ -316,6 +320,7 @@ BASE_SCRIPTS = [
     'feature_includeconf.py',
     'feature_addrman.py',
     'feature_asmap.py',
+    'feature_chain_tiebreaks.py',
     'feature_fastprune.py',
     'feature_framework_miniwallet.py',
     'mempool_unbroadcast.py',
@@ -328,13 +333,16 @@ BASE_SCRIPTS = [
     'p2p_tx_privacy.py',
     'rpc_getdescriptoractivity.py',
     'rpc_scanblocks.py',
+    'tool_bitcoin.py',
     'p2p_sendtxrcncl.py',
     'rpc_scantxoutset.py',
     'feature_logging.py',
+    'interface_ipc.py',
     'feature_anchors.py',
     'mempool_datacarrier.py',
     'feature_coinstatsindex.py',
     'wallet_orphanedreward.py',
+    'wallet_musig.py',
     'wallet_timelock.py',
     'p2p_permissions.py',
     'feature_blocksdir.py',
@@ -346,6 +354,8 @@ BASE_SCRIPTS = [
     'rpc_getdescriptorinfo.py',
     'rpc_mempool_info.py',
     'rpc_help.py',
+    'feature_framework_testshell.py',
+    'tool_rpcauth.py',
     # 'p2p_handshake.py', # Fails due to the Stricter Timestamp Check post Fork 2, succeeds without it.
     # 'p2p_handshake.py --v2transport',
     'feature_dirsymlinks.py',
@@ -438,8 +448,8 @@ def main():
         print("Re-compile with the -DBUILD_DAEMON=ON build option")
         sys.exit(1)
 
-    # Build list of tests
-    test_list = []
+    # Build tests
+    test_list = deque()
     if tests:
         # Individual tests have been specified. Run specified tests that exist
         # in the ALL_SCRIPTS list. Accept names with or without a .py extension.
@@ -458,7 +468,7 @@ def main():
             script = script + ".py" if ".py" not in script else script
             matching_scripts = [s for s in ALL_SCRIPTS if s.startswith(script)]
             if matching_scripts:
-                test_list.extend(matching_scripts)
+                test_list += matching_scripts
             else:
                 print("{}WARNING!{} Test '{}' not found in full test list.".format(BOLD[1], BOLD[0], test))
     elif args.extended:
@@ -493,7 +503,7 @@ def main():
                 remove_tests([test for test in test_list if test.split('.py')[0] == exclude_test.split('.py')[0]])
 
     if args.filter:
-        test_list = list(filter(re.compile(args.filter).search, test_list))
+        test_list = deque(filter(re.compile(args.filter).search, test_list))
 
     if not test_list:
         print("No valid test scripts specified. Check that your test is in one "
@@ -693,15 +703,15 @@ class TestHandler:
     """
     Trigger the test scripts passed in via the list.
     """
-
     def __init__(self, *, num_tests_parallel, tests_dir, tmpdir, test_list, flags, use_term_control):
         assert num_tests_parallel >= 1
+        self.executor = futures.ThreadPoolExecutor(max_workers=num_tests_parallel)
         self.num_jobs = num_tests_parallel
         self.tests_dir = tests_dir
         self.tmpdir = tmpdir
         self.test_list = test_list
         self.flags = flags
-        self.jobs = []
+        self.jobs = {}
         self.use_term_control = use_term_control
 
     def done(self):
@@ -710,7 +720,7 @@ class TestHandler:
     def get_next(self):
         while len(self.jobs) < self.num_jobs and self.test_list:
             # Add tests
-            test = self.test_list.pop(0)
+            test = self.test_list.popleft()
             portseed = len(self.test_list)
             portseed_arg = ["--portseed={}".format(portseed)]
             log_stdout = tempfile.SpooledTemporaryFile(max_size=2**16)
@@ -718,47 +728,58 @@ class TestHandler:
             test_argv = test.split()
             testdir = "{}/{}_{}".format(self.tmpdir, re.sub(".py$", "", test_argv[0]), portseed)
             tmpdir_arg = ["--tmpdir={}".format(testdir)]
-            self.jobs.append((test,
-                              time.time(),
-                              subprocess.Popen([sys.executable, self.tests_dir + test_argv[0]] + test_argv[1:] + self.flags + portseed_arg + tmpdir_arg,
-                                               text=True,
-                                               stdout=log_stdout,
-                                               stderr=log_stderr),
-                              testdir,
-                              log_stdout,
-                              log_stderr))
-        if not self.jobs:
-            raise IndexError('pop from empty list')
+
+            def proc_wait(task):
+                task[2].wait()
+                return task
+
+            task = [
+                test,
+                time.time(),
+                subprocess.Popen(
+                    [sys.executable, self.tests_dir + test_argv[0]] + test_argv[1:] + self.flags + portseed_arg + tmpdir_arg,
+                    text=True,
+                    stdout=log_stdout,
+                    stderr=log_stderr,
+                ),
+                testdir,
+                log_stdout,
+                log_stderr,
+            ]
+            fut = self.executor.submit(proc_wait, task)
+            self.jobs[fut] = test
+        assert self.jobs  # Must not be empty here
 
         # Print remaining running jobs when all jobs have been started.
         if not self.test_list:
-            print("Remaining jobs: [{}]".format(", ".join(j[0] for j in self.jobs)))
+            print("Remaining jobs: [{}]".format(", ".join(sorted(self.jobs.values()))))
 
         dot_count = 0
         while True:
             # Return all procs that have finished, if any. Otherwise sleep until there is one.
-            time.sleep(.5)
+            procs = futures.wait(self.jobs.keys(), timeout=.5, return_when=futures.FIRST_COMPLETED)
+            self.jobs = {fut: self.jobs[fut] for fut in procs.not_done}
             ret = []
-            for job in self.jobs:
-                (name, start_time, proc, testdir, log_out, log_err) = job
-                if proc.poll() is not None:
-                    log_out.seek(0), log_err.seek(0)
-                    [stdout, stderr] = [log_file.read().decode('utf-8') for log_file in (log_out, log_err)]
-                    log_out.close(), log_err.close()
-                    skip_reason = None
-                    if proc.returncode == TEST_EXIT_PASSED and stderr == "":
-                        status = "Passed"
-                    elif proc.returncode == TEST_EXIT_SKIPPED:
-                        status = "Skipped"
-                        skip_reason = re.search(r"Test Skipped: (.*)", stdout).group(1)
-                    else:
-                        status = "Failed"
-                    self.jobs.remove(job)
-                    if self.use_term_control:
-                        clearline = '\r' + (' ' * dot_count) + '\r'
-                        print(clearline, end='', flush=True)
-                    dot_count = 0
-                    ret.append((TestResult(name, status, int(time.time() - start_time)), testdir, stdout, stderr, skip_reason))
+            for job in procs.done:
+                (name, start_time, proc, testdir, log_out, log_err) = job.result()
+
+                log_out.seek(0), log_err.seek(0)
+                [stdout, stderr] = [log_file.read().decode('utf-8') for log_file in (log_out, log_err)]
+                log_out.close(), log_err.close()
+                skip_reason = None
+                if proc.returncode == TEST_EXIT_PASSED and stderr == "":
+                    status = "Passed"
+                elif proc.returncode == TEST_EXIT_SKIPPED:
+                    status = "Skipped"
+                    skip_reason = re.search(r"Test Skipped: (.*)", stdout).group(1)
+                else:
+                    status = "Failed"
+
+                if self.use_term_control:
+                    clearline = '\r' + (' ' * dot_count) + '\r'
+                    print(clearline, end='', flush=True)
+                dot_count = 0
+                ret.append((TestResult(name, status, int(time.time() - start_time)), testdir, stdout, stderr, skip_reason))
             if ret:
                 return ret
             if self.use_term_control:

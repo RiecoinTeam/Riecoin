@@ -174,7 +174,7 @@ static UniValue generateBlocks(ChainstateManager& chainman, Mining& miner, const
     return blockHashes;
 }
 
-static bool getScriptFromDescriptor(const std::string& descriptor, CScript& script, std::string& error)
+static bool getScriptFromDescriptor(std::string_view descriptor, CScript& script, std::string& error)
 {
     FlatSigningProvider key_provider;
     const auto descs = Parse(descriptor, key_provider, error);
@@ -234,7 +234,7 @@ static RPCHelpMan generatetodescriptor()
 
     CScript coinbase_output_script;
     std::string error;
-    if (!getScriptFromDescriptor(self.Arg<std::string>("descriptor"), coinbase_output_script, error)) {
+    if (!getScriptFromDescriptor(self.Arg<std::string_view>("descriptor"), coinbase_output_script, error)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, error);
     }
 
@@ -346,8 +346,8 @@ static RPCHelpMan generateblock()
         const auto& str{raw_txs_or_txids[i].get_str()};
 
         CMutableTransaction mtx;
-        if (auto hash{uint256::FromHex(str)}) {
-            const auto tx{mempool.get(*hash)};
+        if (auto txid{Txid::FromHex(str)}) {
+            const auto tx{mempool.get(*txid)};
             if (!tx) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Transaction %s not in mempool.", str));
             }
@@ -421,6 +421,7 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
                         {RPCResult::Type::NUM, "networkminingpower", "The network mining power"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
+                        {RPCResult::Type::STR_AMOUNT, "blockmintxfee", "Minimum feerate of packages selected for block inclusion in " + CURRENCY_UNIT + "/kvB"},
                         {RPCResult::Type::STR, "chain", "current network name (" LIST_CHAIN_NAMES ")"},
                         {RPCResult::Type::OBJ, "next", "The next block",
                         {
@@ -454,6 +455,9 @@ static RPCHelpMan getmininginfo()
     obj.pushKV("difficulty", GetDifficulty(tip));
     obj.pushKV("networkminingpower", getnetworkminingpower().HandleRequest(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
+    BlockAssembler::Options assembler_options;
+    ApplyArgsManOptions(*node.args, assembler_options);
+    obj.pushKV("blockmintxfee", ValueFromAmount(assembler_options.blockMinFeeRate.GetFeePerK()));
     obj.pushKV("chain", chainman.GetParams().GetChainTypeString());
 
     UniValue next(UniValue::VOBJ);
@@ -493,18 +497,18 @@ static RPCHelpMan prioritisetransaction()
 {
     LOCK(cs_main);
 
-    uint256 hash(ParseHashV(request.params[0], "txid"));
+    auto txid{Txid::FromUint256(ParseHashV(request.params[0], "txid"))};
     CAmount nAmount = request.params[1].getInt<int64_t>();
 
     CTxMemPool& mempool = EnsureAnyMemPool(request.context);
 
     // Non-0 fee dust transactions are not allowed for entry, and modification not allowed afterwards
-    const auto& tx = mempool.get(hash);
+    const auto& tx = mempool.get(txid);
     if (mempool.m_opts.require_standard && tx && !GetDust(*tx, mempool.m_opts.dust_relay_feerate).empty()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Priority is not supported for transactions with dust outputs.");
     }
 
-    mempool.PrioritiseTransaction(hash, nAmount);
+    mempool.PrioritiseTransaction(txid, nAmount);
     return true;
 },
     };
@@ -679,8 +683,6 @@ static RPCHelpMan getblocktemplate()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     Mining& miner = EnsureMining(node);
-    LOCK(cs_main);
-    uint256 tip{CHECK_NONFATAL(miner.getTip()).value().hash};
 
     std::string strMode = "template";
     UniValue lpval = NullUniValue;
@@ -710,6 +712,7 @@ static RPCHelpMan getblocktemplate()
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
 
             uint256 hash = block.GetHash();
+            LOCK(cs_main);
             const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
             if (pindex) {
                 if (pindex->IsValid(BLOCK_VALID_SCRIPTS))
@@ -748,6 +751,9 @@ static RPCHelpMan getblocktemplate()
     static unsigned int nTransactionsUpdatedLast;
     const CTxMemPool& mempool = EnsureMemPool(node);
 
+    WAIT_LOCK(cs_main, cs_main_lock);
+    uint256 tip{CHECK_NONFATAL(miner.getTip()).value().hash};
+
     // Long Polling (BIP22)
     if (!lpval.isNull()) {
         /**
@@ -785,8 +791,8 @@ static RPCHelpMan getblocktemplate()
         }
 
         // Release lock while waiting
-        LEAVE_CRITICAL_SECTION(cs_main);
         {
+            REVERSE_LOCK(cs_main_lock, cs_main);
             MillisecondsDouble checktxtime{std::chrono::minutes(1)};
             while (IsRPCRunning()) {
                 // If hashWatchedChain is not a real block hash, this will
@@ -805,8 +811,6 @@ static RPCHelpMan getblocktemplate()
                 checktxtime = std::chrono::seconds(10);
             }
         }
-        ENTER_CRITICAL_SECTION(cs_main);
-
         tip = CHECK_NONFATAL(miner.getTip()).value().hash;
 
         if (!IsRPCRunning())
@@ -850,14 +854,14 @@ static RPCHelpMan getblocktemplate()
     UniValue aCaps(UniValue::VARR); aCaps.push_back("proposal");
 
     UniValue transactions(UniValue::VARR);
-    std::map<uint256, int64_t> setTxIndex;
+    std::map<Txid, int64_t> setTxIndex;
     std::vector<CAmount> tx_fees{block_template->getTxFees()};
     std::vector<CAmount> tx_sigops{block_template->getTxSigops()};
 
     int i = 0;
     for (const auto& it : block.vtx) {
         const CTransaction& tx = *it;
-        uint256 txHash = tx.GetHash();
+        Txid txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
         if (tx.IsCoinBase())
@@ -979,9 +983,9 @@ public:
     explicit submitblock_StateCatcher(const uint256 &hashIn) : hash(hashIn), state() {}
 
 protected:
-    void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override {
-        if (block.GetHash() != hash)
-            return;
+    void BlockChecked(const std::shared_ptr<const CBlock>& block, const BlockValidationState& stateIn) override
+    {
+        if (block->GetHash() != hash) return;
         found = true;
         state = stateIn;
     }

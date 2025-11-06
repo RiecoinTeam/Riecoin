@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 # These environment variables are set by the build process and read by
-# test/*/test_runner.py and test/util/rpcauth-test.py
+# test/*/test_runner.py
 
 [environment]
 CLIENT_NAME=@CLIENT_NAME@
@@ -26,3 +26,4 @@ RPCAUTH=@abs_top_srcdir@/share/rpcauth/rpcauth.py
 @ENABLE_ZMQ_TRUE@ENABLE_ZMQ=true
 @ENABLE_EXTERNAL_SIGNER_TRUE@ENABLE_EXTERNAL_SIGNER=true
 @ENABLE_USDT_TRACEPOINTS_TRUE@ENABLE_USDT_TRACEPOINTS=true
+@ENABLE_IPC_TRUE@ENABLE_IPC=true

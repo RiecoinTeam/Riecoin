@@ -34,6 +34,7 @@
 #include <interfaces/ipc.h>
 #include <interfaces/mining.h>
 #include <interfaces/node.h>
+#include <ipc/exception.h>
 #include <kernel/caches.h>
 #include <kernel/context.h>
 #include <key.h>
@@ -58,8 +59,8 @@
 #include <node/miner.h>
 #include <node/peerman_args.h>
 #include <policy/feerate.h>
-#include <policy/fees.h>
-#include <policy/fees_args.h>
+#include <policy/fees/block_policy_estimator.h>
+#include <policy/fees/block_policy_estimator_args.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <protocol.h>
@@ -179,7 +180,7 @@ static fs::path GetPidFile(const ArgsManager& args)
 {
     if (args.IsArgNegated("-pid")) return true;
 
-    std::ofstream file{GetPidFile(args)};
+    std::ofstream file{GetPidFile(args).std_path()};
     if (file) {
 #ifdef WIN32
         tfm::format(file, "%d\n", GetCurrentProcessId());
@@ -285,7 +286,7 @@ void Shutdown(NodeContext& node)
     static Mutex g_shutdown_mutex;
     TRY_LOCK(g_shutdown_mutex, lock_shutdown);
     if (!lock_shutdown) return;
-    LogPrintf("%s: In progress...\n", __func__);
+    LogInfo("Shutdown in progress...");
     Assert(node.args);
 
     /// Note: Shutdown() must be able to handle cases in which initialization failed part of the way,
@@ -299,6 +300,14 @@ void Shutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
+    for (auto& client : node.chain_clients) {
+        try {
+            client->stop();
+        } catch (const ipc::Exception& e) {
+            LogDebug(BCLog::IPC, "Chain client did not disconnect cleanly: %s", e.what());
+            client.reset();
+        }
+    }
     StopMapPort();
 
     // Because these depend on each-other, we make sure that neither can be
@@ -371,8 +380,11 @@ void Shutdown(NodeContext& node)
             }
         }
     }
-    for (const auto& client : node.chain_clients) {
-        client->stop();
+
+    // If any -ipcbind clients are still connected, disconnect them now so they
+    // do not block shutdown.
+    if (interfaces::Ipc* ipc = node.init->ipc()) {
+        ipc->disconnectIncoming();
     }
 
 #ifdef ENABLE_ZMQ
@@ -396,7 +408,7 @@ void Shutdown(NodeContext& node)
 
     RemovePidFile(*node.args);
 
-    LogPrintf("%s: done\n", __func__);
+    LogInfo("Shutdown done");
 }
 
 /**
@@ -481,13 +493,12 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-coinstatsindex", strprintf("Maintain coinstats index used by the gettxoutsetinfo RPC (default: %u)", DEFAULT_COINSTATSINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-conf=<file>", strprintf("Specify path to read-only configuration file. Relative paths will be prefixed by datadir location (only useable from command line, not configuration file) (default: %s)", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-datadir=<dir>", "Specify data directory", ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_NEGATION, OptionsCategory::OPTIONS);
-    argsman.AddArg("-dbbatchsize", strprintf("Maximum database write batch size in bytes (default: %u)", nDefaultDbBatchSize), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-dbbatchsize", strprintf("Maximum database write batch size in bytes (default: %u)", DEFAULT_DB_CACHE_BATCH), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::OPTIONS);
     argsman.AddArg("-dbcache=<n>", strprintf("Maximum database cache size <n> MiB (minimum %d, default: %d). Make sure you have enough RAM. In addition, unused memory allocated to the mempool is shared with this cache (see -maxmempool).", MIN_DB_CACHE >> 20, DEFAULT_DB_CACHE >> 20), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-includeconf=<file>", "Specify additional configuration file, relative to the -datadir path (only useable from configuration file, not command line)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-allowignoredconf", strprintf("For backwards compatibility, treat an unused %s file in the datadir as a warning, not an error.", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-loadblock=<file>", "Imports blocks from external file on startup", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-maxmempool=<n>", strprintf("Keep the transaction memory pool below <n> megabytes (default: %u)", DEFAULT_MAX_MEMPOOL_SIZE_MB), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
-    argsman.AddArg("-maxorphantx=<n>", strprintf("Keep at most <n> unconnectable transactions in memory (default: %u)", DEFAULT_MAX_ORPHAN_TRANSACTIONS), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-mempoolexpiry=<n>", strprintf("Do not keep transactions in the mempool longer than <n> hours (default: %u)", DEFAULT_MEMPOOL_EXPIRY_HOURS), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-minimumchainwork=<hex>", strprintf("Minimum work assumed to exist on a valid chain in hex (default: %s, testnet: %s)", defaultChainParams->GetConsensus().nMinimumChainWork.GetHex(), testnetChainParams->GetConsensus().nMinimumChainWork.GetHex()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::OPTIONS);
     argsman.AddArg("-par=<n>", strprintf("Set the number of script verification threads (0 = auto, up to %d, <0 = leave that many cores free, default: %d)",
@@ -639,6 +650,12 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-dustrelayfee=<amt>", strprintf("Fee rate (in %s/kvB) used to define dust, the value of an output such that it will cost more than its value in fees at this fee rate to spend it. (default: %s)", CURRENCY_UNIT, FormatMoney(DUST_RELAY_TX_FEE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-acceptstalefeeestimates", strprintf("Read fee estimates even if they are stale (%sdefault: %u) fee estimates are considered stale if they are %s hours old", "regtest only; ", DEFAULT_ACCEPT_STALE_FEE_ESTIMATES, Ticks<std::chrono::hours>(MAX_FILE_AGE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-bytespersigop", strprintf("Equivalent bytes per sigop in transactions for relay and mining (default: %u)", DEFAULT_BYTES_PER_SIGOP), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
+    argsman.AddArg("-datacarrier", strprintf("Relay and mine data carrier transactions (default: %u)", DEFAULT_ACCEPT_DATACARRIER), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
+    argsman.AddArg("-datacarriersize",
+                   strprintf("Relay and mine transactions whose data-carrying raw scriptPubKeys in aggregate "
+                             "are of this size or less, allowing multiple outputs (default: %u)",
+                             MAX_OP_RETURN_RELAY),
+                   ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-permitbaremultisig", strprintf("Relay transactions creating non-P2SH multisig outputs (default: %u)", DEFAULT_PERMIT_BAREMULTISIG), ArgsManager::ALLOW_ANY,
                    OptionsCategory::NODE_RELAY);
     argsman.AddArg("-minrelaytxfee=<amt>", strprintf("Fees (in %s/kvB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)",
@@ -647,7 +664,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-whitelistrelay", strprintf("Add 'relay' permission to whitelisted peers with default permissions. This will accept relayed transactions even when not relaying transactions (default: %d)", DEFAULT_WHITELISTRELAY), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
 
 
-    argsman.AddArg("-blockmaxweight=<n>", strprintf("Set maximum BIP141 block weight (default: %d)", DEFAULT_BLOCK_MAX_WEIGHT), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
+    argsman.AddArg("-blockmaxweight=<n>", strprintf("Set maximum BIP141 block weight (default: %d)", DEFAULT_BLOCK_MAX_WEIGHT), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockreservedweight=<n>", strprintf("Reserve space for the fixed-size block header plus the largest coinbase transaction the mining software may add to the block. (default: %d).", DEFAULT_BLOCK_RESERVED_WEIGHT), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockmintxfee=<amt>", strprintf("Set lowest fee rate (in %s/kvB) for transactions to be included in block creation. (default: %s)", CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
@@ -1023,7 +1040,9 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     if (!g_wallet_init_interface.ParameterInteraction()) return false;
 
     // Option to startup with mocktime set (used for regression testing):
-    SetMockTime(args.GetIntArg("-mocktime", 0)); // SetMockTime(0) is a no-op
+    if (const auto mocktime{args.GetIntArg("-mocktime")}) {
+        SetMockTime(std::chrono::seconds{*mocktime});
+    }
 
     if (args.GetBoolArg("-peerbloomfilters", DEFAULT_PEERBLOOMFILTERS))
         g_local_services = ServiceFlags(g_local_services | NODE_BLOOM);
@@ -1184,6 +1203,40 @@ bool CheckHostPortOptions(const ArgsManager& args) {
     return true;
 }
 
+/**
+ * @brief Checks for duplicate bindings across all binding configurations.
+ *
+ * @param[in] conn_options Connection options containing the binding vectors to check
+ * @return std::optional<CService> containing the first duplicate found, or std::nullopt if no duplicates
+ */
+static std::optional<CService> CheckBindingConflicts(const CConnman::Options& conn_options)
+{
+    std::set<CService> seen;
+
+    // Check all whitelisted bindings
+    for (const auto& wb : conn_options.vWhiteBinds) {
+        if (!seen.insert(wb.m_service).second) {
+            return wb.m_service;
+        }
+    }
+
+    // Check regular bindings
+    for (const auto& bind : conn_options.vBinds) {
+        if (!seen.insert(bind).second) {
+            return bind;
+        }
+    }
+
+    // Check onion bindings
+    for (const auto& onion_bind : conn_options.onion_binds) {
+        if (!seen.insert(onion_bind).second) {
+            return onion_bind;
+        }
+    }
+
+    return std::nullopt;
+}
+
 // A GUI user may opt to retry once with do_reindex set if there is a failure during chainstate initialization.
 // The function therefore has to support re-entry.
 static ChainstateLoadResult InitAndLoadChainstate(
@@ -1193,18 +1246,31 @@ static ChainstateLoadResult InitAndLoadChainstate(
     const kernel::CacheSizes& cache_sizes,
     const ArgsManager& args)
 {
+    // This function may be called twice, so any dirty state must be reset.
+    node.notifications.reset(); // Drop state, such as a cached tip block
+    node.mempool.reset();
+    node.chainman.reset(); // Drop state, such as an initialized m_block_tree_db
+
     const CChainParams& chainparams = Params();
+
+    Assert(!node.notifications); // Was reset above
+    node.notifications = std::make_unique<KernelNotifications>(Assert(node.shutdown_request), node.exit_status, *Assert(node.warnings));
+    ReadNotificationArgs(args, *node.notifications);
+
     CTxMemPool::Options mempool_opts{
         .check_ratio = chainparams.DefaultConsistencyChecks() ? 1 : 0,
         .signals = node.validation_signals.get(),
     };
     Assert(ApplyArgsManOptions(args, chainparams, mempool_opts)); // no error can happen, already checked in AppInitParameterInteraction
     bilingual_str mempool_error;
+    Assert(!node.mempool); // Was reset above
     node.mempool = std::make_unique<CTxMemPool>(mempool_opts, mempool_error);
     if (!mempool_error.empty()) {
         return {ChainstateLoadStatus::FAILURE_FATAL, mempool_error};
     }
-    LogPrintf("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)\n", cache_sizes.coins * (1.0 / 1024 / 1024), mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
+    LogInfo("* Using %.1f MiB for in-memory UTXO set (plus up to %.1f MiB of unused mempool space)",
+            cache_sizes.coins * (1.0 / 1024 / 1024),
+            mempool_opts.max_size_bytes * (1.0 / 1024 / 1024));
     ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir = args.GetDataDirNet(),
@@ -1228,6 +1294,7 @@ static ChainstateLoadResult InitAndLoadChainstate(
     // Creating the chainstate manager internally creates a BlockManager, opens
     // the blocks tree db, and wipes existing block files in case of a reindex.
     // The coinsdb is opened at a later point on LoadChainstate.
+    Assert(!node.chainman); // Was reset above
     try {
         node.chainman = std::make_unique<ChainstateManager>(*Assert(node.shutdown_signal), chainman_opts, blockman_opts);
     } catch (dbwrapper_error& e) {
@@ -1244,10 +1311,10 @@ static ChainstateLoadResult InitAndLoadChainstate(
     // libbitcoinkernel.
     chainman.snapshot_download_completed = [&node]() {
         if (!node.chainman->m_blockman.IsPruneMode()) {
-            LogPrintf("[snapshot] re-enabling NODE_NETWORK services\n");
+            LogInfo("[snapshot] re-enabling NODE_NETWORK services");
             node.connman->AddLocalServices(NODE_NETWORK);
         }
-        LogPrintf("[snapshot] restarting indexes\n");
+        LogInfo("[snapshot] restarting indexes");
         // Drain the validation interface queue to ensure that the old indexes
         // don't have any pending work.
         Assert(node.validation_signals)->SyncWithValidationInterfaceQueue();
@@ -1315,7 +1382,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         return false;
     }
 
-    LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, available_fds);
+    LogInfo("Using at most %i automatic connections (%i file descriptors available)", nMaxConnections, available_fds);
 
     // Warn about relative -datadir path.
     if (args.IsArgSet("-datadir") && !args.GetPathArg("-datadir").is_absolute()) {
@@ -1349,6 +1416,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }, std::chrono::minutes{5});
 
+    if (args.GetBoolArg("-logratelimit", BCLog::DEFAULT_LOGRATELIMIT)) {
+        LogInstance().SetRateLimiting(BCLog::LogRateLimiter::Create(
+            [&scheduler](auto func, auto window) { scheduler.scheduleEvery(std::move(func), window); },
+            BCLog::RATELIMIT_MAX_BYTES,
+            BCLog::RATELIMIT_WINDOW));
+    } else {
+        LogInfo("Log rate limiting disabled");
+    }
+
     assert(!node.validation_signals);
     node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<SerialTaskRunner>(scheduler));
     auto& validation_signals = *node.validation_signals;
@@ -1367,7 +1443,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             } catch (const std::exception& e) {
                 return InitError(Untranslated(strprintf("Unable to bind to IPC address '%s'. %s", address, e.what())));
             }
-            LogPrintf("Listening for IPC requests on address %s\n", address);
+            LogInfo("Listening for IPC requests on address %s", address);
         }
     }
 
@@ -1460,9 +1536,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 return false;
             }
             const uint256 asmap_version = (HashWriter{} << asmap).GetHash();
-            LogPrintf("Using asmap version %s for IP bucketing\n", asmap_version.ToString());
+            LogInfo("Using asmap version %s for IP bucketing", asmap_version.ToString());
         } else {
-            LogPrintf("Using /16 prefix for IP bucketing\n");
+            LogInfo("Using /16 prefix for IP bucketing");
         }
 
         // Initialize netgroup manager
@@ -1660,11 +1736,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7: load block chain
 
-    node.notifications = std::make_unique<KernelNotifications>(Assert(node.shutdown_request), node.exit_status, *Assert(node.warnings));
-    auto& kernel_notifications{*node.notifications};
-    ReadNotificationArgs(args, kernel_notifications);
-
     // cache size calculations
+    node::LogOversizedDbCache(args);
     const auto [index_cache_sizes, kernel_cache_sizes] = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
     LogInfo("Cache configuration:");
@@ -1693,10 +1766,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         args);
     if (status == ChainstateLoadStatus::FAILURE && !do_reindex && !ShutdownRequested(node)) {
         // suggest a reindex
-        bool do_retry = uiInterface.ThreadSafeQuestion(
+        bool do_retry{HasTestOption(args, "reindex_after_failure_noninteractive_yes") ||
+            uiInterface.ThreadSafeQuestion(
             error + Untranslated(".\n\n") + _("Do you want to rebuild the databases now?"),
             error.original + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
-            "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
+            "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT)};
         if (!do_retry) {
             return false;
         }
@@ -1718,11 +1792,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // As LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill the GUI during the last operation. If so, exit.
     if (ShutdownRequested(node)) {
-        LogPrintf("Shutdown requested. Exiting.\n");
+        LogInfo("Shutdown requested. Exiting.");
         return false;
     }
 
     ChainstateManager& chainman = *Assert(node.chainman);
+    auto& kernel_notifications{*Assert(node.notifications)};
 
     assert(!node.peerman);
     node.peerman = PeerManager::make(*node.connman, *node.addrman,
@@ -1773,10 +1848,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     } else {
         // Prior to setting NODE_NETWORK, check if we can provide historical blocks.
         if (!WITH_LOCK(chainman.GetMutex(), return chainman.BackgroundSyncInProgress())) {
-            LogPrintf("Setting NODE_NETWORK on non-prune mode\n");
+            LogInfo("Setting NODE_NETWORK on non-prune mode");
             g_local_services = ServiceFlags(g_local_services | NODE_NETWORK);
         } else {
-            LogPrintf("Running node in NODE_NETWORK_LIMITED mode until snapshot background sync completes\n");
+            LogInfo("Running node in NODE_NETWORK_LIMITED mode until snapshot background sync completes");
         }
     }
 
@@ -1812,6 +1887,26 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }
 
+#ifdef __APPLE__
+    auto check_and_warn_fs{[&](const fs::path& path, std::string_view desc) {
+        const auto path_desc{strprintf("%s (\"%s\")", desc, fs::PathToString(path))};
+        switch (GetFilesystemType(path)) {
+        case FSType::EXFAT:
+            InitWarning(strprintf(_("The %s path uses exFAT, which is known to have intermittent corruption problems on macOS. "
+                "Move this directory to a different filesystem to avoid data loss."), path_desc));
+            break;
+        case FSType::ERROR:
+            LogInfo("Failed to detect filesystem type for %s", path_desc);
+            break;
+        case FSType::OTHER:
+            break;
+        }
+    }};
+
+    check_and_warn_fs(args.GetDataDirNet(), "data directory");
+    check_and_warn_fs(args.GetBlocksDirPath(), "blocks directory");
+#endif
+
 #if HAVE_SYSTEM
     const std::string block_notify = args.GetArg("-blocknotify", "");
     if (!block_notify.empty()) {
@@ -1835,7 +1930,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // Import blocks and ActivateBestChain()
         ImportBlocks(chainman, vImportFiles);
         if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
-            LogPrintf("Stopping after block import\n");
+            LogInfo("Stopping after block import");
             if (!(Assert(node.shutdown_request))()) {
                 LogError("Failed to send shutdown signal after finishing block import\n");
             }
@@ -1883,7 +1978,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     {
         LOCK(chainman.GetMutex());
         const auto& tip{*Assert(chainman.ActiveTip())};
-        LogPrintf("block tree size = %u\n", chainman.BlockIndex().size());
+        LogInfo("block tree size = %u", chainman.BlockIndex().size());
         chain_active_height = tip.nHeight;
         best_block_time = tip.GetBlockTime();
         if (tip_info) {
@@ -1896,7 +1991,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             tip_info->header_time = chainman.m_best_header->GetBlockTime();
         }
     }
-    LogPrintf("nBestHeight = %d\n", chain_active_height);
+    LogInfo("nBestHeight = %d", chain_active_height);
     if (node.peerman) node.peerman->SetBestBlock(chain_active_height, std::chrono::seconds{best_block_time});
 
     // Map ports with NAT-PMP
@@ -2026,11 +2121,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             connOptions.m_specified_outgoing = connect;
         }
         if (!connOptions.m_specified_outgoing.empty() && !connOptions.vSeedNodes.empty()) {
-            LogPrintf("-seednode is ignored when -connect is used\n");
+            LogInfo("-seednode is ignored when -connect is used");
         }
 
         if (args.IsArgSet("-dnsseed") && args.GetBoolArg("-dnsseed", DEFAULT_DNSSEED) && args.IsArgSet("-proxy")) {
-            LogPrintf("-dnsseed is ignored when -connect is used and -proxy is specified\n");
+            LogInfo("-dnsseed is ignored when -connect is used and -proxy is specified");
         }
     }
 
@@ -2051,6 +2146,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     connOptions.m_i2p_accept_incoming = args.GetBoolArg("-i2pacceptincoming", DEFAULT_I2P_ACCEPT_INCOMING);
+
+    if (auto conflict = CheckBindingConflicts(connOptions)) {
+        return InitError(strprintf(
+            _("Duplicate binding configuration for address %s. "
+                "Please check your -bind, -bind=...=onion and -whitebind settings."),
+                    conflict->ToStringAddrPort()));
+    }
 
     if (!node.connman->Start(scheduler, connOptions)) {
         return false;

@@ -74,7 +74,7 @@ export C_INCLUDE_PATH="${NATIVE_GCC}/include"
 export CPLUS_INCLUDE_PATH="${NATIVE_GCC}/include/c++:${NATIVE_GCC}/include"
 
 case "$HOST" in
-    *darwin*) export LIBRARY_PATH="${NATIVE_GCC}/lib" ;; # Required for qt/qmake
+    *darwin*) export LIBRARY_PATH="${NATIVE_GCC}/lib" ;; # Required for native packages
     *mingw*) export LIBRARY_PATH="${NATIVE_GCC}/lib" ;;
     *)
         NATIVE_GCC_STATIC="$(store_path gcc-toolchain static)"
@@ -206,7 +206,7 @@ mkdir -p "$OUTDIR"
 ###########################
 
 # CONFIGFLAGS
-CONFIGFLAGS="-DREDUCE_EXPORTS=ON -DBUILD_BENCH=OFF -DBUILD_GUI_TESTS=OFF -DBUILD_FUZZ_BINARY=OFF"
+CONFIGFLAGS="-DREDUCE_EXPORTS=ON -DBUILD_BENCH=OFF -DBUILD_GUI_TESTS=OFF -DBUILD_FUZZ_BINARY=OFF -DCMAKE_SKIP_RPATH=TRUE"
 
 # CFLAGS
 HOST_CFLAGS="-O2 -g"
@@ -242,6 +242,7 @@ mkdir -p "$DISTSRC"
     cmake -S . -B build \
           --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" \
           -DWITH_CCACHE=OFF \
+          -Werror=dev \
           ${CONFIGFLAGS}
 
     # Build Riecoin Core
@@ -289,7 +290,7 @@ mkdir -p "$DISTSRC"
             *)
                 # Split binaries from their debug symbols
                 {
-                    find "${DISTNAME}/bin" -type f -executable -print0
+                    find "${DISTNAME}/bin" "${DISTNAME}/libexec" -type f -executable -print0
                 } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/build/split-debug.sh" {} {} {}.dbg
                 ;;
         esac

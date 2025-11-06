@@ -72,7 +72,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000eb4144938cfeabc85d5f96200000"}; // 2385839
+        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000001092d03e4acf640de225f96200000"}; // 2455376
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -112,24 +112,24 @@ public:
         checkpointData = mainCheckpointData;
 
         m_assumeutxo_data = {
-            {
+            { // dumptxoutset Utxo.dat rollback '{"rollback": 2452000}'
                 .height = 2382000,
-                .hash_serialized = AssumeutxoHash{uint256{"16f0747a1df4965db840d52372cd8c0f11dfab38996fa814cbae6e0a9dc06754"}},
+                .hash_serialized = AssumeutxoHash{uint256{"f112eece53e7caf024d2577542248cc4c47fabca01bbd108098377f1709a9768"}},
                 .m_chain_tx_count = 4641756,
-                .blockhash = uint256{"2292a5e40fae16900e978166010d2f85dee184f1c59ec772a99b9d403fb862e8"}
+                .blockhash = uint256{"81205d6309401195a790abe49fa83cc8237f2e57cd62df93711b315ee4523cb0"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 65536 2292a5e40fae16900e978166010d2f85dee184f1c59ec772a99b9d403fb862e8
-            .nTime    = 1751478225,
-            .tx_count = 4641756,
-            .dTxRate  = 0.008372299428962006,
+            // getchaintxstats 65536 81205d6309401195a790abe49fa83cc8237f2e57cd62df93711b315ee4523cb0
+            .nTime    = 1761940473,
+            .tx_count = 4719974,
+            .dTxRate  = 0.007464598636189267,
         };
     }
 };
 
-/** Testnet: public test network which is reset from time to time (lastly with 24.04). */
+/** Testnet: public test network which is reset from time to time (lastly with 2404). */
 class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
@@ -149,7 +149,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000097d9f444597746ae00000"}; // 145834
+        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000bf8692921232f4363a000"}; // 180512
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -185,19 +185,19 @@ public:
         checkpointData = testCheckpointData;
 
         m_assumeutxo_data = {
-            {
-                .height = 142000,
-                .hash_serialized = AssumeutxoHash{uint256{"5c21e6d9c581a15a61fdeb905ddfa5ad13d93335dc08e23dbce589c23210df22"}},
-                .m_chain_tx_count = 126014,
-                .blockhash = uint256{"fc94debbac1f7fcb2af9f94b77d4a3946a7a7a3e2d743411d5775f88559fe2be"}
+            { // dumptxoutset UtxoTestnet.dat rollback '{"rollback": 178000}'
+                .height = 178000,
+                .hash_serialized = AssumeutxoHash{uint256{"2505dabf957071b44bafee3d1b5fb8ece1982ff0bd1c748bd03dbb616e8e3b32"}},
+                .m_chain_tx_count = 178014,
+                .blockhash = uint256{"d3a817e17f519106caa781263c26bb03f611801b718c8d2553d42bf953ba2cf1"}
             }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 16384 fc94debbac1f7fcb2af9f94b77d4a3946a7a7a3e2d743411d5775f88559fe2be
-            .nTime    = 1750902471,
-            .tx_count = 142014,
-            .dTxRate  = 0.00334002057749494,
+            // getchaintxstats 16384 d3a817e17f519106caa781263c26bb03f611801b718c8d2553d42bf953ba2cf1
+            .nTime    = 1761686202,
+            .tx_count = 178014,
+            .dTxRate  = 0.003343545186429582,
         };
     }
 };

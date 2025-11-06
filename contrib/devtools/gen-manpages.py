@@ -10,6 +10,7 @@ import tempfile
 import argparse
 
 BINARIES = [
+'bin/riecoin',
 'bin/riecoind',
 'bin/riecoin-cli',
 'bin/riecoin-tx',

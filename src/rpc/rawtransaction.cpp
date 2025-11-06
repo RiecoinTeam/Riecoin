@@ -54,6 +54,8 @@ using node::GetTransaction;
 using node::NodeContext;
 using node::PSBTAnalysis;
 
+static constexpr decltype(CTransaction::version) DEFAULT_RAWTX_VERSION{CTransaction::CURRENT_VERSION};
+
 static void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
                      Chainstate& active_chainstate, const CTxUndo* txundo = nullptr,
                      TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS)
@@ -159,6 +161,7 @@ static std::vector<RPCArg> CreateTxDoc()
         {"locktime", RPCArg::Type::NUM, RPCArg::Default{0}, "Raw locktime. Non-0 value also locktime-activates inputs"},
         {"replaceable", RPCArg::Type::BOOL, RPCArg::Default{true}, "Marks this transaction as BIP125-replaceable.\n"
                 "Allows this transaction to be replaced by a transaction with higher fees. If provided, it is an error if explicit sequence numbers are incompatible."},
+        {"version", RPCArg::Type::NUM, RPCArg::Default{DEFAULT_RAWTX_VERSION}, "Transaction version"},
     };
 }
 
@@ -323,10 +326,10 @@ static RPCHelpMan getrawtransaction()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
 
-    uint256 hash = ParseHashV(request.params[0], "parameter 1");
+    auto txid{Txid::FromUint256(ParseHashV(request.params[0], "parameter 1"))};
     const CBlockIndex* blockindex = nullptr;
 
-    if (hash == chainman.GetParams().GenesisBlock().hashMerkleRoot) {
+    if (txid.ToUint256() == chainman.GetParams().GenesisBlock().hashMerkleRoot) {
         // Special exception for the genesis block coinbase transaction
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "The genesis block coinbase is not considered an ordinary transaction and cannot be retrieved");
     }
@@ -349,7 +352,7 @@ static RPCHelpMan getrawtransaction()
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, hash_block, chainman.m_blockman);
+    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), txid, chainman.m_blockman, hash_block);
     if (!tx) {
         std::string errmsg;
         if (blockindex) {
@@ -438,7 +441,7 @@ static RPCHelpMan createrawtransaction()
     if (!request.params[3].isNull()) {
         rbf = request.params[3].get_bool();
     }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, self.Arg<uint32_t>("version"));
 
     return EncodeHexTx(CTransaction(rawTx));
 },
@@ -1606,7 +1609,7 @@ static RPCHelpMan finalizepsbt()
     return RPCHelpMan{"finalizepsbt",
                 "Finalize the inputs of a PSBT. If the transaction is fully signed, it will produce a\n"
                 "network serialized transaction which can be broadcast with sendrawtransaction. Otherwise a PSBT will be\n"
-                "created which has the final_scriptSig and final_scriptWitness fields filled for inputs that are complete.\n"
+                "created which has the final_scriptSig and final_scriptwitness fields filled for inputs that are complete.\n"
                 "Implements the Finalizer and Extractor roles.\n",
                 {
                     {"psbt", RPCArg::Type::STR, RPCArg::Optional::NO, "A base64 string of a PSBT"},
@@ -1680,7 +1683,7 @@ static RPCHelpMan createpsbt()
     if (!request.params[3].isNull()) {
         rbf = request.params[3].get_bool();
     }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, self.Arg<uint32_t>("version"));
 
     // Make a blank psbt
     PartiallySignedTransaction psbtx;

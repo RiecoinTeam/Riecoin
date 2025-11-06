@@ -35,7 +35,7 @@ fi
 
 echo "Fallback to default values in env (if not yet set)"
 # The number of parallel jobs to pass down to make and test_runner.py
-export MAKEJOBS=${MAKEJOBS:--j4}
+export MAKEJOBS=${MAKEJOBS:--j$(if command -v nproc > /dev/null 2>&1; then nproc; else sysctl -n hw.logicalcpu; fi)}
 # Whether to prefer BusyBox over GNU utilities
 export USE_BUSY_BOX=${USE_BUSY_BOX:-false}
 
@@ -61,7 +61,7 @@ export CCACHE_COMPRESS=${CCACHE_COMPRESS:-1}
 export CCACHE_DIR="${CCACHE_DIR:-$BASE_SCRATCH_DIR/ccache}"
 # Folder where the build result is put (bin and lib).
 export BASE_OUTDIR=${BASE_OUTDIR:-$BASE_SCRATCH_DIR/out}
-export CI_BASE_PACKAGES=${CI_BASE_PACKAGES:-build-essential pkgconf curl ca-certificates ccache python3 rsync git procps bison e2fsprogs cmake ninja-build}
+export CI_BASE_PACKAGES=${CI_BASE_PACKAGES:-build-essential pkgconf curl ca-certificates ccache python3-dev rsync git procps bison e2fsprogs cmake ninja-build}
 export GOAL=${GOAL:-install}
 export DIR_QA_ASSETS=${DIR_QA_ASSETS:-${BASE_SCRATCH_DIR}/qa-assets}
 export CI_RETRY_EXE=${CI_RETRY_EXE:-"retry --"}

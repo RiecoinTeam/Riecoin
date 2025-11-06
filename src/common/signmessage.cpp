@@ -32,7 +32,7 @@ const std::string MESSAGE_MAGIC = "Riecoin Signed Message:\n";
  */
 static const HashWriter HASHER_BIP322{TaggedHash("BIP0322-signed-message")};
 
-static constexpr unsigned int BIP322_REQUIRED_FLAGS =
+static constexpr script_verify_flags BIP322_REQUIRED_FLAGS =
     SCRIPT_VERIFY_CONST_SCRIPTCODE // disallows OP_CODESEPARATOR and FindAndDelete
 |   SCRIPT_VERIFY_LOW_S
 |   SCRIPT_VERIFY_STRICTENC
@@ -44,7 +44,7 @@ static constexpr unsigned int BIP322_REQUIRED_FLAGS =
 |   SCRIPT_VERIFY_TAPROOT
 |   SCRIPT_VERIFY_MINIMALIF;
 
-static constexpr unsigned int BIP322_INCONCLUSIVE_FLAGS =
+static constexpr script_verify_flags BIP322_INCONCLUSIVE_FLAGS =
     SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS
 |   SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS
 |   SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_PUBKEYTYPE

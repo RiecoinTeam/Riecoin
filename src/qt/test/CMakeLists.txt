@@ -15,6 +15,8 @@ add_executable(test_riecoin-qt
   ../../init/riecoin-qt.cpp
 )
 
+add_windows_application_manifest(test_riecoin-qt)
+
 target_link_libraries(test_riecoin-qt
   core_interface
   riecoinqt
@@ -46,4 +48,4 @@ if(WIN32 AND VCPKG_TARGET_TRIPLET)
   )
 endif()
 
-install_binary_component(test_riecoin-qt)
+install_binary_component(test_riecoin-qt INTERNAL)

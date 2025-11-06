@@ -106,13 +106,10 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
     }
 }
 
-isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
+bool DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
 {
     LOCK(cs_desc_man);
-    if (m_map_script_pub_keys.count(script) > 0) {
-        return ISMINE_SPENDABLE;
-    }
-    return ISMINE_NO;
+    return m_map_script_pub_keys.contains(script);
 }
 
 bool DescriptorScriptPubKeyMan::CheckDecryptionKey(const CKeyingMaterial& master_key)
@@ -243,7 +240,7 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     WalletBatch batch(m_storage.GetDatabase());
     if (!batch.TxnBegin()) return false;
     bool res = TopUpWithDB(batch, size);
-    if (!batch.TxnCommit()) throw std::runtime_error(strprintf("Error during descriptors keypool top up. Cannot commit changes for wallet %s", m_storage.GetDisplayName()));
+    if (!batch.TxnCommit()) throw std::runtime_error(strprintf("Error during descriptors keypool top up. Cannot commit changes for wallet [%s]", m_storage.LogName()));
     return res;
 }
 
@@ -498,6 +495,10 @@ std::unique_ptr<FlatSigningProvider> DescriptorScriptPubKeyMan::GetSigningProvid
         FlatSigningProvider master_provider;
         master_provider.keys = GetKeys();
         m_wallet_descriptor.descriptor->ExpandPrivate(index, master_provider, *out_keys);
+
+        // Always include musig_secnonces as this descriptor may have a participant private key
+        // but not a musig() descriptor
+        out_keys->musig2_secnonces = &m_musig2_secnonces;
     }
 
     return out_keys;

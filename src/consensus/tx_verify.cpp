@@ -143,7 +143,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& in
     return nSigOps;
 }
 
-int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags)
+int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, script_verify_flags flags)
 {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
@@ -178,7 +178,11 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         const Coin& coin = inputs.AccessCoin(prevout);
         assert(!coin.IsSpent());
 
-        if (nSpendHeight > 2382000 && blacklist.isDisabled(coin.out.scriptPubKey))
+        if (coin.out.scriptPubKey == (CScript() << OP_1 << "c19e658a0ed6120f8db45a28bce492e1c95700809127ee5e152995784b548b24"_hex)) {
+            if (nSpendHeight > 2662380) // Limit Hard Fork Risk from recently disabled Script by giving enough time to upgrade to 2511+.
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-disabled-script");
+        }
+        else if (nSpendHeight > 2452000 && blacklist.isDisabled(coin.out.scriptPubKey))
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-disabled-script");
 
         // If prev is coinbase, check that it's matured

@@ -73,15 +73,15 @@ class BIP66Test(BitcoinTestFramework):
 
         peer.send_and_ping(msg_block(block))
         assert_equal(self.nodes[0].getblockcount(), DERSIG_HEIGHT - 1)
-        assert_equal(self.nodes[0].getbestblockhash(), block.hash)
+        assert_equal(self.nodes[0].getbestblockhash(), block.hash_hex)
 
         self.log.info("Test that blocks must now be at least version 3")
-        tip = block.sha256
+        tip = block.hash_int
         block_time += 1
         block = create_block(tip, create_coinbase(DERSIG_HEIGHT), block_time, version=2)
         block.solve()
 
-        with self.nodes[0].assert_debug_log(expected_msgs=[f'{block.hash}, bad-version(0x00000002)']):
+        with self.nodes[0].assert_debug_log(expected_msgs=[f'{block.hash_hex}, bad-version(0x00000002)']):
             peer.send_and_ping(msg_block(block))
             assert_equal(int(self.nodes[0].getbestblockhash(), 16), tip)
             peer.sync_with_ping()
@@ -102,8 +102,8 @@ class BIP66Test(BitcoinTestFramework):
                 'txid': spendtx_txid,
                 'wtxid': spendtx_wtxid,
                 'allowed': False,
-                'reject-reason': 'mandatory-script-verify-flag-failed (Non-canonical DER signature)',
-                'reject-details': 'mandatory-script-verify-flag-failed (Non-canonical DER signature), ' +
+                'reject-reason': 'mempool-script-verify-flag-failed (Non-canonical DER signature)',
+                'reject-details': 'mempool-script-verify-flag-failed (Non-canonical DER signature), ' +
                                   f"input 0 of {spendtx_txid} (wtxid {spendtx_wtxid}), spending {coin_txid}:0"
             }],
             self.nodes[0].testmempoolaccept(rawtxs=[spendtx.serialize().hex()], maxfeerate=0),
@@ -114,7 +114,7 @@ class BIP66Test(BitcoinTestFramework):
         block.hashMerkleRoot = block.calc_merkle_root()
         block.solve()
 
-        with self.nodes[0].assert_debug_log(expected_msgs=['Block validation error: mandatory-script-verify-flag-failed (Non-canonical DER signature)']):
+        with self.nodes[0].assert_debug_log(expected_msgs=['Block validation error: block-script-verify-flag-failed (Non-canonical DER signature)']):
             peer.send_and_ping(msg_block(block))
             assert_equal(int(self.nodes[0].getbestblockhash(), 16), tip)
             peer.sync_with_ping()
@@ -125,7 +125,7 @@ class BIP66Test(BitcoinTestFramework):
         block.solve()
 
         peer.send_and_ping(msg_block(block))
-        assert_equal(int(self.nodes[0].getbestblockhash(), 16), block.sha256)
+        assert_equal(self.nodes[0].getbestblockhash(), block.hash_hex)
 
 
 if __name__ == '__main__':

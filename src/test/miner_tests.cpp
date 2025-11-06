@@ -13,6 +13,7 @@
 #include <node/miner.h>
 #include <policy/policy.h>
 #include <test/util/random.h>
+#include <test/util/transaction_utils.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <uint256.h>
@@ -114,6 +115,22 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     options.coinbase_output_script = scriptPubKey;
 
     LOCK(tx_mempool.cs);
+    BOOST_CHECK(tx_mempool.size() == 0);
+
+    // Block template should only have a coinbase when there's nothing in the mempool
+    std::unique_ptr<BlockTemplate> block_template = mining->createNewBlock(options);
+    BOOST_REQUIRE(block_template);
+    CBlock block{block_template->getBlock()};
+    BOOST_REQUIRE_EQUAL(block.vtx.size(), 1U);
+
+    // waitNext() on an empty mempool should return nullptr because there is no better template
+    auto should_be_nullptr = block_template->waitNext({.timeout = MillisecondsDouble{0}, .fee_threshold = 1});
+    BOOST_REQUIRE(should_be_nullptr == nullptr);
+
+    // Unless fee_threshold is 0
+    block_template = block_template->waitNext({.timeout = MillisecondsDouble{0}, .fee_threshold = 0});
+    BOOST_REQUIRE(block_template);
+
     // Test the ancestor feerate transaction selection.
     TestMemPoolEntryHelper entry;
 
@@ -145,9 +162,9 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     const auto high_fee_tx{entry.Fee(50000).Time(Now<NodeSeconds>()).SpendsCoinbase(false).FromTx(tx)};
     AddToMempool(tx_mempool, high_fee_tx);
 
-    std::unique_ptr<BlockTemplate> block_template = mining->createNewBlock(options);
+    block_template = mining->createNewBlock(options);
     BOOST_REQUIRE(block_template);
-    CBlock block{block_template->getBlock()};
+    block = block_template->getBlock();
     BOOST_REQUIRE_EQUAL(block.vtx.size(), 4U);
     BOOST_CHECK(block.vtx[1]->GetHash() == hashParentTx);
     BOOST_CHECK(block.vtx[2]->GetHash() == hashHighFeeTx);
@@ -185,7 +202,7 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     AddToMempool(tx_mempool, entry.Fee(feeToUse).FromTx(tx));
 
     // waitNext() should return nullptr because there is no better template
-    auto should_be_nullptr = block_template->waitNext({.timeout = MillisecondsDouble{0}, .fee_threshold = 1});
+    should_be_nullptr = block_template->waitNext({.timeout = MillisecondsDouble{0}, .fee_threshold = 1});
     BOOST_REQUIRE(should_be_nullptr == nullptr);
 
     block = block_template->getBlock();
@@ -218,6 +235,10 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     tx.vout.resize(2);
     tx.vout[0].nValue = 5000000000LL - 100000000;
     tx.vout[1].nValue = 100000000; // 1BTC output
+    // Increase size to avoid rounding errors: when the feerate is extremely small (i.e. 1sat/kvB), evaluating the fee
+    // at smaller sizes gives us rounded values that are equal to each other, which means we incorrectly include
+    // hashFreeTx2 + hashLowFeeTx2.
+    BulkTransaction(tx, 4000);
     Txid hashFreeTx2 = tx.GetHash();
     AddToMempool(tx_mempool, entry.Fee(0).SpendsCoinbase(true).FromTx(tx));
 
@@ -448,7 +469,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         tx.vout[0].nValue -= LOWFEE;
         hash = tx.GetHash();
         AddToMempool(tx_mempool, entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(false).FromTx(tx));
-        BOOST_CHECK_EXCEPTION(mining->createNewBlock(options), std::runtime_error, HasReason("mandatory-script-verify-flag-failed"));
+        BOOST_CHECK_EXCEPTION(mining->createNewBlock(options), std::runtime_error, HasReason("block-script-verify-flag-failed"));
 
         // Delete the dummy blocks again.
         while (m_node.chainman->ActiveChain().Tip()->nHeight > nHeight) {
@@ -525,6 +546,10 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     BOOST_CHECK(TestSequenceLocks(CTransaction{tx}, tx_mempool)); // Sequence locks pass
     BOOST_CHECK(IsFinalTx(CTransaction(tx), m_node.chainman->ActiveChain().Tip()->nHeight + 2, m_node.chainman->ActiveChain().Tip()->GetMedianTimePast())); // Locktime passes on 2nd block
 
+    // ensure tx is final for a specific case where there is no locktime and block height is zero
+    tx.nLockTime = 0;
+    BOOST_CHECK(IsFinalTx(CTransaction(tx), /*nBlockHeight=*/0, m_node.chainman->ActiveChain().Tip()->GetMedianTimePast()));
+
     // absolute time locked
     tx.vin[0].prevout.hash = txFirst[3]->GetHash();
     tx.nLockTime = m_node.chainman->ActiveChain().Tip()->GetMedianTimePast();
@@ -596,7 +621,7 @@ void MinerTestingSetup::TestPrioritisedMining(const CScript& scriptPubKey, const
     tx.vin[0].scriptSig = CScript() << OP_1;
     tx.vout.resize(1);
     tx.vout[0].nValue = 5000000000LL; // 0 fee
-    uint256 hashFreePrioritisedTx = tx.GetHash();
+    Txid hashFreePrioritisedTx = tx.GetHash();
     AddToMempool(tx_mempool, entry.Fee(0).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
     tx_mempool.PrioritiseTransaction(hashFreePrioritisedTx, 5 * COIN);
 
