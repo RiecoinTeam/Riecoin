@@ -11,7 +11,6 @@
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
-#include <qt/riecoinunits.h>
 
 #include <common/system.h>
 #include <interfaces/node.h>
@@ -169,7 +168,6 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
             ui->lang->addItem(locale.nativeLanguageName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
         }
     }
-    ui->unit->setModel(new BitcoinUnits(this));
 
     /* Widget-to-option mapper */
     mapper = new QDataWidgetMapper(this);
@@ -301,7 +299,6 @@ void OptionsDialog::setMapper()
 
     /* Display */
     mapper->addMapping(ui->lang, OptionsModel::Language);
-    mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
     mapper->addMapping(ui->thirdPartyTxUrls, OptionsModel::ThirdPartyTxUrls);
 }
 

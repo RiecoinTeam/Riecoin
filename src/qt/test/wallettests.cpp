@@ -10,9 +10,8 @@
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
 #include <key_io.h>
-#include <qt/riecoinamountfield.h>
-#include <qt/riecoinunits.h>
 #include <qt/clientmodel.h>
+#include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
 #include <qt/platformstyle.h>
@@ -20,6 +19,7 @@
 #include <qt/receivecoinsdialog.h>
 #include <qt/receiverequestdialog.h>
 #include <qt/recentrequeststablemodel.h>
+#include <qt/riecoinamountfield.h>
 #include <qt/sendcoinsdialog.h>
 #include <qt/sendcoinsentry.h>
 #include <qt/transactiontablemodel.h>
@@ -81,7 +81,7 @@ Txid SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDesti
     QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
     entry->findChild<QValidatedLineEdit*>("payTo")->setText(QString::fromStdString(EncodeDestination(address)));
-    entry->findChild<BitcoinAmountField*>("payAmount")->setValue(amount);
+    entry->findChild<RiecoinAmountField*>("payAmount")->setValue(amount);
     sendCoinsDialog.findChild<QFrame*>("frameFee")
         ->findChild<QFrame*>("frameFeeSelection")
         ->findChild<QCheckBox*>("optInRBF")
@@ -138,8 +138,7 @@ void BumpFee(TransactionView& view, const Txid& txid, bool expectDisabled, std::
 
 void CompareBalance(WalletModel& walletModel, CAmount expected_balance, QLabel* balance_label_to_check)
 {
-    BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
-    QString balanceComparison = BitcoinUnits::formatWithUnit(unit, expected_balance, false, BitcoinUnits::SeparatorStyle::ALWAYS);
+    QString balanceComparison = GUIUtil::formatAmountWithUnit(expected_balance, false, GUIUtil::SeparatorStyle::ALWAYS);
     QCOMPARE(balance_label_to_check->text().trimmed(), balanceComparison);
 }
 
@@ -314,7 +313,7 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     labelInput->setText("TEST_LABEL_1");
 
     // Amount input
-    BitcoinAmountField* amountInput = receiveCoinsDialog.findChild<BitcoinAmountField*>("reqAmount");
+    RiecoinAmountField* amountInput = receiveCoinsDialog.findChild<RiecoinAmountField*>("reqAmount");
     amountInput->setValue(1);
 
     // Message input

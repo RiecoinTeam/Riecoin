@@ -482,15 +482,15 @@ bool WalletModel::bumpFee(Txid hash, Txid& new_hash)
     questionString.append("<tr><td>");
     questionString.append(tr("Current fee:"));
     questionString.append("</td><td>");
-    questionString.append(BitcoinUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), old_fee));
+    questionString.append(GUIUtil::formatAmountHtmlWithUnit(old_fee));
     questionString.append("</td></tr><tr><td>");
     questionString.append(tr("Increase:"));
     questionString.append("</td><td>");
-    questionString.append(BitcoinUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), new_fee - old_fee));
+    questionString.append(GUIUtil::formatAmountHtmlWithUnit(new_fee - old_fee));
     questionString.append("</td></tr><tr><td>");
     questionString.append(tr("New fee:"));
     questionString.append("</td><td>");
-    questionString.append(BitcoinUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), new_fee));
+    questionString.append(GUIUtil::formatAmountHtmlWithUnit(new_fee));
     questionString.append("</td></tr></table>");
 
     // Display warning in the "Confirm fee bump" window if the "Coin Control Features" option is enabled

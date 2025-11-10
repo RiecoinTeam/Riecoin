@@ -27,6 +27,26 @@
 #include <chrono>
 #include <utility>
 
+
+#include <QAbstractListModel>
+#include <QDataStream>
+#include <QString>
+
+// U+2009 THIN SPACE = UTF-8 E2 80 89
+#define REAL_THIN_SP_CP 0x2009
+#define REAL_THIN_SP_UTF8 "\xE2\x80\x89"
+
+// QMessageBox seems to have a bug whereby it doesn't display thin/hair spaces
+// correctly.  Workaround is to display a space in a small font.  If you
+// change this, please test that it doesn't cause the parent span to start
+// wrapping.
+#define HTML_HACK_SP "<span style='white-space: nowrap; font-size: 6pt'> </span>"
+
+// Define THIN_SP_* variables to be our preferred type of thin space
+#define THIN_SP_CP   REAL_THIN_SP_CP
+#define THIN_SP_UTF8 REAL_THIN_SP_UTF8
+#define THIN_SP_HTML HTML_HACK_SP
+
 class PlatformStyle;
 class QValidatedLineEdit;
 class SendCoinsRecipient;
@@ -81,9 +101,37 @@ namespace GUIUtil
     bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);
     bool parseBitcoinURI(QString uri, SendCoinsRecipient *out);
     QString formatBitcoinURI(const SendCoinsRecipient &info);
+    
+    enum class SeparatorStyle
+    {
+        NEVER,
+        STANDARD,
+        ALWAYS
+    };
+    
+    QString formatAmount(const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD, bool justify = false);
+    //! Format as string (with unit)
+    QString formatAmountWithUnit(const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD);
+    //! Format as HTML string (with unit)
+    QString formatAmountHtmlWithUnit(const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD);
+    //! Format as string (with unit) of fixed length to preserve privacy, if it is set.
+    QString formatAmountWithPrivacy(const CAmount& amount, SeparatorStyle separators, bool privacy);
+    //! Parse string to coin amount
+    bool parse(const QString& value, CAmount* val_out);
+    ///@}
+
+    inline QString removeSpaces(QString text)
+    {
+        text.remove(' ');
+        text.remove(QChar(THIN_SP_CP));
+        return text;
+    }
 
     // Returns true if given address+amount meets "dust" definition
     bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount);
+
+    // Returns the Dust Thresho9ld for given address + amount
+    CAmount GetDustThreshold(interfaces::Node& node, const QString& address, const CAmount& amount);
 
     // HTML escaping for rich text controls
     QString HtmlEscape(const QString& str, bool fMultiLine=false);

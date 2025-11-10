@@ -8,7 +8,6 @@
 #include <qt/platformstyle.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/riecoinaddressvalidator.h>
-#include <qt/riecoinunits.h>
 #include <qt/sendcoinsrecipient.h>
 
 #include <addresstype.h>
@@ -86,6 +85,8 @@ void ForceActivation();
 
 using namespace std::chrono_literals;
 
+static constexpr auto MAX_DIGITS_BTC = 16;
+
 namespace GUIUtil {
 
 QString dateTimeStr(const QDateTime &date)
@@ -162,7 +163,7 @@ bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
         {
             if(!i->second.isEmpty())
             {
-                if (!BitcoinUnits::parse(BitcoinUnit::BTC, i->second, &rv.amount)) {
+                if (!parse(i->second, &rv.amount)) {
                     return false;
                 }
             }
@@ -194,7 +195,7 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
 
     if (info.amount)
     {
-        ret += QString("?amount=%1").arg(BitcoinUnits::format(BitcoinUnit::BTC, info.amount, false, BitcoinUnits::SeparatorStyle::NEVER));
+        ret += QString("?amount=%1").arg(formatAmount(info.amount, false, SeparatorStyle::NEVER));
         paramCount++;
     }
 
@@ -215,12 +216,126 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
     return ret;
 }
 
+QString formatAmount(const CAmount& nIn, bool fPlus, SeparatorStyle separators, bool justify)
+{
+    // Note: not using straight sprintf here because we do NOT want
+    // localized number formatting.
+    qint64 n = (qint64)nIn;
+    qint64 coin = 100'000'000;
+    int num_decimals = 8;
+    qint64 n_abs = (n > 0 ? n : -n);
+    qint64 quotient = n_abs / coin;
+    QString quotient_str = QString::number(quotient);
+    if (justify) {
+        quotient_str = quotient_str.rightJustified(MAX_DIGITS_BTC - num_decimals, ' ');
+    }
+
+    // Use SI-style thin space separators as these are locale independent and can't be
+    // confused with the decimal marker.
+    QChar thin_sp(THIN_SP_CP);
+    int q_size = quotient_str.size();
+    if (separators == SeparatorStyle::ALWAYS || (separators == SeparatorStyle::STANDARD && q_size > 4))
+        for (int i = 3; i < q_size; i += 3)
+            quotient_str.insert(q_size - i, thin_sp);
+
+    if (n < 0)
+        quotient_str.insert(0, '-');
+    else if (fPlus && n > 0)
+        quotient_str.insert(0, '+');
+
+    if (num_decimals > 0) {
+        qint64 remainder = n_abs % coin;
+        QString remainder_str = QString::number(remainder).rightJustified(num_decimals, '0');
+        return quotient_str + QString(".") + remainder_str;
+    } else {
+        return quotient_str;
+    }
+}
+
+// NOTE: Using formatAmountWithUnit in an HTML context risks wrapping
+// quantities at the thousands separator. More subtly, it also results
+// in a standard space rather than a thin space, due to a bug in Qt's
+// XML whitespace canonicalisation
+//
+// Please take care to use formatAmountHtmlWithUnit instead, when
+// appropriate.
+
+QString formatAmountWithUnit(const CAmount& amount, bool plussign, SeparatorStyle separators)
+{
+    return formatAmount(amount, plussign, separators) + QString(" RIC");
+}
+
+QString formatAmountHtmlWithUnit(const CAmount& amount, bool plussign, SeparatorStyle separators)
+{
+    QString str(formatAmountWithUnit(amount, plussign, separators));
+    str.replace(QChar(THIN_SP_CP), QString(THIN_SP_HTML));
+    return QString("<span style='white-space: nowrap;'>%1</span>").arg(str);
+}
+
+QString formatAmountWithPrivacy(const CAmount& amount, SeparatorStyle separators, bool privacy)
+{
+    assert(amount >= 0);
+    QString value;
+    if (privacy)
+        value = formatAmount(0, false, separators, true).replace('0', '#');
+    else
+        value = formatAmount(amount, false, separators, true);
+    return value + QString(" RIC");
+}
+
+bool parse(const QString& value, CAmount* val_out)
+{
+    if (value.isEmpty())
+        return false; // Refuse to parse empty string
+    int num_decimals = 8;
+
+    // Ignore spaces and thin spaces when parsing
+    QStringList parts = removeSpaces(value).split(".");
+
+    if(parts.size() > 2)
+    {
+        return false; // More than one dot
+    }
+    const QString& whole = parts[0];
+    QString decimals;
+
+    if(parts.size() > 1)
+    {
+        decimals = parts[1];
+    }
+    if(decimals.size() > num_decimals)
+    {
+        return false; // Exceeds max precision
+    }
+    bool ok = false;
+    QString str = whole + decimals.leftJustified(num_decimals, '0');
+
+    if(str.size() > 18)
+    {
+        return false; // Longer numbers will exceed 63 bits
+    }
+    CAmount retvalue(str.toLongLong(&ok));
+    if(val_out)
+    {
+        *val_out = retvalue;
+    }
+    return ok;
+}
+
 bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount)
 {
     CTxDestination dest = DecodeDestination(address.toStdString());
     CScript script = GetScriptForDestination(dest);
     CTxOut txOut(amount, script);
     return IsDust(txOut, node.getDustRelayFee());
+}
+
+CAmount GetDustThreshold(interfaces::Node& node, const QString& address, const CAmount& amount)
+{
+    CTxDestination dest = DecodeDestination(address.toStdString());
+    CScript script = GetScriptForDestination(dest);
+    CTxOut txOut(amount, script);
+    return GetDustThreshold(txOut, node.getDustRelayFee());
 }
 
 QString HtmlEscape(const QString& str, bool fMultiLine)

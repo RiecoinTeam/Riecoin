@@ -1,5 +1,5 @@
-// Copyright (c) 2011-present The Bitcoin Core developers
-// Copyright (c) 2013-present The Riecoin developers
+// Copyright (c) The Bitcoin Core developers
+// Copyright (c) The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -29,6 +29,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+    ui->reqAmount->SetOptional(true);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
@@ -77,8 +78,6 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
     if(_model && _model->getOptionsModel())
     {
         _model->getRecentRequestsTableModel()->sort(RecentRequestsTableModel::Date, Qt::DescendingOrder);
-        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ReceiveCoinsDialog::updateDisplayUnit);
-        updateDisplayUnit();
 
         QTableView* tableView = ui->recentRequestsView;
         tableView->setModel(_model->getRecentRequestsTableModel());
@@ -119,7 +118,6 @@ void ReceiveCoinsDialog::clear()
     ui->reqAmount->clear();
     ui->reqLabel->setText("");
     ui->reqMessage->setText("");
-    updateDisplayUnit();
 }
 
 void ReceiveCoinsDialog::reject()
@@ -130,14 +128,6 @@ void ReceiveCoinsDialog::reject()
 void ReceiveCoinsDialog::accept()
 {
     clear();
-}
-
-void ReceiveCoinsDialog::updateDisplayUnit()
-{
-    if(model && model->getOptionsModel())
-    {
-        ui->reqAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-    }
 }
 
 void ReceiveCoinsDialog::on_receiveButton_clicked()

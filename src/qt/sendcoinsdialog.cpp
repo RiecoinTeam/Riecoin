@@ -14,7 +14,6 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
-#include <qt/riecoinunits.h>
 #include <qt/sendcoinsentry.h>
 
 #include <chainparams.h>
@@ -81,6 +80,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     }
 
     GUIUtil::setupAddressWidget(ui->lineEditCoinControlChange, this);
+    ui->lineEditCoinControlChange->setOptional(true);
 
     addEntry();
 
@@ -131,7 +131,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->groupFee->setId(ui->radioSmartFee, 0);
     ui->groupFee->setId(ui->radioCustomFee, 1);
     ui->groupFee->button((int)std::max(0, std::min(1, settings.value("nFeeRadio").toInt())))->setChecked(true);
-    ui->customFee->SetAllowEmpty(false);
+    ui->customFee->SetOptional(false);
     ui->customFee->setValue(settings.value("nTransactionFee").toLongLong());
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
 
@@ -163,11 +163,9 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         }
 
         connect(_model, &WalletModel::balanceChanged, this, &SendCoinsDialog::setBalance);
-        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::refreshBalance);
         refreshBalance();
 
         // Coin Control
-        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(_model->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &SendCoinsDialog::coinControlFeatureChanged);
         ui->frameCoinControl->setVisible(_model->getOptionsModel()->getCoinControlFeatures());
         coinControlUpdateLabels();
@@ -182,7 +180,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         connect(ui->groupFee, &QButtonGroup::idClicked, this, &SendCoinsDialog::updateFeeSectionControls);
         connect(ui->groupFee, &QButtonGroup::idClicked, this, &SendCoinsDialog::coinControlUpdateLabels);
 
-        connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->customFee, &RiecoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
         connect(ui->optInRBF, &QCheckBox::checkStateChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->optInRBF, &QCheckBox::checkStateChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -192,10 +190,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
 #endif
         CAmount requiredFee = model->wallet().getRequiredFee(1000);
         ui->customFee->SetMinValue(requiredFee);
-        if (ui->customFee->value() < requiredFee) {
+        if (ui->customFee->value() < requiredFee)
             ui->customFee->setValue(requiredFee);
-        }
-        ui->customFee->setSingleStep(requiredFee);
         updateFeeSectionControls();
         updateSmartFeeLabel();
 
@@ -292,8 +288,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     prepareStatus = model->prepareTransaction(*m_current_transaction, coin_control);
 
     // process prepareStatus and on error generate message shown to user
-    processSendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), m_current_transaction->getTransactionFee()));
+    processSendCoinsReturn(prepareStatus, GUIUtil::formatAmountWithUnit(m_current_transaction->getTransactionFee()));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
@@ -305,7 +300,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     for (const SendCoinsRecipient &rcp : m_current_transaction->getRecipients())
     {
         // generate amount string with wallet name in case of multiwallet
-        QString amount = BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        QString amount = GUIUtil::formatAmountWithUnit(rcp.amount);
         if (model->isMultiwallet()) {
             amount = tr("%1 from wallet '%2'").arg(amount, GUIUtil::HtmlEscape(model->getWalletName()));
         }
@@ -362,7 +357,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 
         // append transaction fee value
         question_string.append("<span style='color:#aa0000; font-weight:bold;'>");
-        question_string.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        question_string.append(GUIUtil::formatAmountHtmlWithUnit(txFee));
         question_string.append("</span><br />");
 
         // append RBF message according to transaction's signalling
@@ -378,15 +373,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     // add total amount in all subdivision units
     question_string.append("<hr />");
     CAmount totalAmount = m_current_transaction->getTotalTransactionAmount() + txFee;
-    QStringList alternativeUnits;
-    for (const BitcoinUnit u : BitcoinUnits::availableUnits()) {
-        if(u != model->getOptionsModel()->getDisplayUnit())
-            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
-    }
-    question_string.append(QString("<b>%1</b>: <b>%2</b>").arg(tr("Total Amount"))
-        .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
-    question_string.append(QString("<br /><span style='font-size:10pt; font-weight:normal;'>(=%1)</span>")
-        .arg(alternativeUnits.join(" " + tr("or") + " ")));
+    question_string.append(QString("<b>%1</b>: <b>%2</b>").arg(tr("Total Amount")).arg(GUIUtil::formatAmountHtmlWithUnit(totalAmount)));
 
     if (formatted.size() > 1) {
         question_string = question_string.arg("");
@@ -422,7 +409,7 @@ void SendCoinsDialog::presentPSBT(PartiallySignedTransaction& psbtx)
                 fileNameSuggestion.append(" - ");
             }
             QString labelOrAddress = rcp.label.isEmpty() ? rcp.address : rcp.label;
-            QString amount = BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+            QString amount = GUIUtil::formatAmountWithUnit(rcp.amount);
             fileNameSuggestion.append(labelOrAddress + "-" + amount);
             first = false;
         }
@@ -712,14 +699,13 @@ void SendCoinsDialog::setBalance(const interfaces::WalletBalances& balances)
         CAmount balance = balances.balance;
         if (model->wallet().hasExternalSigner())
             ui->labelBalanceName->setText(tr("External balance:"));
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance));
+        ui->labelBalance->setText(GUIUtil::formatAmountWithUnit(balance));
     }
 }
 
 void SendCoinsDialog::refreshBalance()
 {
     setBalance(model->getCachedBalance());
-    ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateSmartFeeLabel();
 }
 
@@ -753,7 +739,7 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case WalletModel::AbsurdFee:
-        msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getDefaultMaxTxFee()));
+        msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(GUIUtil::formatAmountWithUnit(model->wallet().getDefaultMaxTxFee()));
         break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
@@ -804,9 +790,9 @@ void SendCoinsDialog::useAvailableBalance(SendCoinsEntry* entry)
     if (amount > 0) {
       entry->checkSubtractFeeFromAmount();
       entry->setAmount(amount);
-    } else {
-      entry->setAmount(0);
     }
+    else
+      entry->setAmount(0);
 }
 
 void SendCoinsDialog::updateFeeSectionControls()
@@ -816,7 +802,6 @@ void SendCoinsDialog::updateFeeSectionControls()
     ui->labelSmartFee2          ->setEnabled(ui->radioSmartFee->isChecked());
     ui->labelSmartFee3          ->setEnabled(ui->radioSmartFee->isChecked());
     ui->labelFeeEstimation      ->setEnabled(ui->radioSmartFee->isChecked());
-    ui->labelCustomFeeWarning   ->setEnabled(ui->radioCustomFee->isChecked());
     ui->labelCustomPerKilobyte  ->setEnabled(ui->radioCustomFee->isChecked());
     ui->customFee               ->setEnabled(ui->radioCustomFee->isChecked());
 }
@@ -829,7 +814,7 @@ void SendCoinsDialog::updateFeeMinimizedLabel()
     if (ui->radioSmartFee->isChecked())
         ui->labelFeeMinimized->setText(ui->labelSmartFee->text());
     else {
-        ui->labelFeeMinimized->setText(tr("%1/kvB").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), ui->customFee->value())));
+        ui->labelFeeMinimized->setText(tr("%1/kvB").arg(GUIUtil::formatAmountWithUnit(ui->customFee->value())));
     }
 }
 
@@ -866,7 +851,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     FeeReason reason;
     CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, *m_coin_control, &returned_target, &reason));
 
-    ui->labelSmartFee->setText(tr("%1/kvB").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())));
+    ui->labelSmartFee->setText(tr("%1/kvB").arg(GUIUtil::formatAmountWithUnit(feeRate.GetFeePerK())));
 
     if (reason == FeeReason::FALLBACK) {
         ui->labelSmartFee2->show(); // (Smart fee not initialized yet. This usually takes a few blocks...)

@@ -1,4 +1,5 @@
-// Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) The Bitcoin Core developers
+// Copyright (c) The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +68,6 @@ private Q_SLOTS:
     void on_removeRequestButton_clicked();
     void on_recentRequestsView_doubleClicked(const QModelIndex &index);
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
-    void updateDisplayUnit();
     void showMenu(const QPoint &point);
     void copyURI();
     void copyAddress();

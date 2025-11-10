@@ -10,7 +10,6 @@
 
 #include <qt/guiutil.h>
 #include <qt/optionsdialog.h>
-#include <qt/riecoinunits.h>
 
 #include <consensus/amount.h>
 
@@ -34,7 +33,6 @@ class OptionsModel;
 class PlatformStyle;
 class RPCConsole;
 class SendCoinsRecipient;
-class UnitDisplayStatusBarControl;
 class WalletController;
 class WalletFrame;
 class WalletModel;
@@ -120,7 +118,6 @@ private:
     ClientModel* clientModel = nullptr;
     WalletFrame* walletFrame = nullptr;
 
-    UnitDisplayStatusBarControl* unitDisplayControl = nullptr;
     GUIUtil::ThemedLabel* labelWalletEncryptionIcon = nullptr;
     GUIUtil::ThemedLabel* labelWalletHDStatusIcon = nullptr;
     GUIUtil::ClickableLabel* labelProxyIcon = nullptr;
@@ -263,7 +260,7 @@ public Q_SLOTS:
     bool handlePaymentRequest(const SendCoinsRecipient& recipient);
 
     /** Show incoming transaction notification for new transactions. */
-    void incomingTransaction(const QString& date, BitcoinUnit unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName);
+    void incomingTransaction(const QString& date, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName);
 #endif // ENABLE_WALLET
 
 private:
@@ -312,37 +309,6 @@ public Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-};
-
-class UnitDisplayStatusBarControl : public QLabel
-{
-    Q_OBJECT
-
-public:
-    explicit UnitDisplayStatusBarControl(const PlatformStyle *platformStyle);
-    /** Lets the control know about the Options Model (and its signals) */
-    void setOptionsModel(OptionsModel *optionsModel);
-
-protected:
-    /** So that it responds to left-button clicks */
-    void mousePressEvent(QMouseEvent *event) override;
-    void changeEvent(QEvent* e) override;
-
-private:
-    OptionsModel* optionsModel{nullptr};
-    QMenu* menu{nullptr};
-    const PlatformStyle* m_platform_style;
-
-    /** Shows context menu with Display Unit options by the mouse coordinates */
-    void onDisplayUnitsClicked(const QPoint& point);
-    /** Creates context menu, its actions, and wires up all the relevant signals for mouse events. */
-    void createContextMenu();
-
-private Q_SLOTS:
-    /** When Display Units are changed on OptionsModel it will refresh the display text of the control on the status bar */
-    void updateDisplayUnit(BitcoinUnit newUnits);
-    /** Tells underlying optionsModel to update its current display unit. */
-    void onMenuSelection(QAction* action);
 };
 
 #endif // RIECOIN_QT_RIECOINGUI_H

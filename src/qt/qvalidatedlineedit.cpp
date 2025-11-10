@@ -1,4 +1,5 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) The Bitcoin Core developers
+// Copyright (c) The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,10 +8,10 @@
 #include <qt/riecoinaddressvalidator.h>
 #include <qt/guiconstants.h>
 
-QValidatedLineEdit::QValidatedLineEdit(QWidget* parent)
-    : QLineEdit(parent)
+QValidatedLineEdit::QValidatedLineEdit(QWidget* parent) : QLineEdit(parent)
 {
-    connect(this, &QValidatedLineEdit::textChanged, this, &QValidatedLineEdit::markValid);
+    connect(this, &QValidatedLineEdit::textChanged, this, &QValidatedLineEdit::checkValidity);
+    checkValidity();
 }
 
 void QValidatedLineEdit::setText(const QString& text)
@@ -21,78 +22,48 @@ void QValidatedLineEdit::setText(const QString& text)
 
 void QValidatedLineEdit::setValid(bool _valid)
 {
-    if(_valid == this->valid)
-    {
+    if (_valid == this->valid)
         return;
-    }
 
-    if(_valid)
-    {
-        setStyleSheet("");
-    }
-    else
-    {
-        setStyleSheet("QValidatedLineEdit { " STYLE_INVALID "}");
-    }
+    setStyleSheet(_valid ? "" : "QValidatedLineEdit { " STYLE_INVALID "}");
     this->valid = _valid;
 }
 
 void QValidatedLineEdit::focusInEvent(QFocusEvent *evt)
 {
-    // Clear invalid flag on focus
-    setValid(true);
-
     QLineEdit::focusInEvent(evt);
 }
 
 void QValidatedLineEdit::focusOutEvent(QFocusEvent *evt)
 {
     checkValidity();
-
     QLineEdit::focusOutEvent(evt);
-}
-
-void QValidatedLineEdit::markValid()
-{
-    // As long as a user is typing ensure we display state as valid
-    setValid(true);
 }
 
 void QValidatedLineEdit::clear()
 {
-    setValid(true);
     QLineEdit::clear();
+    checkValidity();
 }
 
 void QValidatedLineEdit::setEnabled(bool enabled)
 {
-    if (!enabled)
-    {
-        // A disabled QValidatedLineEdit should be marked valid
+    if (!enabled) // A disabled QValidatedLineEdit should be marked valid
         setValid(true);
-    }
-    else
-    {
-        // Recheck validity when QValidatedLineEdit gets enabled
+    else // Recheck validity when QValidatedLineEdit gets enabled
         checkValidity();
-    }
-
     QLineEdit::setEnabled(enabled);
 }
 
 void QValidatedLineEdit::checkValidity()
 {
     if (text().isEmpty())
-    {
-        setValid(true);
-    }
-    else if (hasAcceptableInput())
-    {
+        setValid(optional);
+    else if (hasAcceptableInput()) {
         setValid(true);
 
         // Check contents on focus out
-        if (checkValidator)
-        {
+        if (checkValidator) {
             QString address = text();
             int pos = 0;
             if (checkValidator->validate(address, pos) == QValidator::Acceptable)

@@ -45,7 +45,7 @@ using util::SplitString;
 using util::TrimString;
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
-const std::string EXAMPLE_ADDRESS[2] = {"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja", "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"};
+const std::string EXAMPLE_ADDRESS[2] = {"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn", "ric1qr3yxckxtl7lacvtuzhrdrtrlzvlydane2h37ja"};
 
 std::string GetAllOutputTypes()
 {

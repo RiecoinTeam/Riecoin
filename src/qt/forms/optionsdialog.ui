@@ -661,30 +661,6 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2_Display">
-         <item>
-          <widget class="QLabel" name="unitLabel">
-           <property name="text">
-            <string>&amp;Unit to show amounts in:</string>
-           </property>
-           <property name="textFormat">
-            <enum>Qt::PlainText</enum>
-           </property>
-           <property name="buddy">
-            <cstring>unit</cstring>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QValueComboBox" name="unit">
-           <property name="toolTip">
-            <string>Choose the default subdivision unit to show in the interface and when sending coins.</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3_Display">
          <item>
           <widget class="QLabel" name="thirdPartyTxUrlsLabel">

@@ -64,7 +64,6 @@ private:
 
 private Q_SLOTS:
     void LimitTransactionRows();
-    void updateDisplayUnit();
     void updateAlerts(const QString &warnings);
     void setMonospacedFont(const QFont&);
 };

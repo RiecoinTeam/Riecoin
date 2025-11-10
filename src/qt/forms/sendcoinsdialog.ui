@@ -823,6 +823,9 @@
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayoutFee13">
                  <item>
+                  <widget class="RiecoinAmountField" name="customFee"/>
+                 </item>
+                 <item>
                   <widget class="QLabel" name="labelCustomPerKilobyte">
                    <property name="toolTip">
                     <string>Specify a custom fee per kB (1,000 bytes) of the transaction's virtual size.
@@ -830,12 +833,9 @@
 Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riemanns per kvB" for a transaction size of 500 virtual bytes (half of 1 kvB) would ultimately yield a fee of only 50 riemanns.</string>
                    </property>
                    <property name="text">
-                    <string>per kilobyte</string>
+                    <string>RIC/kvB</string>
                    </property>
                   </widget>
-                 </item>
-                 <item>
-                  <widget class="BitcoinAmountField" name="customFee"/>
                  </item>
                  <item>
                   <spacer name="horizontalSpacer_6">
@@ -854,19 +854,6 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
                </item>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayoutFee8">
-                 <item>
-                  <widget class="QLabel" name="labelCustomFeeWarning">
-                   <property name="enabled">
-                    <bool>true</bool>
-                   </property>
-                   <property name="toolTip">
-                    <string>When there is less transaction volume than space in the blocks, miners as well as relaying nodes may enforce a minimum fee. Paying only this minimum fee is just fine, but be aware that this can result in a never confirming transaction once there is more demand for Riecoin transactions than the network can process.</string>
-                   </property>
-                   <property name="text">
-                    <string>A too low fee might result in a never confirming transaction (read the tooltip)</string>
-                   </property>
-                  </widget>
-                 </item>
                  <item>
                   <spacer name="horizontalSpacer_2">
                    <property name="orientation">
@@ -1097,7 +1084,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
         <string>S&amp;end</string>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
        </property>
        <property name="autoDefault">
@@ -1123,7 +1110,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
         <string>Clear &amp;All</string>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
        </property>
        <property name="autoDefault">
@@ -1140,7 +1127,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
         <string>Add &amp;Recipient</string>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
        </property>
        <property name="autoDefault">
@@ -1211,14 +1198,14 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 riema
    <header>qt/qvalidatedlineedit.h</header>
   </customwidget>
   <customwidget>
-   <class>BitcoinAmountField</class>
+   <class>RiecoinAmountField</class>
    <extends>QLineEdit</extends>
    <header>qt/riecoinamountfield.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../bitcoin.qrc"/>
+  <include location="../riecoin.qrc"/>
  </resources>
  <connections/>
  <buttongroups>

@@ -70,8 +70,6 @@ add_library(riecoinqt STATIC EXCLUDE_FROM_ALL
   riecoinamountfield.h
   riecoingui.cpp
   riecoingui.h
-  riecoinunits.cpp
-  riecoinunits.h
   clientmodel.cpp
   clientmodel.h
   csvmodelwriter.cpp

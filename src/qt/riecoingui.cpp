@@ -17,7 +17,6 @@
 #include <qt/optionsdialog.h>
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
-#include <qt/riecoinunits.h>
 #include <qt/rpcconsole.h>
 #include <qt/utilitydialog.h>
 
@@ -159,7 +158,6 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     QHBoxLayout *frameBlocksLayout = new QHBoxLayout(frameBlocks);
     frameBlocksLayout->setContentsMargins(3,0,3,0);
     frameBlocksLayout->setSpacing(3);
-    unitDisplayControl = new UnitDisplayStatusBarControl(platformStyle);
     labelWalletEncryptionIcon = new GUIUtil::ThemedLabel(platformStyle);
     labelWalletHDStatusIcon = new GUIUtil::ThemedLabel(platformStyle);
     labelProxyIcon = new GUIUtil::ClickableLabel(platformStyle);
@@ -169,8 +167,6 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     labelBlocksText = new GUIUtil::ClickableLabel(platformStyle);
     if(enableWallet)
     {
-        frameBlocksLayout->addStretch();
-        frameBlocksLayout->addWidget(unitDisplayControl);
         frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(labelWalletEncryptionIcon);
         labelWalletEncryptionIcon->hide();
@@ -620,7 +616,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             walletFrame->setClientModel(_clientModel);
         }
 #endif // ENABLE_WALLET
-        unitDisplayControl->setOptionsModel(_clientModel->getOptionsModel());
 
         OptionsModel* optionsModel = _clientModel->getOptionsModel();
         if (optionsModel && trayIcon) {
@@ -647,7 +642,6 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             walletFrame->setClientModel(nullptr);
         }
 #endif // ENABLE_WALLET
-        unitDisplayControl->setOptionsModel(nullptr);
         // Disable top bar menu actions
         appMenuBar->clear();
     }
@@ -1248,11 +1242,11 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 }
 
 #ifdef ENABLE_WALLET
-void BitcoinGUI::incomingTransaction(const QString& date, BitcoinUnit unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName)
+void BitcoinGUI::incomingTransaction(const QString& date, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName)
 {
     // On new transaction, make an info balloon
     QString msg = tr("Date: %1\n").arg(date) +
-                  tr("Amount: %1\n").arg(BitcoinUnits::formatWithUnit(unit, amount, true));
+                  tr("Amount: %1\n").arg(GUIUtil::formatAmountWithUnit(amount, true));
     if (m_node.walletLoader().getWallets().size() > 1 && !walletName.isEmpty()) {
         msg += tr("Wallet: %1\n").arg(walletName);
     }
@@ -1490,85 +1484,4 @@ bool BitcoinGUI::isPrivacyModeActivated() const
 {
     assert(m_mask_values_action);
     return m_mask_values_action->isChecked();
-}
-
-UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle* platformStyle)
-    : m_platform_style{platformStyle}
-{
-    createContextMenu();
-    setToolTip(tr("Unit to show amounts in. Click to select another unit."));
-    QList<BitcoinUnit> units = BitcoinUnits::availableUnits();
-    int max_width = 0;
-    const QFontMetrics fm(font());
-    for (const BitcoinUnit unit : units) {
-        max_width = qMax(max_width, GUIUtil::TextWidth(fm, BitcoinUnits::longName(unit)));
-    }
-    setMinimumSize(max_width, 0);
-    setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    setStyleSheet(QString("QLabel { color : %1 }").arg(m_platform_style->SingleColor().name()));
-}
-
-/** So that it responds to button clicks */
-void UnitDisplayStatusBarControl::mousePressEvent(QMouseEvent *event)
-{
-    onDisplayUnitsClicked(event->pos());
-}
-
-void UnitDisplayStatusBarControl::changeEvent(QEvent* e)
-{
-    if (e->type() == QEvent::PaletteChange) {
-        QString style = QString("QLabel { color : %1 }").arg(m_platform_style->SingleColor().name());
-        if (style != styleSheet()) {
-            setStyleSheet(style);
-        }
-    }
-
-    QLabel::changeEvent(e);
-}
-
-/** Creates context menu, its actions, and wires up all the relevant signals for mouse events. */
-void UnitDisplayStatusBarControl::createContextMenu()
-{
-    menu = new QMenu(this);
-    for (const BitcoinUnit u : BitcoinUnits::availableUnits()) {
-        menu->addAction(BitcoinUnits::longName(u))->setData(QVariant::fromValue(u));
-    }
-    connect(menu, &QMenu::triggered, this, &UnitDisplayStatusBarControl::onMenuSelection);
-}
-
-/** Lets the control know about the Options Model (and its signals) */
-void UnitDisplayStatusBarControl::setOptionsModel(OptionsModel *_optionsModel)
-{
-    if (_optionsModel)
-    {
-        this->optionsModel = _optionsModel;
-
-        // be aware of a display unit change reported by the OptionsModel object.
-        connect(_optionsModel, &OptionsModel::displayUnitChanged, this, &UnitDisplayStatusBarControl::updateDisplayUnit);
-
-        // initialize the display units label with the current value in the model.
-        updateDisplayUnit(_optionsModel->getDisplayUnit());
-    }
-}
-
-/** When Display Units are changed on OptionsModel it will refresh the display text of the control on the status bar */
-void UnitDisplayStatusBarControl::updateDisplayUnit(BitcoinUnit newUnits)
-{
-    setText(BitcoinUnits::longName(newUnits));
-}
-
-/** Shows context menu with Display Unit options by the mouse coordinates */
-void UnitDisplayStatusBarControl::onDisplayUnitsClicked(const QPoint& point)
-{
-    QPoint globalPos = mapToGlobal(point);
-    menu->exec(globalPos);
-}
-
-/** Tells underlying optionsModel to update its current display unit. */
-void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
-{
-    if (action)
-    {
-        optionsModel->setDisplayUnit(action->data());
-    }
 }

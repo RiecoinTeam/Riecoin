@@ -13,7 +13,6 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
-#include <qt/riecoinunits.h>
 #include <qt/transactionfilterproxy.h>
 #include <qt/transactionoverviewwidget.h>
 #include <qt/transactiontablemodel.h>
@@ -92,7 +91,7 @@ public:
             foreground = option.palette.color(QPalette::Text);
         }
         painter->setPen(foreground);
-        QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::SeparatorStyle::ALWAYS);
+        QString amountText = GUIUtil::formatAmountWithUnit(amount, true, GUIUtil::SeparatorStyle::ALWAYS);
         if(!confirmed)
         {
             amountText = QString("[") + amountText + QString("]");
@@ -122,8 +121,6 @@ public:
         const int minimum_text_width = search == m_minimum_width.end() ? 0 : search->second;
         return {DECORATION_SIZE + 8 + minimum_text_width, DECORATION_SIZE};
     }
-
-    BitcoinUnit unit{BitcoinUnit::BTC};
 
 Q_SIGNALS:
     //! An intermediate signal for emitting from the `paint() const` member function.
@@ -192,11 +189,10 @@ OverviewPage::~OverviewPage()
 
 void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
 {
-    BitcoinUnit unit = walletModel->getOptionsModel()->getDisplayUnit();
-    ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-    ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-    ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-    ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+    ui->labelBalance->setText(GUIUtil::formatAmountWithPrivacy(balances.balance, GUIUtil::SeparatorStyle::ALWAYS, m_privacy));
+    ui->labelUnconfirmed->setText(GUIUtil::formatAmountWithPrivacy(balances.unconfirmed_balance, GUIUtil::SeparatorStyle::ALWAYS, m_privacy));
+    ui->labelImmature->setText(GUIUtil::formatAmountWithPrivacy(balances.immature_balance, GUIUtil::SeparatorStyle::ALWAYS, m_privacy));
+    ui->labelTotal->setText(GUIUtil::formatAmountWithPrivacy(balances.balance + balances.unconfirmed_balance + balances.immature_balance, GUIUtil::SeparatorStyle::ALWAYS, m_privacy));
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
     bool showImmature = balances.immature_balance != 0;
@@ -226,12 +222,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         // Keep up to date with wallet
         setBalance(model->getCachedBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
-        connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
         transactionView->setModel(walletModel);
     }
-
-    // update the display unit, to not use the default ("RIC")
-    updateDisplayUnit();
 }
 
 void OverviewPage::changeEvent(QEvent* e)
@@ -246,21 +238,6 @@ void OverviewPage::LimitTransactionRows()
         for (int i = 0; i < filter->rowCount(); ++i) {
             ui->listTransactions->setRowHidden(i, i >= NUM_ITEMS);
         }
-    }
-}
-
-void OverviewPage::updateDisplayUnit()
-{
-    if (walletModel && walletModel->getOptionsModel()) {
-        const auto& balances = walletModel->getCachedBalance();
-        if (balances.balance != -1) {
-            setBalance(balances);
-        }
-
-        // Update txdelegate->unit with the current unit
-        txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();
-
-        ui->listTransactions->update();
     }
 }
 

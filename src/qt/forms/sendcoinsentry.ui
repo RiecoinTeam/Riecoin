@@ -63,7 +63,7 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/address-book</normaloff>:/icons/address-book</iconset>
        </property>
        <property name="iconSize">
@@ -86,7 +86,7 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/editpaste</normaloff>:/icons/editpaste</iconset>
        </property>
        <property name="iconSize">
@@ -109,7 +109,7 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="../bitcoin.qrc">
+        <iconset resource="../riecoin.qrc">
          <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
        </property>
        <property name="iconSize">
@@ -159,18 +159,28 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,1,0">
+    <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="0,0,1,0">
+     <property name="spacing">
+      <number>6</number>
+     </property>
      <item>
-      <widget class="BitcoinAmountField" name="payAmount" native="true">
+      <widget class="RiecoinAmountField" name="payAmount" native="true">
        <property name="toolTip">
-        <string>The amount to send in the selected unit</string>
+        <string>The amount of RIC to send</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="unitlLabel">
+       <property name="text">
+        <string>RIC</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
        <property name="toolTip">
-        <string>The fee will be deducted from the amount being sent. The recipient will receive less bitcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
+        <string>The fee will be deducted from the amount being sent. The recipient will receive less Riecoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
        </property>
        <property name="text">
         <string>S&amp;ubtract fee from amount</string>
@@ -222,7 +232,7 @@
    <header>qt/qvalidatedlineedit.h</header>
   </customwidget>
   <customwidget>
-   <class>BitcoinAmountField</class>
+   <class>RiecoinAmountField</class>
    <extends>QWidget</extends>
    <header>qt/riecoinamountfield.h</header>
    <container>1</container>
@@ -237,7 +247,7 @@
   <tabstop>payAmount</tabstop>
  </tabstops>
  <resources>
-  <include location="../bitcoin.qrc"/>
+  <include location="../riecoin.qrc"/>
  </resources>
  <connections/>
 </ui>

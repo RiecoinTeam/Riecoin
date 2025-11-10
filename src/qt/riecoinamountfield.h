@@ -1,85 +1,44 @@
-// Copyright (c) 2011-2021 The Bitcoin Core developers
+// Copyright (c) The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef RIECOIN_QT_RIECOINAMOUNTFIELD_H
 #define RIECOIN_QT_RIECOINAMOUNTFIELD_H
 
-#include <consensus/amount.h>
-#include <qt/riecoinunits.h>
+#include <qt/guiutil.h>
 
 #include <QWidget>
+#include <QLineEdit>
+#include <QValidator>
 
-class AmountSpinBox;
-
-QT_BEGIN_NAMESPACE
-class QValueComboBox;
-QT_END_NAMESPACE
-
-/** Widget for entering bitcoin amounts.
-  */
-class BitcoinAmountField: public QWidget
+/** QSpinBox that uses fixed-point numbers internally and uses our own formatting/parsing functions. */
+class RiecoinAmountField: public QLineEdit
 {
     Q_OBJECT
 
-    // ugly hack: for some unknown reason CAmount (instead of qint64) does not work here as expected
-    // discussion: https://github.com/bitcoin/bitcoin/pull/5117
-    Q_PROPERTY(qint64 value READ value WRITE setValue NOTIFY valueChanged USER true)
-
 public:
-    explicit BitcoinAmountField(QWidget *parent = nullptr);
+    explicit RiecoinAmountField(QWidget *parent);
 
-    CAmount value(bool *value=nullptr) const;
+    void SetOptional(const bool optional) {m_optional = optional; validate();}
+    void SetMinValue(const CAmount& value) {m_min_amount = value; validate();}
+    void SetMaxValue(const CAmount& value) {m_max_amount = value; validate();}
+
+    bool validate();
+    CAmount value(bool *valid_out=nullptr) const {return parse(text(), valid_out);}
     void setValue(const CAmount& value);
 
-    /** If allow empty is set to false the field will be set to the minimum allowed value if left empty. **/
-    void SetAllowEmpty(bool allow);
+private:
+    bool m_optional{false};
+    CAmount m_min_amount{CAmount(0)};
+    CAmount m_max_amount{CAmount(500000000000000)};
 
-    /** Set the minimum value in satoshis **/
-    void SetMinValue(const CAmount& value);
+    CAmount parse(const QString &text, bool *valid_out=nullptr) const;
 
-    /** Set the maximum value in satoshis **/
-    void SetMaxValue(const CAmount& value);
-
-    /** Set single step in satoshis **/
-    void setSingleStep(const CAmount& step);
-
-    /** Make read-only **/
-    void setReadOnly(bool fReadOnly);
-
-    /** Mark current value as invalid in UI. */
-    void setValid(bool valid);
-    /** Perform input validation, mark field as invalid if entered value is not valid. */
-    bool validate();
-
-    /** Change unit used to display amount. */
-    void setDisplayUnit(BitcoinUnit new_unit);
-
-    /** Make field empty and ready for new input. */
-    void clear();
-
-    /** Enable/Disable. */
-    void setEnabled(bool fEnabled);
-
-    /** Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907),
-        in these cases we have to set it up manually.
-    */
-    QWidget *setupTabChain(QWidget *prev);
+protected:
+    bool event(QEvent *event) override;
 
 Q_SIGNALS:
     void valueChanged();
-
-protected:
-    /** Intercept focus-in event and ',' key presses */
-    bool eventFilter(QObject *object, QEvent *event) override;
-
-private:
-    AmountSpinBox* amount{nullptr};
-    QValueComboBox *unit;
-
-private Q_SLOTS:
-    void unitChanged(int idx);
-
 };
 
 #endif // RIECOIN_QT_RIECOINAMOUNTFIELD_H

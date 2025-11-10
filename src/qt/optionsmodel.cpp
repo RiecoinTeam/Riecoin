@@ -8,8 +8,6 @@
 #include <qt/optionsmodel.h>
 
 #include <qt/guiconstants.h>
-#include <qt/guiutil.h>
-#include <qt/riecoinunits.h>
 
 #include <common/args.h>
 #include <interfaces/node.h>
@@ -188,19 +186,8 @@ bool OptionsModel::Init(bilingual_str& error)
     fMinimizeOnClose = settings.value("fMinimizeOnClose").toBool();
 
     // Display
-    if (!settings.contains("DisplayBitcoinUnit")) {
-        settings.setValue("DisplayBitcoinUnit", QVariant::fromValue(BitcoinUnit::BTC));
-    }
-    QVariant unit = settings.value("DisplayBitcoinUnit");
-    if (unit.canConvert<BitcoinUnit>()) {
-        m_display_bitcoin_unit = unit.value<BitcoinUnit>();
-    } else {
-        m_display_bitcoin_unit = BitcoinUnit::BTC;
-        settings.setValue("DisplayBitcoinUnit", QVariant::fromValue(m_display_bitcoin_unit));
-    }
-
     if (!settings.contains("strThirdPartyTxUrls"))
-        settings.setValue("strThirdPartyTxUrls", "");
+        settings.setValue("strThirdPartyTxUrls", "https://riecoin.xyz/Explorer/Transaction/%s");
     strThirdPartyTxUrls = settings.value("strThirdPartyTxUrls", "").toString();
 
     if (!settings.contains("fCoinControlFeatures"))
@@ -451,8 +438,6 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
     case SubFeeFromAmount:
         return m_sub_fee_from_amount;
 #endif
-    case DisplayUnit:
-        return QVariant::fromValue(m_display_bitcoin_unit);
     case ThirdPartyTxUrls:
         return strThirdPartyTxUrls;
     case Language:
@@ -612,9 +597,6 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
         settings.setValue("SubFeeFromAmount", m_sub_fee_from_amount);
         break;
 #endif
-    case DisplayUnit:
-        setDisplayUnit(value);
-        break;
     case ThirdPartyTxUrls:
         if (strThirdPartyTxUrls != value.toString()) {
             strThirdPartyTxUrls = value.toString();
@@ -692,15 +674,6 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
     }
 
     return successful;
-}
-
-void OptionsModel::setDisplayUnit(const QVariant& new_unit)
-{
-    if (new_unit.isNull() || new_unit.value<BitcoinUnit>() == m_display_bitcoin_unit) return;
-    m_display_bitcoin_unit = new_unit.value<BitcoinUnit>();
-    QSettings settings;
-    settings.setValue("DisplayBitcoinUnit", QVariant::fromValue(m_display_bitcoin_unit));
-    Q_EMIT displayUnitChanged(m_display_bitcoin_unit);
 }
 
 void OptionsModel::setRestartRequired(bool fRequired)

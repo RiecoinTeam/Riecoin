@@ -170,27 +170,16 @@
         <item row="5" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout_6">
           <item>
-           <widget class="BitcoinAmountField" name="reqAmount">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>80</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>1000</width>
-              <height>100</height>
-             </size>
-            </property>
+           <widget class="RiecoinAmountField" name="reqAmount">
             <property name="toolTip">
              <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="unitlLabel">
+            <property name="text">
+             <string>RIC</string>
             </property>
            </widget>
           </item>
@@ -351,7 +340,7 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>BitcoinAmountField</class>
+   <class>RiecoinAmountField</class>
    <extends>QLineEdit</extends>
    <header>qt/riecoinamountfield.h</header>
    <container>1</container>

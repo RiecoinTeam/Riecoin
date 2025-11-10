@@ -32,7 +32,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     GUIUtil::setupAddressWidget(ui->payTo, this);
 
     // Connect signals
-    connect(ui->payAmount, &BitcoinAmountField::valueChanged, this, &SendCoinsEntry::payAmountChanged);
+    connect(ui->payAmount, &QLineEdit::textChanged, this, &SendCoinsEntry::payAmountChanged);
     connect(ui->checkboxSubtractFeeFromAmount, &QCheckBox::toggled, this, &SendCoinsEntry::subtractFeeFromAmountChanged);
     connect(ui->deleteButton, &QPushButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->useAvailableBalanceButton, &QPushButton::clicked, this, &SendCoinsEntry::useAvailableBalanceClicked);
@@ -65,15 +65,13 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     updateLabel(address);
+    if (model)
+        ui->payAmount->SetMinValue(GUIUtil::GetDustThreshold(model->node(), ui->payTo->text(), ui->payAmount->value()));
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
     this->model = _model;
-
-    if (_model && _model->getOptionsModel())
-        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
-
     clear();
 }
 
@@ -89,9 +87,6 @@ void SendCoinsEntry::clear()
     ui->messageTextLabel->clear();
     ui->messageTextLabel->hide();
     ui->messageLabel->hide();
-
-    // update the display unit, to not use the default ("BTC")
-    updateDisplayUnit();
 }
 
 void SendCoinsEntry::checkSubtractFeeFromAmount()
@@ -117,29 +112,13 @@ bool SendCoinsEntry::validate(interfaces::Node& node)
     // Check input validity
     bool retval = true;
 
-    if (!model->validateAddress(ui->payTo->text()))
-    {
+    if (!model->validateAddress(ui->payTo->text())) {
         ui->payTo->setValid(false);
         retval = false;
     }
 
     if (!ui->payAmount->validate())
-    {
         retval = false;
-    }
-
-    // Sending a zero amount is invalid
-    if (ui->payAmount->value(nullptr) <= 0)
-    {
-        ui->payAmount->setValid(false);
-        retval = false;
-    }
-
-    // Reject dust outputs:
-    if (retval && GUIUtil::isDust(node, ui->payTo->text(), ui->payAmount->value())) {
-        ui->payAmount->setValid(false);
-        retval = false;
-    }
 
     return retval;
 }
@@ -158,13 +137,13 @@ SendCoinsRecipient SendCoinsEntry::getValue()
 QWidget *SendCoinsEntry::setupTabChain(QWidget *prev)
 {
     QWidget::setTabOrder(prev, ui->payTo);
-    QWidget::setTabOrder(ui->payTo, ui->addAsLabel);
-    QWidget *w = ui->payAmount->setupTabChain(ui->addAsLabel);
-    QWidget::setTabOrder(w, ui->checkboxSubtractFeeFromAmount);
-    QWidget::setTabOrder(ui->checkboxSubtractFeeFromAmount, ui->addressBookButton);
+    QWidget::setTabOrder(ui->payTo, ui->addressBookButton);
     QWidget::setTabOrder(ui->addressBookButton, ui->pasteButton);
     QWidget::setTabOrder(ui->pasteButton, ui->deleteButton);
-    return ui->deleteButton;
+    QWidget::setTabOrder(ui->deleteButton, ui->addAsLabel);
+    QWidget::setTabOrder(ui->addAsLabel, ui->payAmount);
+    QWidget::setTabOrder(ui->payAmount, ui->checkboxSubtractFeeFromAmount);
+    return ui->checkboxSubtractFeeFromAmount;
 }
 
 void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
@@ -203,13 +182,6 @@ bool SendCoinsEntry::isClear()
 void SendCoinsEntry::setFocus()
 {
     ui->payTo->setFocus();
-}
-
-void SendCoinsEntry::updateDisplayUnit()
-{
-    if (model && model->getOptionsModel()) {
-        ui->payAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-    }
 }
 
 void SendCoinsEntry::changeEvent(QEvent* e)
