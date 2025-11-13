@@ -21,7 +21,7 @@ using util::Join;
  * for both bitcoind and bitcoin-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string UA_NAME("Dev");
+const std::string UA_NAME("Stella");
 
 
 #include <riecoin-build-info.h>
@@ -82,7 +82,7 @@ std::string LicenseInfo()
     const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
 
     return CopyrightHolders("(C) ") + "" +
-           "\n Riecoin Core (Dev) is based on Bitcoin Core (Master).\n" +
+           "\n Riecoin Core 2511 is based on Bitcoin Core (Master 2025-11-05/~30.x).\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
                      CLIENT_NAME, "<" CLIENT_URL ">")
