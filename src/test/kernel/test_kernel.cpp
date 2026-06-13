@@ -4,17 +4,17 @@
 
 #include <kernel/riecoinkernel.h>
 #include <kernel/riecoinkernel_wrapper.h>
+#include <util/fs.h>
 
 #define BOOST_TEST_MODULE Riecoin Kernel Test Suite
 #include <boost/test/included/unit_test.hpp>
 
 #include <test/kernel/block_data.h>
+#include <test/util/common.h>
 
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
-#include <filesystem>
-//#include <format>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -99,16 +99,16 @@ public:
 };
 
 struct TestDirectory {
-    std::filesystem::path m_directory;
+    fs::path m_directory;
     TestDirectory(std::string directory_name)
-        : m_directory{std::filesystem::temp_directory_path() / (directory_name + random_string(16))}
+        : m_directory{fs::path{fs::temp_directory_path()} / fs::u8path(directory_name + "_🌽_" + random_string(16))}
     {
-        std::filesystem::create_directories(m_directory);
+        fs::create_directories(m_directory);
     }
 
     ~TestDirectory()
     {
-        std::filesystem::remove_all(m_directory);
+        fs::remove_all(m_directory);
     }
 };
 
@@ -146,7 +146,7 @@ class TestValidationInterface : public ValidationInterface
 public:
     std::optional<std::vector<std::byte>> m_expected_valid_block = std::nullopt;
 
-    void BlockChecked(Block block, const BlockValidationState state) override
+    void BlockChecked(Block block, BlockValidationStateView state) override
     {
         if (m_expected_valid_block.has_value()) {
             auto ser_block{block.ToBytes()};
@@ -219,7 +219,7 @@ public:
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
     const Transaction& spending_tx,
-    std::span<TransactionOutput> spent_outputs,
+    const PrecomputedTransactionData* precomputed_txdata,
     int64_t amount,
     unsigned int input_index,
     bool taproot)
@@ -230,7 +230,7 @@ void run_verify_test(
         BOOST_CHECK(spent_script_pubkey.Verify(
             amount,
             spending_tx,
-            spent_outputs,
+            precomputed_txdata,
             input_index,
             ScriptVerificationFlags::ALL,
             status));
@@ -239,7 +239,7 @@ void run_verify_test(
         BOOST_CHECK(!spent_script_pubkey.Verify(
             amount,
             spending_tx,
-            spent_outputs,
+            precomputed_txdata,
             input_index,
             ScriptVerificationFlags::ALL,
             status));
@@ -249,7 +249,7 @@ void run_verify_test(
     BOOST_CHECK(spent_script_pubkey.Verify(
         amount,
         spending_tx,
-        spent_outputs,
+        precomputed_txdata,
         input_index,
         VERIFY_ALL_PRE_TAPROOT,
         status));
@@ -258,7 +258,7 @@ void run_verify_test(
     BOOST_CHECK(spent_script_pubkey.Verify(
         0,
         spending_tx,
-        spent_outputs,
+        precomputed_txdata,
         input_index,
         VERIFY_ALL_PRE_SEGWIT,
         status));
@@ -267,7 +267,7 @@ void run_verify_test(
 
 template <typename T>
 concept HasToBytes = requires(T t) {
-    { t.ToBytes() } -> std::convertible_to<std::vector<std::byte>>;
+    { t.ToBytes() } -> std::convertible_to<std::span<const std::byte>>;
 };
 
 template <typename T>
@@ -278,7 +278,9 @@ void CheckHandle(T object, T distinct_object)
     BOOST_CHECK(object.get() != distinct_object.get());
 
     if constexpr (HasToBytes<T>) {
-        BOOST_CHECK_NE(object.ToBytes().size(), distinct_object.ToBytes().size());
+        const auto object_bytes = object.ToBytes();
+        const auto distinct_bytes = distinct_object.ToBytes();
+        BOOST_CHECK(!std::ranges::equal(object_bytes, distinct_bytes));
     }
 
     // Copy constructor
@@ -313,6 +315,16 @@ void CheckHandle(T object, T distinct_object)
     if constexpr (HasToBytes<T>) {
         check_equal(object2.ToBytes(), object3.ToBytes());
     }
+
+    // Self move-assignment must not destroy the held resource.
+    // Use a reference to avoid -Wself-move warnings.
+    original_ptr = object2.get();
+    auto& object2_ref = object2;
+    object2 = std::move(object2_ref);
+    BOOST_CHECK_EQUAL(object2.get(), original_ptr);
+    if constexpr (HasToBytes<T>) {
+        check_equal(object2.ToBytes(), object3.ToBytes());
+    }
 }
 
 template <typename RangeType>
@@ -322,7 +334,8 @@ void CheckRange(const RangeType& range, size_t expected_size)
     using value_type = std::ranges::range_value_t<RangeType>;
 
     BOOST_CHECK_EQUAL(range.size(), expected_size);
-    BOOST_CHECK_EQUAL(range.empty(), (expected_size == 0));
+    BOOST_REQUIRE(range.size() > 0); // Some checks below assume a non-empty range
+    BOOST_REQUIRE(!range.empty());
 
     BOOST_CHECK(range.begin() != range.end());
     BOOST_CHECK_EQUAL(std::distance(range.begin(), range.end()), static_cast<std::ptrdiff_t>(expected_size));
@@ -333,7 +346,6 @@ void CheckRange(const RangeType& range, size_t expected_size)
         BOOST_CHECK_EQUAL(range[i].get(), (*(range.begin() + i)).get());
     }
 
-    BOOST_CHECK_NE(range.at(0).get(), range.at(expected_size - 1).get());
     BOOST_CHECK_THROW(range.at(expected_size), std::out_of_range);
 
     BOOST_CHECK_EQUAL(range.front().get(), range[0].get());
@@ -395,10 +407,18 @@ BOOST_AUTO_TEST_CASE(btck_transaction_tests)
     auto tx2{Transaction{tx_data_2}};
     CheckHandle(tx, tx2);
 
+    auto invalid_data = hex_string_to_byte_vec("012300");
+    BOOST_CHECK_THROW(Transaction{invalid_data}, std::runtime_error);
+    auto empty_data = hex_string_to_byte_vec("");
+    BOOST_CHECK_THROW(Transaction{empty_data}, std::runtime_error);
+
     BOOST_CHECK_EQUAL(tx.CountOutputs(), 2);
     BOOST_CHECK_EQUAL(tx.CountInputs(), 1);
+    BOOST_CHECK_EQUAL(tx.GetLocktime(), 510826);
     auto broken_tx_data{std::span<std::byte>{tx_data.begin(), tx_data.begin() + 10}};
     BOOST_CHECK_THROW(Transaction{broken_tx_data}, std::runtime_error);
+    auto input{tx.GetInput(0)};
+    BOOST_CHECK_EQUAL(input.GetSequence(), 0xfffffffe);
     auto output{tx.GetOutput(tx.CountOutputs() - 1)};
     BOOST_CHECK_EQUAL(output.Amount(), 42130042);
     auto script_pubkey{output.GetScriptPubkey()};
@@ -469,6 +489,10 @@ BOOST_AUTO_TEST_CASE(btck_script_pubkey)
     ScriptPubkey script{script_data};
     ScriptPubkey script2{script_data_2};
     CheckHandle(script, script2);
+
+    std::span<std::byte> empty_data{};
+    ScriptPubkey empty_script{empty_data};
+    CheckHandle(script, empty_script);
 }
 
 BOOST_AUTO_TEST_CASE(btck_transaction_output)
@@ -491,37 +515,114 @@ BOOST_AUTO_TEST_CASE(btck_transaction_input)
     CheckHandle(point_0, point_1);
 }
 
+BOOST_AUTO_TEST_CASE(btck_precomputed_txdata) {
+    auto tx_data{hex_string_to_byte_vec("02000000013f7cebd65c27431a90bba7f796914fe8cc2ddfc3f2cbd6f7e5f2fc854534da95000000006b483045022100de1ac3bcdfb0332207c4a91f3832bd2c2915840165f876ab47c5f8996b971c3602201c6c053d750fadde599e6f5c4e1963df0f01fc0d97815e8157e3d59fe09ca30d012103699b464d1d8bc9e47d4fb1cdaa89a1c5783d68363c4dbc4b524ed3d857148617feffffff02836d3c01000000001976a914fc25d6d5c94003bf5b0c7b640a248e2c637fcfb088ac7ada8202000000001976a914fbed3d9b11183209a57999d54d59f67c019e756c88ac6acb0700")};
+    auto tx{Transaction{tx_data}};
+    auto tx_data_2{hex_string_to_byte_vec("02000000000101904f4ee5c87d20090b642f116e458cd6693292ad9ece23e72f15fb6c05b956210500000000fdffffff02e2010000000000002251200839a723933b56560487ec4d67dda58f09bae518ffa7e148313c5696ac837d9f10060000000000002251205826bcdae7abfb1c468204170eab00d887b61ab143464a4a09e1450bdc59a3340140f26e7af574e647355830772946356c27e7bbc773c5293688890f58983499581be84de40be7311a14e6d6422605df086620e75adae84ff06b75ce5894de5e994a00000000")};
+    auto tx2{Transaction{tx_data_2}};
+    auto precomputed_txdata{PrecomputedTransactionData{
+        /*tx_to=*/tx,
+        /*spent_outputs=*/{},
+    }};
+    auto precomputed_txdata_2{PrecomputedTransactionData{
+        /*tx_to=*/tx2,
+        /*spent_outputs=*/{},
+    }};
+    CheckHandle(precomputed_txdata, precomputed_txdata_2);
+}
+
 BOOST_AUTO_TEST_CASE(btck_script_verify_tests)
 {
     // Legacy transaction aca326a724eda9a461c10a876534ecd5ae7b27f10f26c3862fb996f80ea2d45d
+    auto legacy_spent_script_pubkey{ScriptPubkey{hex_string_to_byte_vec("76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ac")}};
+    auto legacy_spending_tx{Transaction{hex_string_to_byte_vec("02000000013f7cebd65c27431a90bba7f796914fe8cc2ddfc3f2cbd6f7e5f2fc854534da95000000006b483045022100de1ac3bcdfb0332207c4a91f3832bd2c2915840165f876ab47c5f8996b971c3602201c6c053d750fadde599e6f5c4e1963df0f01fc0d97815e8157e3d59fe09ca30d012103699b464d1d8bc9e47d4fb1cdaa89a1c5783d68363c4dbc4b524ed3d857148617feffffff02836d3c01000000001976a914fc25d6d5c94003bf5b0c7b640a248e2c637fcfb088ac7ada8202000000001976a914fbed3d9b11183209a57999d54d59f67c019e756c88ac6acb0700")}};
     run_verify_test(
-        /*spent_script_pubkey*/ ScriptPubkey{hex_string_to_byte_vec("76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ac")},
-        /*spending_tx*/ Transaction{hex_string_to_byte_vec("02000000013f7cebd65c27431a90bba7f796914fe8cc2ddfc3f2cbd6f7e5f2fc854534da95000000006b483045022100de1ac3bcdfb0332207c4a91f3832bd2c2915840165f876ab47c5f8996b971c3602201c6c053d750fadde599e6f5c4e1963df0f01fc0d97815e8157e3d59fe09ca30d012103699b464d1d8bc9e47d4fb1cdaa89a1c5783d68363c4dbc4b524ed3d857148617feffffff02836d3c01000000001976a914fc25d6d5c94003bf5b0c7b640a248e2c637fcfb088ac7ada8202000000001976a914fbed3d9b11183209a57999d54d59f67c019e756c88ac6acb0700")},
-        /*spent_outputs*/ {},
-        /*amount*/ 0,
-        /*input_index*/ 0,
-        /*is_taproot*/ false);
+        /*spent_script_pubkey=*/legacy_spent_script_pubkey,
+        /*spending_tx=*/legacy_spending_tx,
+        /*precomputed_txdata=*/nullptr,
+        /*amount=*/0,
+        /*input_index=*/0,
+        /*taproot=*/false);
+
+    // Legacy transaction aca326a724eda9a461c10a876534ecd5ae7b27f10f26c3862fb996f80ea2d45d with precomputed_txdata
+    auto legacy_precomputed_txdata{PrecomputedTransactionData{
+        /*tx_to=*/legacy_spending_tx,
+        /*spent_outputs=*/{},
+    }};
+    run_verify_test(
+        /*spent_script_pubkey=*/legacy_spent_script_pubkey,
+        /*spending_tx=*/legacy_spending_tx,
+        /*precomputed_txdata=*/&legacy_precomputed_txdata,
+        /*amount=*/0,
+        /*input_index=*/0,
+        /*taproot=*/false);
 
     // Segwit transaction 1a3e89644985fbbb41e0dcfe176739813542b5937003c46a07de1e3ee7a4a7f3
+    auto segwit_spent_script_pubkey{ScriptPubkey{hex_string_to_byte_vec("0020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d")}};
+    auto segwit_spending_tx{Transaction{hex_string_to_byte_vec("010000000001011f97548fbbe7a0db7588a66e18d803d0089315aa7d4cc28360b6ec50ef36718a0100000000ffffffff02df1776000000000017a9146c002a686959067f4866b8fb493ad7970290ab728757d29f0000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220565d170eed95ff95027a69b313758450ba84a01224e1f7f130dda46e94d13f8602207bdd20e307f062594022f12ed5017bbf4a055a06aea91c10110a0e3bb23117fc014730440220647d2dc5b15f60bc37dc42618a370b2a1490293f9e5c8464f53ec4fe1dfe067302203598773895b4b16d37485cbe21b337f4e4b650739880098c592553add7dd4355016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000")}};
     run_verify_test(
-        /*spent_script_pubkey*/ ScriptPubkey{hex_string_to_byte_vec("0020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d")},
-        /*spending_tx*/ Transaction{hex_string_to_byte_vec("010000000001011f97548fbbe7a0db7588a66e18d803d0089315aa7d4cc28360b6ec50ef36718a0100000000ffffffff02df1776000000000017a9146c002a686959067f4866b8fb493ad7970290ab728757d29f0000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220565d170eed95ff95027a69b313758450ba84a01224e1f7f130dda46e94d13f8602207bdd20e307f062594022f12ed5017bbf4a055a06aea91c10110a0e3bb23117fc014730440220647d2dc5b15f60bc37dc42618a370b2a1490293f9e5c8464f53ec4fe1dfe067302203598773895b4b16d37485cbe21b337f4e4b650739880098c592553add7dd4355016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000")},
-        /*spent_outputs*/ {},
-        /*amount*/ 18393430,
-        /*input_index*/ 0,
-        /*is_taproot*/ false);
+        /*spent_script_pubkey=*/segwit_spent_script_pubkey,
+        /*spending_tx=*/segwit_spending_tx,
+        /*precomputed_txdata=*/nullptr,
+        /*amount=*/18393430,
+        /*input_index=*/0,
+        /*taproot=*/false);
+
+    // Segwit transaction 1a3e89644985fbbb41e0dcfe176739813542b5937003c46a07de1e3ee7a4a7f3 with precomputed_txdata
+    auto segwit_precomputed_txdata{PrecomputedTransactionData{
+        /*tx_to=*/segwit_spending_tx,
+        /*spent_outputs=*/{},
+    }};
+    run_verify_test(
+        /*spent_script_pubkey=*/segwit_spent_script_pubkey,
+        /*spending_tx=*/segwit_spending_tx,
+        /*precomputed_txdata=*/&segwit_precomputed_txdata,
+        /*amount=*/18393430,
+        /*input_index=*/0,
+        /*taproot=*/false);
 
     // Taproot transaction 33e794d097969002ee05d336686fc03c9e15a597c1b9827669460fac98799036
     auto taproot_spent_script_pubkey{ScriptPubkey{hex_string_to_byte_vec("5120339ce7e165e67d93adb3fef88a6d4beed33f01fa876f05a225242b82a631abc0")}};
-    std::vector<TransactionOutput> spent_outputs;
-    spent_outputs.emplace_back(taproot_spent_script_pubkey, 88480);
+    auto taproot_spending_tx{Transaction{hex_string_to_byte_vec("01000000000101d1f1c1f8cdf6759167b90f52c9ad358a369f95284e841d7a2536cef31c0549580100000000fdffffff020000000000000000316a2f49206c696b65205363686e6f7272207369677320616e6420492063616e6e6f74206c69652e204062697462756734329e06010000000000225120a37c3903c8d0db6512e2b40b0dffa05e5a3ab73603ce8c9c4b7771e5412328f90140a60c383f71bac0ec919b1d7dbc3eb72dd56e7aa99583615564f9f99b8ae4e837b758773a5b2e4c51348854c8389f008e05029db7f464a5ff2e01d5e6e626174affd30a00")}};
+    std::vector<TransactionOutput> taproot_spent_outputs;
+    taproot_spent_outputs.emplace_back(taproot_spent_script_pubkey, 88480);
+    auto taproot_precomputed_txdata{PrecomputedTransactionData{
+        /*tx_to=*/taproot_spending_tx,
+        /*spent_outputs=*/taproot_spent_outputs,
+    }};
     run_verify_test(
-        /*spent_script_pubkey*/ taproot_spent_script_pubkey,
-        /*spending_tx*/ Transaction{hex_string_to_byte_vec("01000000000101d1f1c1f8cdf6759167b90f52c9ad358a369f95284e841d7a2536cef31c0549580100000000fdffffff020000000000000000316a2f49206c696b65205363686e6f7272207369677320616e6420492063616e6e6f74206c69652e204062697462756734329e06010000000000225120a37c3903c8d0db6512e2b40b0dffa05e5a3ab73603ce8c9c4b7771e5412328f90140a60c383f71bac0ec919b1d7dbc3eb72dd56e7aa99583615564f9f99b8ae4e837b758773a5b2e4c51348854c8389f008e05029db7f464a5ff2e01d5e6e626174affd30a00")},
-        /*spent_outputs*/ spent_outputs,
-        /*amount*/ 88480,
-        /*input_index*/ 0,
-        /*is_taproot*/ true);
+        /*spent_script_pubkey=*/taproot_spent_script_pubkey,
+        /*spending_tx=*/taproot_spending_tx,
+        /*precomputed_txdata=*/&taproot_precomputed_txdata,
+        /*amount=*/88480,
+        /*input_index=*/0,
+        /*taproot=*/true);
+
+    // Two-input taproot transaction e8e8320f40c31ed511570e9cdf1d241f8ec9a5cc392e6105240ac8dbea2098de
+    auto taproot2_spent_script_pubkey0{ScriptPubkey{hex_string_to_byte_vec("5120b7da80f57e36930b0515eb09293e25858d13e6b91fee6184943f5a584cb4248e")}};
+    auto taproot2_spent_script_pubkey1{ScriptPubkey{hex_string_to_byte_vec("5120ab78e077d062e7b8acd7063668b4db5355a1b5d5fd2a46a8e98e62e5e63fab77")}};
+    auto taproot2_spending_tx{Transaction{hex_string_to_byte_vec("02000000000102c0f01ead18750892c84b1d4f595149ad38f16847df1fbf490e235b3b78c1f98a0100000000ffffffff456764a19c2682bf5b1567119f06a421849ad1664cf42b5ef95b69d6e2159e9d0000000000ffffffff022202000000000000225120b6c0c2a8ee25a2ae0322ab7f1a06f01746f81f6b90d179c3c2a51a356e6188f1d70e020000000000225120b7da80f57e36930b0515eb09293e25858d13e6b91fee6184943f5a584cb4248e0141933fdc49eb1af1f08ed1e9cf5559259309a8acd25ff1e6999b6955124438aef4fceaa4e6a5f85286631e24837329563595bc3cf4b31e1c687442abb01c4206818101401c9620faf1e8c84187762ad14d04ae3857f59a2f03f1dcbb99290e16dfc572a63b4ea435780a5787af59beb5742fd71cda8a95381517a1ff14b4c67996c4bf8100000000")}};
+    std::vector<TransactionOutput> taproot2_spent_outputs;
+    taproot2_spent_outputs.emplace_back(taproot2_spent_script_pubkey0, 546);
+    taproot2_spent_outputs.emplace_back(taproot2_spent_script_pubkey1, 135125);
+    auto taproot2_precomputed_txdata{PrecomputedTransactionData{
+        /*tx_to=*/taproot2_spending_tx,
+        /*spent_outputs=*/taproot2_spent_outputs,
+    }};
+    run_verify_test(
+        /*spent_script_pubkey=*/taproot2_spent_script_pubkey0,
+        /*spending_tx=*/taproot2_spending_tx,
+        /*precomputed_txdata=*/&taproot2_precomputed_txdata,
+        /*amount=*/546,
+        /*input_index=*/0,
+        /*taproot=*/true);
+    run_verify_test(
+        /*spent_script_pubkey=*/taproot2_spent_script_pubkey1,
+        /*spending_tx=*/taproot2_spending_tx,
+        /*precomputed_txdata=*/&taproot2_precomputed_txdata,
+        /*amount=*/135125,
+        /*input_index=*/1,
+        /*taproot=*/true);
 }
 
 BOOST_AUTO_TEST_CASE(logging_tests)
@@ -574,6 +675,44 @@ BOOST_AUTO_TEST_CASE(btck_context_tests)
     }
 }
 
+BOOST_AUTO_TEST_CASE(btck_block_header_tests)
+{
+    // Block header format: version(4) + prev_hash(32) + merkle_root(32) + timestamp(4) + bits(4) + nonce(4) = 80 bytes
+    BlockHeader header_0{hex_string_to_byte_vec("00e07a26beaaeee2e71d7eb19279545edbaf15de0999983626ec00000000000000000000579cf78b65229bfb93f4a11463af2eaa5ad91780f27f5d147a423bea5f7e4cdf2a47e268b4dd01173a9662ee")};
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(header_0.Hash().ToBytes()), "00000000000000000000325c7e14a4ee3b4fcb2343089a839287308a0ddbee4f");
+    BlockHeader header_1{hex_string_to_byte_vec("00c00020e7cb7b4de21d26d55bd384017b8bb9333ac3b2b55bed00000000000000000000d91b4484f801b99f03d36b9d26cfa83420b67f81da12d7e6c1e7f364e743c5ba9946e268b4dd011799c8533d")};
+    CheckHandle(header_0, header_1);
+
+    // Test all header field accessors using mainnet block 1
+    auto mainnet_block_1_header = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299");
+    BlockHeader header{mainnet_block_1_header};
+    BOOST_CHECK_EQUAL(header.Version(), 1);
+    BOOST_CHECK_EQUAL(header.Timestamp(), 1231469665);
+    BOOST_CHECK_EQUAL(header.Bits(), 0x1d00ffff);
+    BOOST_CHECK_EQUAL(reinterpret_cast<uint64_t*>(header.Nonce())[0], 2573394689);
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(header.Hash().ToBytes()), "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048");
+    auto prev_hash = header.PrevHash();
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(prev_hash.ToBytes()), "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
+
+    // Test round-trip serialization of block header
+    auto header_roundtrip{BlockHeader{header.ToBytes()}};
+    check_equal(header_roundtrip.ToBytes(), mainnet_block_1_header);
+
+    auto raw_block = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+    Block block{raw_block};
+    BlockHeader block_header{block.GetHeader()};
+    BOOST_CHECK_EQUAL(block_header.Version(), 1);
+    BOOST_CHECK_EQUAL(block_header.Timestamp(), 1231469665);
+    BOOST_CHECK_EQUAL(block_header.Bits(), 0x1d00ffff);
+    BOOST_CHECK_EQUAL(reinterpret_cast<uint64_t*>(block_header.Nonce())[0], 2573394689);
+    BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(block_header.Hash().ToBytes()), "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048");
+
+    // Verify header from block serializes to first 80 bytes of raw block
+    auto block_header_bytes = block_header.ToBytes();
+    BOOST_CHECK_EQUAL(block_header_bytes.size(), 80);
+    check_equal(block_header_bytes, std::span<const std::byte>(raw_block.data(), 80));
+}
+
 BOOST_AUTO_TEST_CASE(btck_block)
 {
     Block block{hex_string_to_byte_vec(REGTEST_BLOCK_DATA[0])};
@@ -581,6 +720,10 @@ BOOST_AUTO_TEST_CASE(btck_block)
     CheckHandle(block, block_100);
     Block block_tx{hex_string_to_byte_vec(REGTEST_BLOCK_DATA[205])};
     CheckRange(block_tx.Transactions(), block_tx.CountTransactions());
+    auto invalid_data = hex_string_to_byte_vec("012300");
+    BOOST_CHECK_THROW(Block{invalid_data}, std::runtime_error);
+    auto empty_data = hex_string_to_byte_vec("");
+    BOOST_CHECK_THROW(Block{empty_data}, std::runtime_error);
 }
 
 Context create_context(std::shared_ptr<TestKernelNotifications> notifications, ChainType chain_type, std::shared_ptr<TestValidationInterface> validation_interface = nullptr)
@@ -603,21 +746,35 @@ BOOST_AUTO_TEST_CASE(btck_chainman_tests)
 
     { // test with default context
         Context context{};
-        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        ChainstateManagerOptions chainman_opts{context, PathToString(test_directory.m_directory), PathToString(test_directory.m_directory / "blocks")};
         ChainMan chainman{context, chainman_opts};
     }
 
     { // test with default context options
         ContextOptions options{};
         Context context{options};
-        ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+        ChainstateManagerOptions chainman_opts{context, PathToString(test_directory.m_directory), PathToString(test_directory.m_directory / "blocks")};
         ChainMan chainman{context, chainman_opts};
+    }
+    { // null or empty data_directory or blocks_directory are not allowed
+        Context context{};
+        auto valid_dir{PathToString(test_directory.m_directory)};
+        std::vector<std::pair<std::string_view, std::string_view>> illegal_cases{
+            {"", valid_dir},
+            {valid_dir, {nullptr, 0}},
+            {"", ""},
+            {{nullptr, 0}, {nullptr, 0}},
+        };
+        for (auto& [data_dir, blocks_dir] : illegal_cases) {
+            BOOST_CHECK_THROW(ChainstateManagerOptions(context, data_dir, blocks_dir),
+                              std::runtime_error);
+        };
     }
 
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::MAINNET)};
 
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    ChainstateManagerOptions chainman_opts{context, PathToString(test_directory.m_directory), PathToString(test_directory.m_directory / "blocks")};
     chainman_opts.SetWorkerThreads(4);
     BOOST_CHECK(!chainman_opts.SetWipeDbs(/*wipe_block_tree=*/true, /*wipe_chainstate=*/false));
     BOOST_CHECK(chainman_opts.SetWipeDbs(/*wipe_block_tree=*/true, /*wipe_chainstate=*/true));
@@ -633,7 +790,7 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
                                           bool chainstate_db_in_memory,
                                           Context& context)
 {
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    ChainstateManagerOptions chainman_opts{context, PathToString(test_directory.m_directory), PathToString(test_directory.m_directory / "blocks")};
 
     if (reindex) {
         chainman_opts.SetWipeDbs(/*wipe_block_tree=*/reindex, /*wipe_chainstate=*/reindex);
@@ -656,7 +813,9 @@ void chainman_reindex_test(TestDirectory& test_directory)
 {
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::MAINNET)};
-    auto chainman{create_chainman(test_directory, true, false, false, false, context)};
+    auto chainman{create_chainman(
+        test_directory, /*reindex=*/true, /*wipe_chainstate=*/false,
+        /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
 
     std::vector<std::string> import_files;
     BOOST_CHECK(chainman->ImportBlocks(import_files));
@@ -664,7 +823,7 @@ void chainman_reindex_test(TestDirectory& test_directory)
     // Sanity check some block retrievals
     auto chain{chainman->GetChain()};
     BOOST_CHECK_THROW(chain.GetByHeight(1000), std::runtime_error);
-    auto genesis_index{chain.Genesis()};
+    auto genesis_index{chain.Entries().front()};
     BOOST_CHECK(!genesis_index.GetPrevious());
     auto genesis_block_raw{chainman->ReadBlock(genesis_index).value().ToBytes()};
     auto first_index{chain.GetByHeight(0)};
@@ -676,7 +835,7 @@ void chainman_reindex_test(TestDirectory& test_directory)
     auto next_index{chain.GetByHeight(first_index.GetHeight() + 1)};
     BOOST_CHECK(chain.Contains(next_index));
     auto next_block_data{chainman->ReadBlock(next_index).value().ToBytes()};
-    auto tip_index{chain.Tip()};
+    auto tip_index{chain.Entries().back()};
     auto tip_block_data{chainman->ReadBlock(tip_index).value().ToBytes()};
     auto second_index{chain.GetByHeight(1)};
     auto second_block{chainman->ReadBlock(second_index).value()};
@@ -699,10 +858,12 @@ void chainman_reindex_chainstate_test(TestDirectory& test_directory)
 {
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::MAINNET)};
-    auto chainman{create_chainman(test_directory, false, true, false, false, context)};
+    auto chainman{create_chainman(
+        test_directory, /*reindex=*/false, /*wipe_chainstate=*/true,
+        /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
 
     std::vector<std::string> import_files;
-    import_files.push_back((test_directory.m_directory / "blocks" / "blk00000.dat").string());
+    import_files.push_back(PathToString(test_directory.m_directory / "blocks" / "blk00000.dat"));
     BOOST_CHECK(chainman->ImportBlocks(import_files));
 }
 
@@ -711,24 +872,20 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto validation_interface{std::make_shared<TestValidationInterface>()};
     auto context{create_context(notifications, ChainType::MAINNET, validation_interface)};
-    auto chainman{create_chainman(test_directory, false, false, false, false, context)};
-
-    {
-        // Process an invalid block
-        auto raw_block = hex_string_to_byte_vec("012300");
-        BOOST_CHECK_THROW(Block{raw_block}, std::runtime_error);
-    }
-    {
-        // Process an empty block
-        auto raw_block = hex_string_to_byte_vec("");
-        BOOST_CHECK_THROW(Block{raw_block}, std::runtime_error);
-    }
+    auto chainman{create_chainman(
+        test_directory, /*reindex=*/false, /*wipe_chainstate=*/false,
+        /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
 
     // mainnet block 1
     auto raw_block = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
     Block block{raw_block};
+    BlockHeader header{block.GetHeader()};
     TransactionView tx{block.GetTransaction(block.CountTransactions() - 1)};
     BOOST_CHECK_EQUAL(byte_span_to_hex_string_reversed(tx.Txid().ToBytes()), "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098");
+    BOOST_CHECK_EQUAL(header.Version(), 1);
+    BOOST_CHECK_EQUAL(header.Timestamp(), 1231469665);
+    BOOST_CHECK_EQUAL(header.Bits(), 0x1d00ffff);
+    BOOST_CHECK_EQUAL(reinterpret_cast<uint64_t*>(header.Nonce())[0], 2573394689);
     BOOST_CHECK_EQUAL(tx.CountInputs(), 1);
     Transaction tx2 = tx;
     BOOST_CHECK_EQUAL(tx2.CountInputs(), 1);
@@ -755,7 +912,7 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
 
     auto chain{chainman->GetChain()};
     BOOST_CHECK_EQUAL(chain.Height(), 1);
-    auto tip{chain.Tip()};
+    auto tip{chain.Entries().back()};
     auto read_block{chainman->ReadBlock(tip)};
     BOOST_REQUIRE(read_block);
     check_equal(read_block.value().ToBytes(), raw_block);
@@ -772,6 +929,65 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     // If we try to validate it again, it should be a duplicate
     BOOST_CHECK(chainman->ProcessBlock(block, &new_block));
     BOOST_CHECK(!new_block);
+}
+
+BOOST_AUTO_TEST_CASE(btck_check_block_context_free)
+{
+    constexpr size_t MERKLE_ROOT_OFFSET{4 + 32};
+    constexpr size_t NBITS_OFFSET{4 + 32 + 32 + 4};
+    constexpr size_t COINBASE_PREVOUT_N_OFFSET{4 + 32 + 32 + 4 + 4 + 4 + 1 + 4 + 1 + 32};
+
+    // Mainnet block 1
+    auto raw_block = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e362990101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000");
+
+    // Context-free block checks still need consensus params for the optional
+    // proof-of-work validation path.
+    ChainParams mainnet_params{ChainType::MAINNET};
+    auto consensus_params = mainnet_params.GetConsensusParams();
+
+    Block block{raw_block};
+    BlockValidationState state;
+
+    BOOST_CHECK(block.Check(consensus_params, BlockCheckFlags::BASE, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+
+    BOOST_CHECK(block.Check(consensus_params, BlockCheckFlags::ALL, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+
+    auto bad_merkle_block_data = raw_block;
+    bad_merkle_block_data[MERKLE_ROOT_OFFSET] ^= std::byte{0x01};
+    Block bad_merkle_block{bad_merkle_block_data};
+
+    BOOST_CHECK(!bad_merkle_block.Check(consensus_params, BlockCheckFlags::MERKLE, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::INVALID);
+    BOOST_CHECK(state.GetBlockValidationResult() == BlockValidationResult::MUTATED);
+
+    BOOST_CHECK(bad_merkle_block.Check(consensus_params, BlockCheckFlags::BASE, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+
+    auto bad_pow_block_data = raw_block;
+    bad_pow_block_data[NBITS_OFFSET + 3] = std::byte{0x1c};
+    Block bad_pow_block{bad_pow_block_data};
+
+    BOOST_CHECK(!bad_pow_block.Check(consensus_params, BlockCheckFlags::POW, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::INVALID);
+    BOOST_CHECK(state.GetBlockValidationResult() == BlockValidationResult::INVALID_HEADER);
+
+    BOOST_CHECK(bad_pow_block.Check(consensus_params, BlockCheckFlags::MERKLE, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+
+    auto bad_base_block_data = raw_block;
+    bad_base_block_data[COINBASE_PREVOUT_N_OFFSET] = std::byte{0x00};
+    Block bad_base_block{bad_base_block_data};
+
+    BOOST_CHECK(!bad_base_block.Check(consensus_params, BlockCheckFlags::BASE, state));
+    BOOST_CHECK(state.GetValidationMode() == ValidationMode::INVALID);
+    BOOST_CHECK(state.GetBlockValidationResult() == BlockValidationResult::CONSENSUS);
+
+    // Test with invalid truncated block data.
+    auto truncated_block_data = hex_string_to_byte_vec("010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299");
+    BOOST_CHECK_EXCEPTION(Block{truncated_block_data}, std::runtime_error,
+                          HasReason{"failed to instantiate btck object"});
 }
 
 BOOST_AUTO_TEST_CASE(btck_chainman_mainnet_tests)
@@ -797,13 +1013,62 @@ BOOST_AUTO_TEST_CASE(btck_block_hash_tests)
     CheckHandle(block_hash, block_hash_2);
 }
 
+BOOST_AUTO_TEST_CASE(btck_block_tree_entry_tests)
+{
+    auto test_directory{TestDirectory{"block_tree_entry_test_bitcoin_kernel"}};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::REGTEST)};
+    auto chainman{create_chainman(
+        test_directory,
+        /*reindex=*/false,
+        /*wipe_chainstate=*/false,
+        /*block_tree_db_in_memory=*/true,
+        /*chainstate_db_in_memory=*/true,
+        context)};
+
+    // Process a couple of blocks
+    for (size_t i{0}; i < 3; i++) {
+        Block block{hex_string_to_byte_vec(REGTEST_BLOCK_DATA[i])};
+        bool new_block{false};
+        chainman->ProcessBlock(block, &new_block);
+        BOOST_CHECK(new_block);
+    }
+
+    auto chain{chainman->GetChain()};
+    auto entry_0{chain.GetByHeight(0)};
+    auto entry_1{chain.GetByHeight(1)};
+    auto entry_2{chain.GetByHeight(2)};
+
+    // Test inequality
+    BOOST_CHECK(entry_0 != entry_1);
+    BOOST_CHECK(entry_1 != entry_2);
+    BOOST_CHECK(entry_0 != entry_2);
+
+    // Test equality with same entry
+    BOOST_CHECK(entry_0 == chain.GetByHeight(0));
+    BOOST_CHECK(entry_0 == BlockTreeEntry{entry_0});
+    BOOST_CHECK(entry_1 == entry_1);
+
+    // Test GetPrevious
+    auto prev{entry_1.GetPrevious()};
+    BOOST_CHECK(prev.has_value());
+    BOOST_CHECK(prev.value() == entry_0);
+
+    // Test GetAncestor
+    BOOST_CHECK(entry_2.GetAncestor(2) == entry_2);
+    BOOST_CHECK(entry_2.GetAncestor(1) == entry_1);
+    BOOST_CHECK(entry_2.GetAncestor(0) == entry_0);
+}
+
 BOOST_AUTO_TEST_CASE(btck_chainman_in_memory_tests)
 {
     auto in_memory_test_directory{TestDirectory{"in-memory_test_bitcoin_kernel"}};
 
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::REGTEST)};
-    auto chainman{create_chainman(in_memory_test_directory, false, false, true, true, context)};
+    auto chainman{create_chainman(
+        in_memory_test_directory, /*reindex=*/false, /*wipe_chainstate=*/false,
+        /*block_tree_db_in_memory=*/true, /*chainstate_db_in_memory=*/true, context)};
 
     for (auto& raw_block : REGTEST_BLOCK_DATA) {
         Block block{hex_string_to_byte_vec(raw_block)};
@@ -812,9 +1077,9 @@ BOOST_AUTO_TEST_CASE(btck_chainman_in_memory_tests)
         BOOST_CHECK(new_block);
     }
 
-    BOOST_CHECK(std::filesystem::exists(in_memory_test_directory.m_directory / "blocks"));
-    BOOST_CHECK(!std::filesystem::exists(in_memory_test_directory.m_directory / "blocks" / "index"));
-    BOOST_CHECK(!std::filesystem::exists(in_memory_test_directory.m_directory / "chainstate"));
+    BOOST_CHECK(fs::exists(in_memory_test_directory.m_directory / "blocks"));
+    BOOST_CHECK(!fs::exists(in_memory_test_directory.m_directory / "blocks" / "index"));
+    BOOST_CHECK(!fs::exists(in_memory_test_directory.m_directory / "chainstate"));
 
     BOOST_CHECK(context.interrupt());
 }
@@ -826,13 +1091,33 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     auto notifications{std::make_shared<TestKernelNotifications>()};
     auto context{create_context(notifications, ChainType::REGTEST)};
 
+    {
+        auto chainman{create_chainman(
+            test_directory, /*reindex=*/false, /*wipe_chainstate=*/false,
+            /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
+        for (const auto& data : REGTEST_BLOCK_DATA) {
+            Block block{hex_string_to_byte_vec(data)};
+            BlockHeader header = block.GetHeader();
+            BlockValidationState state = chainman->ProcessBlockHeader(header);
+            BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+            BOOST_CHECK(state.GetBlockValidationResult() == BlockValidationResult::UNSET);
+            BlockTreeEntry entry{*chainman->GetBlockTreeEntry(header.Hash())};
+            BOOST_CHECK(!chainman->GetChain().Contains(entry));
+            BlockTreeEntry best_entry{chainman->GetBestEntry()};
+            BlockHash hash{entry.GetHash()};
+            BOOST_CHECK(hash == best_entry.GetHeader().Hash());
+        }
+    }
+
     // Validate 206 regtest blocks in total.
     // Stop halfway to check that it is possible to continue validating starting
     // from prior state.
     const size_t mid{REGTEST_BLOCK_DATA.size() / 2};
 
     {
-        auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+        auto chainman{create_chainman(
+            test_directory, /*reindex=*/false, /*wipe_chainstate=*/false,
+            /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
         for (size_t i{0}; i < mid; i++) {
             Block block{hex_string_to_byte_vec(REGTEST_BLOCK_DATA[i])};
             bool new_block{false};
@@ -841,7 +1126,9 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
         }
     }
 
-    auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+    auto chainman{create_chainman(
+        test_directory, /*reindex=*/false, /*wipe_chainstate=*/false,
+        /*block_tree_db_in_memory=*/false, /*chainstate_db_in_memory=*/false, context)};
 
     for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
         Block block{hex_string_to_byte_vec(REGTEST_BLOCK_DATA[i])};
@@ -851,7 +1138,7 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     }
 
     auto chain = chainman->GetChain();
-    auto tip = chain.Tip();
+    auto tip = chain.Entries().back();
     auto read_block = chainman->ReadBlock(tip).value();
     check_equal(read_block.ToBytes(), hex_string_to_byte_vec(REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]));
 
@@ -897,8 +1184,9 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
             }
             BOOST_CHECK(inputs.size() == spent_outputs.size());
             ScriptVerifyStatus status = ScriptVerifyStatus::OK;
+            const PrecomputedTransactionData precomputed_txdata{transaction, spent_outputs};
             for (size_t i{0}; i < inputs.size(); ++i) {
-                BOOST_CHECK(spent_outputs[i].GetScriptPubkey().Verify(spent_outputs[i].Amount(), transaction, spent_outputs, i, ScriptVerificationFlags::ALL, status));
+                BOOST_CHECK(spent_outputs[i].GetScriptPubkey().Verify(spent_outputs[i].Amount(), transaction, &precomputed_txdata, i, ScriptVerificationFlags::ALL, status));
             }
         }
     }
@@ -927,15 +1215,15 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     // Validate coin properties
     TransactionOutputView output = coin.GetOutput();
     uint32_t coin_height = coin.GetConfirmationHeight();
-    BOOST_CHECK_EQUAL(coin_height, 205);
-    BOOST_CHECK_EQUAL(output.Amount(), 100000000);
+    BOOST_CHECK_EQUAL(coin_height, 143);
+    BOOST_CHECK_EQUAL(output.Amount(), 3949990974);
 
     // Test script pubkey serialization
     auto script_pubkey = output.GetScriptPubkey();
     auto script_pubkey_bytes{script_pubkey.ToBytes()};
-    BOOST_CHECK_EQUAL(script_pubkey_bytes.size(), 22);
+    BOOST_CHECK_EQUAL(script_pubkey_bytes.size(), 34);
     auto round_trip_script_pubkey{ScriptPubkey(script_pubkey_bytes)};
-    BOOST_CHECK_EQUAL(round_trip_script_pubkey.ToBytes().size(), 22);
+    BOOST_CHECK_EQUAL(round_trip_script_pubkey.ToBytes().size(), 34);
 
     for (const auto tx_spent_outputs : block_spent_outputs.TxsSpentOutputs()) {
         for (const auto coins : tx_spent_outputs.Coins()) {
@@ -968,8 +1256,133 @@ BOOST_AUTO_TEST_CASE(btck_chainman_regtest_tests)
     BOOST_CHECK_EQUAL(count, chain.CountEntries());
 
 
-    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "blk00000.dat");
+    fs::remove(test_directory.m_directory / "blocks" / "blk00000.dat");
     BOOST_CHECK(!chainman->ReadBlock(tip_2).has_value());
-    std::filesystem::remove_all(test_directory.m_directory / "blocks" / "rev00000.dat");
+    fs::remove(test_directory.m_directory / "blocks" / "rev00000.dat");
     BOOST_CHECK_THROW(chainman->ReadBlockSpentOutputs(tip), std::runtime_error);
+}
+
+// -----------------------------------------------------------------------------
+// CheckTransaction tests
+//
+// Transaction hex below is copied from src/test/data/tx_invalid.json (entries
+// marked "BADTX") and tx_valid.json. CheckTransaction performs only basic context-free
+// consensus checks and can only produce two outcomes:
+//   - VALID  (ValidationMode::VALID, TxValidationResult::UNSET)
+//   - INVALID (ValidationMode::INVALID, TxValidationResult::CONSENSUS)
+// Other TxValidationResult values are set by higher-level validation and are
+// not reachable through btck_transaction_check.
+// -----------------------------------------------------------------------------
+BOOST_AUTO_TEST_CASE(btck_transaction_check_tests)
+{
+    using namespace btck;
+
+    constexpr std::string_view valid_tx_hex{
+        "01000000010001000000000000000000000000000000000000000000000000000000000000"
+        "000000006a473044022067288ea50aa799543a536ff9306f8e1cba05b9c6b10951175b92"
+        "4f96732555ed022026d7b5265f38d21541519e4a1e55044d5b9e17e15cdbaf29ae3792e9"
+        "9e883e7a012103ba8c8b86dea131c22ab967e6dd99bdae8eff7a1f75a2c35f1f944109e3"
+        "fe5e22ffffffff010000000000000000015100000000"};
+    constexpr std::string_view no_outputs_tx_hex{
+        "01000000010001000000000000000000000000000000000000000000000000000000000000"
+        "000000006d483045022100f16703104aab4e4088317c862daec83440242411b039d14280e0"
+        "3dd33b487ab802201318a7be236672c5c56083eb7a5a195bc57a40af7923ff8545016cd3b5"
+        "71e2a601232103c40e5d339df3f30bf753e7e04450ae4ef76c9e45587d1d993bdc4cd06f06"
+        "51c7acffffffff0000000000"};
+
+    auto expect_valid = [](std::string_view hex) {
+        Transaction tx{hex_string_to_byte_vec(hex)};
+        TxValidationState st;
+        BOOST_CHECK(CheckTransaction(tx, st));
+        BOOST_CHECK(st.GetValidationMode() == ValidationMode::VALID);
+        BOOST_CHECK(st.GetTxValidationResult() == TxValidationResult::UNSET);
+    };
+
+    auto expect_invalid = [](std::string_view hex) {
+        Transaction tx{hex_string_to_byte_vec(hex)};
+        TxValidationState st;
+        BOOST_CHECK(!CheckTransaction(tx, st));
+        BOOST_CHECK(st.GetValidationMode() == ValidationMode::INVALID);
+        BOOST_CHECK(st.GetTxValidationResult() == TxValidationResult::CONSENSUS);
+    };
+
+    // Valid: simple 1-in 1-out transaction (from tx_valid.json)
+    expect_valid(valid_tx_hex);
+
+    // Valid coinbase with scriptSig size 2 (from tx_valid.json)
+    expect_valid(
+        "01000000010000000000000000000000000000000000000000000000000000000000000000"
+        "ffffffff025151ffffffff010000000000000000015100000000");
+
+    // No outputs (BADTX from tx_invalid.json)
+    expect_invalid(no_outputs_tx_hex);
+
+    {
+        Transaction valid_tx{hex_string_to_byte_vec(valid_tx_hex)};
+        Transaction invalid_tx{hex_string_to_byte_vec(no_outputs_tx_hex)};
+        TxValidationState state;
+
+        BOOST_CHECK(btck_transaction_check(valid_tx.get(), state.get()) == 1);
+        BOOST_CHECK(state.GetValidationMode() == ValidationMode::VALID);
+        BOOST_CHECK(state.GetTxValidationResult() == TxValidationResult::UNSET);
+
+        BOOST_CHECK(btck_transaction_check(invalid_tx.get(), state.get()) == 0);
+        BOOST_CHECK(state.GetValidationMode() == ValidationMode::INVALID);
+        BOOST_CHECK(state.GetTxValidationResult() == TxValidationResult::CONSENSUS);
+    }
+
+    // Negative output (BADTX)
+    expect_invalid(
+        "01000000010001000000000000000000000000000000000000000000000000000000000000"
+        "000000006d4830450220063222cbb128731fc09de0d7323746539166544d6c1df84d867cce"
+        "a84bcc8903022100bf568e8552844de664cd41648a031554327aa8844af34b4f27397c65b9"
+        "2c04de0123210243ec37dee0e2e053a9c976f43147e79bc7d9dc606ea51010af1ac80db6b0"
+        "69e1acffffffff01ffffffffffffffff015100000000");
+
+    // MAX_MONEY + 1 output (BADTX)
+    expect_invalid(
+        "01000000010001000000000000000000000000000000000000000000000000000000000000"
+        "000000006e493046022100e1eadba00d9296c743cb6ecc703fd9ddc9b3cd12906176a226ae"
+        "4c18d6b00796022100a71aef7d2874deff681ba6080f1b278bac7bb99c61b08a85f4311970"
+        "ffe7f63f012321030c0588dc44d92bdcbf8e72093466766fdc265ead8db64517b0c542275b"
+        "70fffbacffffffff010140075af0750700015100000000");
+
+    // MAX_MONEY output + 1 output: sum exceeds MAX_MONEY (BADTX)
+    expect_invalid(
+        "01000000010001000000000000000000000000000000000000000000000000000000000000"
+        "000000006d483045022027deccc14aa6668e78a8c9da3484fbcd4f9dcc9bb7d1b85146314b"
+        "21b9ae4d86022100d0b43dece8cfb07348de0ca8bc5b86276fa88f7f2138381128b7c36ab2"
+        "e42264012321029bb13463ddd5d2cc05da6e84e37536cb9525703cfd8f43afdb414988987a"
+        "92f6acffffffff020040075af075070001510001000000000000015100000000");
+
+    // Duplicate inputs (BADTX)
+    expect_invalid(
+        "01000000020001000000000000000000000000000000000000000000000000000000000000"
+        "000000006c47304402204bb1197053d0d7799bf1b30cd503c44b58d6240cccbdc85b6fe76d"
+        "087980208f02204beeed78200178ffc6c74237bb74b3f276bbb4098b5605d814304fe128bf"
+        "1431012321039e8815e15952a7c3fada1905f8cf55419837133bd7756c0ef14fc8dfe50c0d"
+        "eaacffffffff0001000000000000000000000000000000000000000000000000000000000000"
+        "000000006c47304402202306489afef52a6f62e90bf750bbcdf40c06f5c6b138286e6b6b8617"
+        "6bb9341802200dba98486ea68380f47ebb19a7df173b99e6bc9c681d6ccf3bde31465d1f16"
+        "b3012321039e8815e15952a7c3fada1905f8cf55419837133bd7756c0ef14fc8dfe50c0dea"
+        "acffffffff010000000000000000015100000000");
+
+    // Coinbase with scriptSig size 1: too small (BADTX)
+    expect_invalid(
+        "01000000010000000000000000000000000000000000000000000000000000000000000000"
+        "ffffffff0151ffffffff010000000000000000015100000000");
+
+    // Coinbase with scriptSig size 101: too large (BADTX)
+    expect_invalid(
+        "01000000010000000000000000000000000000000000000000000000000000000000000000"
+        "ffffffff6551515151515151515151515151515151515151515151515151515151515151515151"
+        "515151515151515151515151515151515151515151515151515151515151515151515151515151"
+        "51515151515151515151515151515151515151515151515151515151ffffffff01000000000000"
+        "0000015100000000");
+
+    // Null prevout in non-coinbase: two inputs, one is null (BADTX)
+    expect_invalid(
+        "01000000020000000000000000000000000000000000000000000000000000000000000000"
+        "ffffffff00ffffffff000100000000000000000000000000000000000000000000000000000000"
+        "00000000000000ffffffff010000000000000000015100000000");
 }

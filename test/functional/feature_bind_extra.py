@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 The Bitcoin Core developers
+# Copyright (c) 2014-present The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """
@@ -32,8 +32,7 @@ class BindExtraTest(BitcoinTestFramework):
         self.num_nodes = 3
 
     def skip_test_if_missing_module(self):
-        # Due to OS-specific network stats queries, we only run on Linux.
-        self.skip_if_platform_not_linux()
+        self.skip_if_platform_not_posix()
 
     def setup_network(self):
         loopback_ipv4 = addr_to_hex("127.0.0.1")

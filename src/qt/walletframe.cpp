@@ -71,7 +71,7 @@ bool WalletFrame::addView(WalletView* walletView)
 {
     if (!clientModel) return false;
 
-    if (mapWalletViews.count(walletView->getWalletModel()) > 0) return false;
+    if (mapWalletViews.contains(walletView->getWalletModel())) return false;
 
     walletView->setClientModel(clientModel);
     walletView->showOutOfSyncWarning(bOutOfSync);
@@ -91,7 +91,7 @@ bool WalletFrame::addView(WalletView* walletView)
 
 void WalletFrame::setCurrentWallet(WalletModel* wallet_model)
 {
-    if (mapWalletViews.count(wallet_model) == 0) return;
+    if (!mapWalletViews.contains(wallet_model)) return;
 
     // Stop the effect of hidden widgets on the size hint of the shown one in QStackedWidget.
     WalletView* view_about_to_hide = currentWalletView();
@@ -117,7 +117,7 @@ void WalletFrame::setCurrentWallet(WalletModel* wallet_model)
 
 void WalletFrame::removeWallet(WalletModel* wallet_model)
 {
-    if (mapWalletViews.count(wallet_model) == 0) return;
+    if (!mapWalletViews.contains(wallet_model)) return;
 
     WalletView *walletView = mapWalletViews.take(wallet_model);
     walletStack->removeWidget(walletView);
@@ -224,15 +224,14 @@ void WalletFrame::gotoLoadPSBT(bool from_clipboard)
         }
     }
 
-    std::string error;
-    PartiallySignedTransaction psbtx;
-    if (!DecodeRawPSBT(psbtx, MakeByteSpan(data), error)) {
-        Q_EMIT message(tr("Error"), tr("Unable to decode PSBT") + "\n" + QString::fromStdString(error), CClientUIInterface::MSG_ERROR);
+    util::Result<PartiallySignedTransaction> psbt_res = DecodeRawPSBT(MakeByteSpan(data));
+    if (!psbt_res) {
+        Q_EMIT message(tr("Error"), tr("Unable to decode PSBT") + "\n" + QString::fromStdString(util::ErrorString(psbt_res).original), CClientUIInterface::MSG_ERROR);
         return;
     }
 
     auto dlg = new PSBTOperationsDialog(this, currentWalletModel(), clientModel);
-    dlg->openWithPSBT(psbtx);
+    dlg->openWithPSBT(*psbt_res);
     GUIUtil::ShowModalDialogAsynchronously(dlg);
 }
 

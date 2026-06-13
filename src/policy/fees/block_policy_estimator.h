@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -7,10 +7,10 @@
 #define BITCOIN_POLICY_FEES_BLOCK_POLICY_ESTIMATOR_H
 
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
 #include <policy/feerate.h>
 #include <random.h>
 #include <sync.h>
-#include <threadsafety.h>
 #include <uint256.h>
 #include <util/fs.h>
 #include <validationinterface.h>
@@ -65,7 +65,6 @@ enum class FeeReason {
     DOUBLE_ESTIMATE,
     CONSERVATIVE,
     MEMPOOL_MIN,
-    PAYTXFEE,
     FALLBACK,
     REQUIRED,
 };
@@ -182,13 +181,14 @@ private:
     static constexpr double SUFFICIENT_TXS_SHORT = 0.5;
 
     /** Minimum and Maximum values for tracking feerates
-     * The MIN_BUCKET_FEERATE should just be set to the lowest reasonable feerate we
-     * might ever want to track.  Historically this has been 1000 since it was
-     * inheriting DEFAULT_MIN_RELAY_TX_FEE and changing it is disruptive as it
-     * invalidates old estimates files. So leave it at 1000 unless it becomes
-     * necessary to lower it, and then lower it substantially.
+     * The MIN_BUCKET_FEERATE should just be set to the lowest reasonable feerate.
+     * It is hardcoded because changing it is disruptive, as it invalidates existing fee
+     * estimate files.
+     *
+     * Whenever DEFAULT_MIN_RELAY_TX_FEE changes, this value should be updated
+     * accordingly. At the same time CURRENT_FEES_FILE_VERSION should be bumped.
      */
-    static constexpr double MIN_BUCKET_FEERATE = 1000;
+    static constexpr double MIN_BUCKET_FEERATE = MIN_FEERATE;
     static constexpr double MAX_BUCKET_FEERATE = 1e7;
 
     /** Spacing of FeeRate buckets
@@ -201,7 +201,7 @@ private:
     const fs::path m_estimation_filepath;
 public:
     /** Create new BlockPolicyEstimator and initialize stats tracking classes with default values */
-    CBlockPolicyEstimator(const fs::path& estimation_filepath, const bool read_stale_estimates);
+    CBlockPolicyEstimator(const fs::path& estimation_filepath, bool read_stale_estimates);
     virtual ~CBlockPolicyEstimator();
 
     /** Process all the transactions that have been included in a block */

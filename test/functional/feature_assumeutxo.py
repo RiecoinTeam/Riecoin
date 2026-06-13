@@ -11,12 +11,10 @@ The assumeutxo value generated and used here is committed to in
 `CRegTestParams::m_assumeutxo_data` in `src/kernel/chainparams.cpp`.
 """
 import contextlib
-from shutil import rmtree
 
 from dataclasses import dataclass
 from test_framework.blocktools import (
         create_block,
-        create_coinbase
 )
 from test_framework.compressor import (
     compress_amount,
@@ -39,6 +37,7 @@ from test_framework.util import (
     assert_equal,
     assert_not_equal,
     assert_raises_rpc_error,
+    dumb_sync_blocks,
     ensure_for,
     sha256sum_file,
     try_rpc,
@@ -140,12 +139,12 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("  - snapshot file with alternated but parsable UTXO data results in different hash")
         cases = [
             # (content, offset, wrong_hash, custom_message)
-            [b"\xff" * 32, 0, "c639c0c0fcad87e6f5258970cad73c382a493a376bfa7e1f3c67b22b84f49a3b", None],  # wrong outpoint hash
+            [b"\xff" * 32, 0, "a1eddcb6b514f86281eca861474078d82b82217ce2b82765e4f5d439933c7d6f", None],  # wrong outpoint hash
             [(2).to_bytes(1, "little"), 32, None, "Bad snapshot data after deserializing 1 coins."],  # wrong txid coins count
             [b"\xfd\xff\xff", 32, None, "Mismatch in coins count in snapshot metadata and actual snapshot data"],  # txid coins count exceeds coins left
-            [b"\x01", 33, "6b804f0a29edca008bacfb37fdc32169cb6c8a1864b7e6ee3b50ada650a5291f", None],  # wrong outpoint index
-            [b"\x82", 34, "753efdf376458f0c57dc5040ed7bfef59a743da6c0b60cafcd15ba626e4f71a1", None],  # wrong coin code VARINT
-            [b"\x80", 34, "bc8f6e244ad7cc0aaaa80366998d69a7e5de144ed4cbdb3fc803fa22a6c622c3", None],  # another wrong coin code
+            [b"\x01", 33, "004d06f0afe9e251dbecbfbb7a46933d69c67d62aa1655d184e183ee43bbf7ba", None],  # wrong outpoint index
+            [b"\x83", 34, "64d89fb08cc2c7a3336419c86f5a7c4627cae4da99bc256d91c22fa2075b560e", None],  # wrong coin code VARINT
+            [b"\x81", 34, "429b02912f0004ea8447a6954055671e0dbc8a0a4a925b547c952ddeca8034a9", None],  # another wrong coin code
             [b"\x84\x58", 34, None, "Bad snapshot data after deserializing 0 coins"],  # wrong coin case with height 364 and coinbase 0
             [
                 # compressed txout value + scriptpubkey
@@ -164,12 +163,12 @@ class AssumeutxoTest(BitcoinTestFramework):
                 f.write(content)
                 f.write(valid_snapshot_contents[(5 + 2 + 4 + 32 + 8 + offset + len(content)):])
 
-            msg = custom_message if custom_message is not None else f"Bad snapshot content hash: expected 2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85, got {wrong_hash}."
+            msg = custom_message if custom_message is not None else f"Bad snapshot content hash: expected 0c4b0d858bcdfbcb68adfb3563908572899112aa3c6b5417577ca55a6f28436c, got {wrong_hash}."
             expected_error(msg)
 
     def test_headers_not_synced(self, valid_snapshot_path):
         for node in self.nodes[1:]:
-            msg = "Unable to load UTXO snapshot: The base block header (b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."
+            msg = "Unable to load UTXO snapshot: The base block header (606d092fdc8b336dde68fb3d3d850d1e80c58de1cc6abda4549290d79490d2a0) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."
             assert_raises_rpc_error(-32603, msg, node.loadtxoutset, valid_snapshot_path)
 
     def test_invalid_chainstate_scenarios(self):
@@ -191,7 +190,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         expected_error(log_msg=error_details, error_msg=expected_error_msg)
 
         # resurrect node again
-        rmtree(chainstate_snapshot_path)
+        (chainstate_snapshot_path / "base_blockhash").unlink()
+        chainstate_snapshot_path.rmdir()
         self.start_node(0)
 
     def test_invalid_mempool_state(self, dump_output_path):
@@ -228,7 +228,7 @@ class AssumeutxoTest(BitcoinTestFramework):
             block_hash = node.getblockhash(height)
             node.invalidateblock(block_hash)
             assert_equal(node.getblockcount(), height - 1)
-            msg = "Unable to load UTXO snapshot: The base block header (b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80) is part of an invalid chain."
+            msg = "Unable to load UTXO snapshot: The base block header (606d092fdc8b336dde68fb3d3d850d1e80c58de1cc6abda4549290d79490d2a0) is part of an invalid chain."
             assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output_path)
             node.reconsiderblock(block_hash)
 
@@ -268,9 +268,9 @@ class AssumeutxoTest(BitcoinTestFramework):
         # the main chain headers up to the snapshot height.
         parent_block_hash = node0.getblockhash(SNAPSHOT_BASE_HEIGHT - 1)
         block_time = node0.getblock(node0.getbestblockhash())['time'] + 1
-        fork_block1 = create_block(int(parent_block_hash, 16), create_coinbase(SNAPSHOT_BASE_HEIGHT), block_time)
+        fork_block1 = create_block(int(parent_block_hash, 16), height=SNAPSHOT_BASE_HEIGHT, ntime=block_time)
         fork_block1.solve()
-        fork_block2 = create_block(fork_block1.hash_int, create_coinbase(SNAPSHOT_BASE_HEIGHT + 1), block_time + 1)
+        fork_block2 = create_block(fork_block1.hash_int, height=SNAPSHOT_BASE_HEIGHT + 1, ntime=block_time + 1)
         fork_block2.solve()
         node1.submitheader(fork_block1.serialize().hex())
         node1.submitheader(fork_block2.serialize().hex())
@@ -301,7 +301,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         # Start test fresh by cleaning up node directories
         for node in (snapshot_node, ibd_node):
             self.stop_node(node.index)
-            rmtree(node.chain_path)
+            self.cleanup_folder(node.chain_path)
             self.start_node(node.index, extra_args=self.extra_args[node.index])
 
         # Sync-up headers chain on snapshot_node to load snapshot
@@ -345,6 +345,29 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert 'NETWORK' in ibd_node.getpeerinfo()[0]['servicesnames']
         self.sync_blocks(nodes=(ibd_node, snapshot_node))
 
+    def test_sync_to_most_work_chain_after_background_validation(self):
+        """
+        After background validation completes, node should be able
+        to download and process blocks from peers without the snapshot block in their chain.
+        """
+        self.log.info("Testing sync to the most-work chain without the snapshot block after background validation")
+
+        forking_node = self.nodes[0]
+        snapshot_node = self.nodes[2]  # Has already completed background validation
+
+        self.log.info("Forking node switches to an alternative chain that forks one block before the snapshot block")
+        fork_point = SNAPSHOT_BASE_HEIGHT - 1
+        forking_node_old_height = forking_node.getblockcount()
+        forking_node_old_chainwork = int(forking_node.getblockchaininfo()['chainwork'], 16)
+        forking_node.invalidateblock(forking_node.getblockhash(fork_point + 1))
+
+        self.log.info("Mine one more block than original chain to make the new chain have most work")
+        self.generate(forking_node, nblocks=(forking_node_old_height - fork_point) + 1, sync_fun=self.no_op)
+        assert int(forking_node.getblockchaininfo()['chainwork'], 16) > forking_node_old_chainwork
+
+        self.log.info("Snapshot node should reorg to the most-work chain without the snapshot block")
+        self.sync_blocks(nodes=(snapshot_node, forking_node))
+
     def assert_only_network_limited_service(self, node):
         node_services = node.getnetworkinfo()['localservicesnames']
         assert 'NETWORK' not in node_services
@@ -387,7 +410,7 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         # Generate a series of blocks that `n0` will have in the snapshot,
         # but that n1 and n2 don't yet see.
-        assert n0.getblockcount() == START_HEIGHT
+        assert_equal(n0.getblockcount(), START_HEIGHT)
         blocks = {START_HEIGHT: Block(n0.getbestblockhash(), 1, START_HEIGHT + 1)}
         for i in range(100):
             block_tx = 1
@@ -444,7 +467,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         def check_dump_output(output):
             assert_equal(
                 output['txoutset_hash'],
-                "2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85")
+                "0c4b0d858bcdfbcb68adfb3563908572899112aa3c6b5417577ca55a6f28436c")
             assert_equal(output["nchaintx"], blocks[SNAPSHOT_BASE_HEIGHT].chain_tx)
 
         check_dump_output(dump_output)
@@ -474,7 +497,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         dump_output4 = n0.dumptxoutset(path='utxos4.dat', rollback=prev_snap_height)
         assert_equal(
             dump_output4['txoutset_hash'],
-            "592d7a36a9a0a060d2c2eea18814527d33183ca4c7a4c39fa7eefd87c7b98630")
+            "d5b1ccc271c5b70aec773679c2f0b390b4feaf4e9f600e82bd8bbc707effd5f4")
         assert_not_equal(sha256sum_file(dump_output['path']), sha256sum_file(dump_output4['path']))
 
         # Use a hash instead of a height
@@ -515,6 +538,30 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert_equal(utxo_info['txouts'], snapshot_num_coins)
         assert_equal(utxo_info['height'], SNAPSHOT_BASE_HEIGHT)
         assert_equal(utxo_info['bestblock'], snapshot_hash)
+
+        self.log.info("Check that getblockchaininfo returns information about the background validation process")
+        expected_keys = [
+            "snapshotheight",
+            "blocks",
+            "bestblockhash",
+            "mediantime",
+            "chainwork",
+            "verificationprogress"
+        ]
+        res = n1.getblockchaininfo()
+        assert "backgroundvalidation" in res.keys()
+        bv_res = res["backgroundvalidation"]
+        assert_equal(sorted(expected_keys), sorted(bv_res.keys()))
+        assert_equal(bv_res["snapshotheight"], SNAPSHOT_BASE_HEIGHT)
+        assert_equal(bv_res["blocks"], START_HEIGHT)
+        assert_equal(bv_res["bestblockhash"], n1.getblockhash(START_HEIGHT))
+        block = n1.getblockheader(bv_res["bestblockhash"])
+        assert_equal(bv_res["mediantime"], block["mediantime"])
+        assert_equal(bv_res["chainwork"], block["chainwork"])
+        background_tx_count = n1.getchaintxstats(blockhash=bv_res["bestblockhash"])["txcount"]
+        snapshot_tx_count = n1.getchaintxstats(blockhash=snapshot_hash)["txcount"]
+        expected_verification_progress = background_tx_count / snapshot_tx_count
+        assert_approx(bv_res["verificationprogress"], expected_verification_progress, vspan=0.01)
 
         # find coinbase output at snapshot height on node0 and scan for it on node1,
         # where the block is not available, but the snapshot was loaded successfully
@@ -606,30 +653,17 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         PAUSE_HEIGHT = FINAL_HEIGHT - 40
 
-        self.log.info("Restarting node to stop at height %d", PAUSE_HEIGHT)
-        self.restart_node(1, extra_args=[
-            f"-stopatheight={PAUSE_HEIGHT}", *self.extra_args[1]])
-
-        # Upon restart during snapshot tip sync, the node must remain in 'limited' mode.
+        self.log.info(f"Sync node up to height {PAUSE_HEIGHT}")
+        # During snapshot tip sync, the node must remain in 'limited' mode.
         self.assert_only_network_limited_service(n1)
-
-        # Finally connect the nodes and let them sync.
-        #
-        # Set `wait_for_connect=False` to avoid a race between performing connection
-        # assertions and the -stopatheight tripping.
-        self.connect_nodes(0, 1, wait_for_connect=False)
-
-        n1.wait_until_stopped(timeout=5)
+        dumb_sync_blocks(src=n0, dst=n1, height=PAUSE_HEIGHT)
 
         self.log.info("Checking that blocks are segmented on disk")
         assert self.has_blockfile(n1, "00000"), "normal blockfile missing"
         assert self.has_blockfile(n1, "00001"), "assumed blockfile missing"
         assert not self.has_blockfile(n1, "00002"), "too many blockfiles"
 
-        self.log.info("Restarted node before snapshot validation completed, reloading...")
-        self.restart_node(1, extra_args=self.extra_args[1])
-
-        # Upon restart, the node must remain in 'limited' mode
+        # The node must remain in 'limited' mode
         self.assert_only_network_limited_service(n1)
 
         # Send snapshot block to n1 out of order. This makes the test less
@@ -772,6 +806,8 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         # The following test cleans node2 and node3 chain directories.
         self.test_sync_from_assumeutxo_node(snapshot=dump_output)
+
+        self.test_sync_to_most_work_chain_after_background_validation()
 
 @dataclass
 class Block:

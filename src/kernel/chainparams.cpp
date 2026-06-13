@@ -10,23 +10,29 @@
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
 #include <consensus/params.h>
+#include <crypto/hex_base.h>
 #include <hash.h>
 #include <kernel/checkpointdata.h>
 #include <kernel/messagestartchars.h>
-#include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <script/script.h>
+#include <script/verify_flags.h>
 #include <uint256.h>
 #include <util/chaintype.h>
+#include <util/log.h>
 #include <util/strencodings.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <type_traits>
+#include <iterator>
+#include <map>
+#include <span>
+#include <utility>
 
 using namespace util::hex_literals;
 
@@ -52,10 +58,19 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     return genesis;
 }
 
+void CChainParams::ApplyDeploymentOptions(const DeploymentOptions& opts)
+{
+    for (const auto& [deployment_pos, version_bits_params] : opts.version_bits_parameters) {
+        consensus.vDeployments[deployment_pos].nStartTime = version_bits_params.start_time;
+        consensus.vDeployments[deployment_pos].nTimeout = version_bits_params.timeout;
+        consensus.vDeployments[deployment_pos].min_activation_height = version_bits_params.min_activation_height;
+    }
+}
+
 /** Main network on which people trade goods and services. */
 class CMainParams : public CChainParams {
 public:
-    CMainParams() {
+    CMainParams(const MainNetOptions& opts) {
         m_chain_type = ChainType::MAIN;
         consensus.nSubsidyHalvingInterval = 840000;
         consensus.fork1Height = 157248;
@@ -72,7 +87,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000001092d03e4acf640de225f96200000"}; // 2455376
+        ApplyDeploymentOptions(opts.dep_opts);
+
+        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000014282dba4b3ba8151be1f96200000"}; // 2577747
 
         /** The message start string is designed to be unlikely to occur in normal data. The characters are rarely used upper ASCII, not valid as UTF-8, and produce a large 32-bit integer with any alignment. */
         pchMessageStart[0] = 0xfc;
@@ -112,19 +129,19 @@ public:
         checkpointData = mainCheckpointData;
 
         m_assumeutxo_data = {
-            { // dumptxoutset Utxo.dat rollback '{"rollback": 2452000}'
-                .height = 2382000,
-                .hash_serialized = AssumeutxoHash{uint256{"f112eece53e7caf024d2577542248cc4c47fabca01bbd108098377f1709a9768"}},
-                .m_chain_tx_count = 4641756,
-                .blockhash = uint256{"81205d6309401195a790abe49fa83cc8237f2e57cd62df93711b315ee4523cb0"}
+            { // dumptxoutset Utxo.dat rollback '{"rollback": 2576000}'
+                .height = mainCheckpointData.assumedValidBlockHeight,
+                .hash_serialized = AssumeutxoHash{uint256{"eb74cf9dab210bde758a690e800928ed82e1f9b7ee8f7fcb39075dcaea6efac2"}},
+                .m_chain_tx_count = 4851279,
+                .blockhash = mainCheckpointData.assumedValidBlockHash
             }
         };
 
         chainTxData = ChainTxData{
-            // getchaintxstats 65536 81205d6309401195a790abe49fa83cc8237f2e57cd62df93711b315ee4523cb0
-            .nTime    = 1761940473,
-            .tx_count = 4719974,
-            .dTxRate  = 0.007464598636189267,
+            // getchaintxstats 65536 51fef00481bb625046e212ff964d1f451fc9254ce91a021e0355dc9344e795b4
+            .nTime    = 1780745632,
+            .tx_count = 4853038,
+            .dTxRate  = 0.006851715276590424,
         };
     }
 };
@@ -132,7 +149,7 @@ public:
 /** Testnet: public test network which is reset from time to time (lastly with 2404). */
 class CTestNetParams : public CChainParams {
 public:
-    CTestNetParams() {
+    CTestNetParams(const TestNetOptions& opts) {
         m_chain_type = ChainType::TESTNET;
         consensus.nSubsidyHalvingInterval = 840000;
         consensus.fork1Height = 2147483647; // No SuperBlocks
@@ -149,7 +166,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 3024; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 4032; // 7 days
 
-        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000bf8692921232f4363a000"}; // 180512
+        ApplyDeploymentOptions(opts.dep_opts);
+
+        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000ff60de7fe4f1dfd102000"}; // 238989
 
         pchMessageStart[0] = 0x0e;
         pchMessageStart[1] = 0x09;
@@ -185,19 +204,19 @@ public:
         checkpointData = testCheckpointData;
 
         m_assumeutxo_data = {
-            { // dumptxoutset UtxoTestnet.dat rollback '{"rollback": 178000}'
-                .height = 178000,
-                .hash_serialized = AssumeutxoHash{uint256{"2505dabf957071b44bafee3d1b5fb8ece1982ff0bd1c748bd03dbb616e8e3b32"}},
-                .m_chain_tx_count = 178014,
-                .blockhash = uint256{"d3a817e17f519106caa781263c26bb03f611801b718c8d2553d42bf953ba2cf1"}
+            { // dumptxoutset UtxoTestnet.dat rollback '{"rollback": 238000}'
+                .height = testCheckpointData.assumedValidBlockHeight,
+                .hash_serialized = AssumeutxoHash{uint256{"b18fdf83bec4df2121183baae0572daa6693e8bfa34be3430cdfc388f0105ba9"}},
+                .m_chain_tx_count = 238014,
+                .blockhash = testCheckpointData.assumedValidBlockHash
             }
         };
 
         chainTxData = ChainTxData{
-            // getchaintxstats 16384 d3a817e17f519106caa781263c26bb03f611801b718c8d2553d42bf953ba2cf1
-            .nTime    = 1761686202,
-            .tx_count = 178014,
-            .dTxRate  = 0.003343545186429582,
+            // getchaintxstats 16384 83eef761b56c0c3ea4bb1edce79c6a80d882e1bddcbc55d066b81110e86afeff
+            .nTime    = 1780745962,
+            .tx_count = 239003,
+            .dTxRate  = 0.002970954495291334,
         };
     }
 };
@@ -236,11 +255,7 @@ public:
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
 
-        for (const auto& [deployment_pos, version_bits_params] : opts.version_bits_parameters) {
-            consensus.vDeployments[deployment_pos].nStartTime = version_bits_params.start_time;
-            consensus.vDeployments[deployment_pos].nTimeout = version_bits_params.timeout;
-            consensus.vDeployments[deployment_pos].min_activation_height = version_bits_params.min_activation_height;
-        }
+        ApplyDeploymentOptions(opts.dep_opts);
 
         genesis = CreateGenesisBlock("Happy Birthday, Stella!", CScript(OP_RETURN), 1707684554, UintToArith256(uint256{"00000000000000000000000000000000000000000000000000000000001a0002"}), consensus.nBitsMin, 536870912, 50*COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
@@ -264,9 +279,9 @@ public:
         m_assumeutxo_data = {
             {   // For use by unit tests
                 .height = 110,
-                .hash_serialized = AssumeutxoHash{uint256{"b952555c8ab81fec46f3d4253b7af256d766ceb39fb7752b9d18cdf4a0141327"}},
+                .hash_serialized = AssumeutxoHash{uint256{"86e9a1205b418b16dde3a18a78c730e30137e28466bda5dbf6b33ab8fc05447c"}},
                 .m_chain_tx_count = 111,
-                .blockhash = uint256{"7bfe934ca2085c6c5e6b827c9dbabfbc5ac28f0bd965f94ccd7e0c2093467cde"}
+                .blockhash = uint256{"6f75185cec002ac29d8f809d001e4a5b80f4a38176cb4b083d64f6fd20f0094a"}
             },
             {
                 // For use by fuzz target src/test/fuzz/utxo_snapshot.cpp
@@ -276,11 +291,11 @@ public:
                 .blockhash = uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"}
             },
             {
-                // For use by test/functional/feature_assumeutxo.py
+                // For use by test/functional/feature_assumeutxo.py and test/functional/tool_bitcoin_chainstate.py
                 .height = 299,
-                .hash_serialized = AssumeutxoHash{uint256{"2caac7b2b7457202c70c0fe1573c9d6caf114d9ef9362de30b8444ef8d636c85"}},
+                .hash_serialized = AssumeutxoHash{uint256{"0c4b0d858bcdfbcb68adfb3563908572899112aa3c6b5417577ca55a6f28436c"}},
                 .m_chain_tx_count = 334,
-                .blockhash = uint256{"b3941c6ba680994e26c4a26ce9c4f8be2df963be4dce6a70d9cfb81ed16f2e80"}
+                .blockhash = uint256{"606d092fdc8b336dde68fb3d3d850d1e80c58de1cc6abda4549290d79490d2a0"}
             },
         };
 
@@ -302,14 +317,14 @@ std::unique_ptr<const CChainParams> CChainParams::RegTest(const RegTestOptions& 
     return std::make_unique<const CRegTestParams>(options);
 }
 
-std::unique_ptr<const CChainParams> CChainParams::Main()
+std::unique_ptr<const CChainParams> CChainParams::Main(const MainNetOptions& options)
 {
-    return std::make_unique<const CMainParams>();
+    return std::make_unique<const CMainParams>(options);
 }
 
-std::unique_ptr<const CChainParams> CChainParams::TestNet()
+std::unique_ptr<const CChainParams> CChainParams::TestNet(const TestNetOptions& options)
 {
-    return std::make_unique<const CTestNetParams>();
+    return std::make_unique<const CTestNetParams>(options);
 }
 
 std::vector<int> CChainParams::GetAvailableSnapshotHeights() const
@@ -327,7 +342,7 @@ std::optional<ChainType> GetNetworkForMagic(const MessageStartChars& message)
 {
     const auto mainnet_msg = CChainParams::Main()->MessageStart();
     const auto testnet_msg = CChainParams::TestNet()->MessageStart();
-    const auto regtest_msg = CChainParams::RegTest({})->MessageStart();
+    const auto regtest_msg = CChainParams::RegTest()->MessageStart();
 
     if (std::ranges::equal(message, mainnet_msg)) {
         return ChainType::MAIN;

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 The Bitcoin Core developers
+// Copyright (c) 2024-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,6 +8,7 @@
 #include <test/fuzz/util/net.h>
 
 #include <common/pcp.h>
+#include <logging.h>
 #include <util/check.h>
 #include <util/threadinterrupt.h>
 

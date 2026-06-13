@@ -26,7 +26,7 @@ First, get the build tools and dependencies, which can be done by running as roo
 
 ```bash
 apt install build-essential cmake pkg-config bsdmainutils python3
-apt install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev qt6-base-dev qt6-tools-dev qt6-l10n-tools qt6-wayland libgmp-dev libsqlite3-dev libqrencode-dev
+apt install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev qt6-base-dev qt6-tools-dev qt6-l10n-tools qt6-wayland libgmp-dev libsqlite3-dev libqrencode-dev libcapnp-dev capnproto
 ```
 
 Get the source code.
@@ -55,21 +55,9 @@ The build can be speed up by appending `-j N` to the last command, which runs N 
 
 #### Guix Build
 
-Riecoin can be built using Guix. The process is longer, but also deterministic: everyone building this way should obtain the exact same binaries. Distributed binaries are produced this way, so anyone can ensure that they were not created with an altered source code by building themselves using Guix. Read the [Guix Guide](contrib/guix/README.md) for more details and options.
+Riecoin can be built using Guix. The process is longer, but also deterministic: everyone building this way should obtain the exact same binaries. Distributed binaries are produced this way, so anyone can ensure that they were not created with an altered source code by building themselves using Guix.
 
-You should have a lot of free disk space (at least 40 GB), and 16 GB of RAM or more is recommended.
-
-Install Guix on your system, on Debian 12 this can be done as root with
-
-```bash
-apt install guix
-```
-
-Still as root, start the daemon,
-
-```bash
-guix-daemon
-```
+You should have a lot of free disk space (at least 40 GB), and 16 GB of RAM or more is recommended. Read the [Guix Guide](contrib/guix/README.md) for installation instructions and more.
 
 Now, get the Riecoin Core source code.
 
@@ -85,7 +73,7 @@ cd Riecoin
 ./contrib/guix/guix-build
 ```
 
-It will be very long, do not be surprised if it takes an hour or more, even with a powerful machine. The binaries will be generated in a `guix-build-.../output` folder.
+It will be very long, do not be surprised if it takes an hour or more, even with a powerful machine, though subsequent builds will be faster as some steps are cached. The binaries will be generated in a `guix-build-.../output` folder.
 
 ### Other OSes
 
@@ -119,3 +107,5 @@ Currently, the Cirrus Ci was not ported, and Fuzz Tests are not checked beyond b
 The Riecoin Core code is published under the terms of the MIT license. See [COPYING](COPYING) for more information or see https://opensource.org/licenses/MIT.
 
 However, releases are under the terms of the Gnu General Public License Version 3 (GPLv3) since Riecoin Core uses some GPL licensed software.
+
+Please do not profit off the permissive licenses to create yet more cryptos, there are already way too many of these out there. If you like Bitcoin or Riecoin, then support these Projects directly, contribute Code, mine and hold BTC and RIC. Otherwise, surely there is already one out there suiting your purposes, or one close enough with maintainers happy to work out with you. Every new coin naturally becomes yet another rival to existing ones that divides further resources by needing separate maintenance and upgrades, sites, explorers, listing payments, etc. when people could instead join forces. For these reasons, we adopt a Maximalist philosophy.

@@ -6,8 +6,8 @@
 
 #include <chainparams.h>
 #include <common/args.h>
-#include <logging.h>
 #include <util/fs.h>
+#include <util/log.h>
 #include <wallet/db.h>
 
 #include <algorithm>

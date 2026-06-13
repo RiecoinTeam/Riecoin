@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -9,7 +9,6 @@
 #include <common/system.h>
 #include <consensus/amount.h>
 #include <kernel/mempool_entry.h>
-#include <logging.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>
 #include <random.h>
@@ -19,6 +18,7 @@
 #include <tinyformat.h>
 #include <uint256.h>
 #include <util/fs.h>
+#include <util/log.h>
 #include <util/serfloat.h>
 #include <util/syserror.h>
 #include <util/time.h>
@@ -34,8 +34,8 @@
 #include <utility>
 
 // The current format written, and the version required to read. Must be
-// increased to at least 289900+1 on the next breaking change.
-constexpr int CURRENT_FEES_FILE_VERSION{149900};
+// increased to at least 260500+1 on the next breaking change.
+constexpr int CURRENT_FEES_FILE_VERSION{260500};
 
 static constexpr double INF_FEERATE = 1e99;
 
@@ -424,7 +424,7 @@ void TxConfirmStats::Read(AutoFile& filein, size_t numBuckets)
     // Read data file and do some very basic sanity checking
     // buckets and bucketMap are not updated yet, so don't access them
     // If there is a read failure, we'll just discard this entire object anyway
-    size_t maxConfirms, maxPeriods;
+    uint64_t maxConfirms, maxPeriods;
 
     // The current version will store the decay with each individual TxConfirmStats and also keep a scale factor
     filein >> Using<EncodedDoubleFormatter>(decay);
@@ -568,12 +568,12 @@ CBlockPolicyEstimator::CBlockPolicyEstimator(const fs::path& estimation_filepath
 
     std::chrono::hours file_age = GetFeeEstimatorFileAge();
     if (file_age > MAX_FILE_AGE && !read_stale_estimates) {
-        LogPrintf("Fee estimation file %s too old (age=%lld > %lld hours) and will not be used to avoid serving stale estimates.\n", fs::PathToString(m_estimation_filepath), Ticks<std::chrono::hours>(file_age), Ticks<std::chrono::hours>(MAX_FILE_AGE));
+        LogWarning("Fee estimation file %s too old (age=%lld > %lld hours) and will not be used to avoid serving stale estimates.", fs::PathToString(m_estimation_filepath), Ticks<std::chrono::hours>(file_age), Ticks<std::chrono::hours>(MAX_FILE_AGE));
         return;
     }
 
     if (!Read(est_file)) {
-        LogPrintf("Failed to read fee estimates from %s. Continue anyway.\n", fs::PathToString(m_estimation_filepath));
+        LogWarning("Failed to read fee estimates from %s. Continue anyway.", fs::PathToString(m_estimation_filepath));
     }
 }
 
@@ -599,7 +599,7 @@ void CBlockPolicyEstimator::processTransaction(const NewMempoolTransactionInfo& 
     LOCK(m_cs_fee_estimator);
     const unsigned int txHeight = tx.info.txHeight;
     const auto& hash = tx.info.m_tx->GetHash();
-    if (mapMemPoolTxs.count(hash)) {
+    if (mapMemPoolTxs.contains(hash)) {
         LogDebug(BCLog::ESTIMATEFEE, "Blockpolicy error mempool tx %s already being tracked\n",
                  hash.ToString());
         return;
@@ -956,15 +956,15 @@ void CBlockPolicyEstimator::FlushFeeEstimates()
 {
     AutoFile est_file{fsbridge::fopen(m_estimation_filepath, "wb")};
     if (est_file.IsNull() || !Write(est_file)) {
-        LogPrintf("Failed to write fee estimates to %s. Continue anyway.\n", fs::PathToString(m_estimation_filepath));
+        LogWarning("Failed to write fee estimates to %s. Continue anyway.", fs::PathToString(m_estimation_filepath));
         (void)est_file.fclose();
         return;
     }
     if (est_file.fclose() != 0) {
-        LogError("Failed to close fee estimates file %s: %s. Continuing anyway.", fs::PathToString(m_estimation_filepath), SysErrorString(errno));
+        LogWarning("Failed to close fee estimates file %s: %s. Continuing anyway.", fs::PathToString(m_estimation_filepath), SysErrorString(errno));
         return;
     }
-    LogInfo("Flushed fee estimates to %s.", fs::PathToString(m_estimation_filepath.filename()));
+    LogDebug(BCLog::ESTIMATEFEE, "Flushed fee estimates to %s.", fs::PathToString(m_estimation_filepath));
 }
 
 bool CBlockPolicyEstimator::Write(AutoFile& fileout) const
@@ -972,7 +972,6 @@ bool CBlockPolicyEstimator::Write(AutoFile& fileout) const
     try {
         LOCK(m_cs_fee_estimator);
         fileout << CURRENT_FEES_FILE_VERSION;
-        fileout << int{0}; // Unused dummy field. Written files may contain any value in [0, 289900]
         fileout << nBestSeenHeight;
         if (BlockSpan() > HistoricalBlockSpan()/2) {
             fileout << firstRecordedHeight << nBestSeenHeight;
@@ -996,8 +995,8 @@ bool CBlockPolicyEstimator::Read(AutoFile& filein)
 {
     try {
         LOCK(m_cs_fee_estimator);
-        int nVersionRequired, dummy;
-        filein >> nVersionRequired >> dummy;
+        int nVersionRequired;
+        filein >> nVersionRequired;
         if (nVersionRequired > CURRENT_FEES_FILE_VERSION) {
             throw std::runtime_error{strprintf("File version (%d) too high to be read.", nVersionRequired)};
         }

@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2021 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -8,7 +8,7 @@
 #define BITCOIN_RPC_PROTOCOL_H
 
 //! HTTP status codes
-enum HTTPStatusCode
+enum HTTPStatusCode : int
 {
     HTTP_OK                    = 200,
     HTTP_NO_CONTENT            = 204,

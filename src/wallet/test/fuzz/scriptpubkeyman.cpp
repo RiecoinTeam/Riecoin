@@ -18,6 +18,7 @@
 #include <test/fuzz/util.h>
 #include <test/fuzz/util/descriptor.h>
 #include <test/util/setup_common.h>
+#include <test/util/time.h>
 #include <util/check.h>
 #include <util/time.h>
 #include <util/translation.h>
@@ -50,28 +51,24 @@ void initialize_spkm()
     MOCKED_DESC_CONVERTER.Init();
 }
 
-/**
- * Key derivation is expensive. Deriving deep derivation paths take a lot of compute and we'd rather spend time
- * elsewhere in this target, like on actually fuzzing the DescriptorScriptPubKeyMan. So rule out strings which could
- * correspond to a descriptor containing a too large derivation path.
- */
-static bool TooDeepDerivPath(std::string_view desc)
-{
-    const FuzzBufferType desc_buf{reinterpret_cast<const unsigned char *>(desc.data()), desc.size()};
-    return HasDeepDerivPath(desc_buf);
-}
-
 static std::optional<std::pair<WalletDescriptor, FlatSigningProvider>> CreateWalletDescriptor(FuzzedDataProvider& fuzzed_data_provider)
 {
     const std::string mocked_descriptor{fuzzed_data_provider.ConsumeRandomLengthString()};
-    if (TooDeepDerivPath(mocked_descriptor)) return {};
     const auto desc_str{MOCKED_DESC_CONVERTER.GetDescriptor(mocked_descriptor)};
     if (!desc_str.has_value()) return std::nullopt;
+    if (IsTooExpensive(MakeUCharSpan(*desc_str))) return {};
 
     FlatSigningProvider keys;
     std::string error;
     std::vector<std::unique_ptr<Descriptor>> parsed_descs = Parse(desc_str.value(), keys, error, false);
     if (parsed_descs.empty()) return std::nullopt;
+
+    // Verify expand succeeds before making WalletDescriptor
+    // Expansion results are not needed
+    FlatSigningProvider out_keys;
+    std::vector<CScript> scripts_temp;
+    DescriptorCache temp_cache;
+    if (!parsed_descs.at(0)->Expand(0, keys, scripts_temp, out_keys, &temp_cache)) return std::nullopt;
 
     WalletDescriptor w_desc{std::move(parsed_descs.at(0)), /*creation_time=*/0, /*range_start=*/0, /*range_end=*/1, /*next_index=*/1};
     return std::make_pair(w_desc, keys);
@@ -89,7 +86,7 @@ FUZZ_TARGET(scriptpubkeyman, .init = initialize_spkm)
 {
     SeedRandomStateForTest(SeedRand::ZEROS);
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
-    SetMockTime(ConsumeTime(fuzzed_data_provider));
+    NodeClockContext clock_ctx{ConsumeTime(fuzzed_data_provider)};
     const auto& node{g_setup->m_node};
     Chainstate& chainstate{node.chainman->ActiveChainstate()};
     std::unique_ptr<CWallet> wallet_ptr{std::make_unique<CWallet>(node.chain.get(), "", CreateMockableWalletDatabase())};
@@ -125,7 +122,7 @@ FUZZ_TARGET(scriptpubkeyman, .init = initialize_spkm)
             [&] {
                 const CScript script{ConsumeScript(fuzzed_data_provider)};
                 if (spk_manager->IsMine(script)) {
-                    assert(spk_manager->GetScriptPubKeys().count(script));
+                    assert(spk_manager->GetScriptPubKeys().contains(script));
                 }
             },
             [&] {
@@ -181,19 +178,25 @@ FUZZ_TARGET(scriptpubkeyman, .init = initialize_spkm)
                 (void)spk_manager->SignTransaction(tx_to, coins, sighash, input_errors);
             },
             [&] {
-                std::optional<PartiallySignedTransaction> opt_psbt{ConsumeDeserializable<PartiallySignedTransaction>(fuzzed_data_provider)};
+                std::optional<PartiallySignedTransaction> opt_psbt{ConsumeDeserializableConstructor<PartiallySignedTransaction>(fuzzed_data_provider)};
                 if (!opt_psbt) {
                     good_data = false;
                     return;
                 }
                 auto psbt{*opt_psbt};
-                const PrecomputedTransactionData txdata{PrecomputePSBTData(psbt)};
-                std::optional<int> sighash_type{fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 151)};
-                if (sighash_type == 151) sighash_type = std::nullopt;
-                auto sign  = fuzzed_data_provider.ConsumeBool();
-                auto bip32derivs = fuzzed_data_provider.ConsumeBool();
-                auto finalize = fuzzed_data_provider.ConsumeBool();
-                (void)spk_manager->FillPSBT(psbt, txdata, sighash_type, sign, bip32derivs, nullptr, finalize);
+                std::optional<PrecomputedTransactionData> txdata_res = PrecomputePSBTData(psbt);
+                if (!txdata_res) {
+                    return;
+                }
+                const PrecomputedTransactionData& txdata = *txdata_res;
+                common::PSBTFillOptions options{
+                    .sign = fuzzed_data_provider.ConsumeBool(),
+                    .sighash_type = fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 151),
+                    .finalize = fuzzed_data_provider.ConsumeBool(),
+                    .bip32_derivs = fuzzed_data_provider.ConsumeBool()
+                };
+                if (options.sighash_type == 151) options.sighash_type = std::nullopt;
+                (void)spk_manager->FillPSBT(psbt, txdata, options);
             }
         );
     }

@@ -140,7 +140,7 @@ public:
     {
         return m_wallet->EncryptWallet(wallet_passphrase);
     }
-    bool isCrypted() override { return m_wallet->IsCrypted(); }
+    bool isCrypted() override { return m_wallet->HasEncryptionKeys(); }
     bool lock() override { return m_wallet->Lock(); }
     bool unlock(const SecureString& wallet_passphrase) override { return m_wallet->Unlock(wallet_passphrase); }
     bool isLocked() override { return m_wallet->IsLocked(); }
@@ -257,21 +257,13 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListLockedCoins(outputs);
     }
-    util::Result<CTransactionRef> createTransaction(const std::vector<CRecipient>& recipients,
+    util::Result<wallet::CreatedTransactionResult> createTransaction(const std::vector<CRecipient>& recipients,
         const CCoinControl& coin_control,
         bool sign,
-        int& change_pos,
-        CAmount& fee) override
+        std::optional<unsigned int> change_pos) override
     {
         LOCK(m_wallet->cs_wallet);
-        auto res = CreateTransaction(*m_wallet, recipients, change_pos == -1 ? std::nullopt : std::make_optional(change_pos),
-                                     coin_control, sign);
-        if (!res) return util::Error{util::ErrorString(res)};
-        const auto& txr = *res;
-        fee = txr.fee;
-        change_pos = txr.change_pos ? int(*txr.change_pos) : -1;
-
-        return txr.tx;
+        return CreateTransaction(*m_wallet, recipients, change_pos, coin_control, sign);
     }
     void commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
@@ -372,14 +364,12 @@ public:
         }
         return {};
     }
-    std::optional<PSBTError> fillPSBT(std::optional<int> sighash_type,
-        bool sign,
-        bool bip32derivs,
+    std::optional<PSBTError> fillPSBT(const common::PSBTFillOptions& options,
         size_t* n_signed,
         PartiallySignedTransaction& psbtx,
         bool& complete) override
     {
-        return m_wallet->FillPSBT(psbtx, complete, sighash_type, sign, bip32derivs, n_signed);
+        return m_wallet->FillPSBT(psbtx, options, complete, n_signed);
     }
     WalletBalances getBalances() override
     {
@@ -388,6 +378,8 @@ public:
         result.balance = bal.m_mine_trusted;
         result.unconfirmed_balance = bal.m_mine_untrusted_pending;
         result.immature_balance = bal.m_mine_immature;
+        result.used_balance = bal.m_mine_used;
+        result.nonmempool_balance = bal.m_mine_nonmempool;
         return result;
     }
     bool tryGetBalances(WalletBalances& balances, uint256& block_hash) override
@@ -411,7 +403,7 @@ public:
             CoinSelectionParams params(rng);
             // Note: for now, swallow any error.
             if (auto res = FetchSelectedInputs(*m_wallet, coin_control, params)) {
-                total_amount += res->total_amount;
+                total_amount += res->GetTotalAmount();
             }
         }
 

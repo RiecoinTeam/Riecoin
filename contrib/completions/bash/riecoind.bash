@@ -1,5 +1,5 @@
 # bash programmable completion for riecoind(1) and riecoin-qt(1)
-# Copyright (c) 2012-2022 The Bitcoin Core developers
+# Copyright (c) 2012-present The Bitcoin Core developers
 # Copyright (c) 2013-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.

@@ -17,14 +17,13 @@
 #include <util/hash_type.h>
 #include <util/vector.h>
 
+#include <cstddef>
 #include <cstdint>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 struct CheckpointData {
@@ -146,6 +145,7 @@ public:
     }
 
     const ChainTxData& TxData() const { return chainTxData; }
+
     /**
      * VersionBitsParameters holds activation parameters
      */
@@ -155,17 +155,32 @@ public:
         int min_activation_height;
     };
 
+    struct DeploymentOptions {
+        std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
+    };
+
     /**
      * RegTestOptions holds configurations for creating a regtest CChainParams.
      */
     struct RegTestOptions {
-        std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
+        DeploymentOptions dep_opts{};
         bool fastprune{false};
     };
 
+    struct MainNetOptions {
+        DeploymentOptions dep_opts{};
+    };
+
+    struct TestNetOptions {
+        DeploymentOptions dep_opts{};
+    };
+
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);
-    static std::unique_ptr<const CChainParams> Main();
-    static std::unique_ptr<const CChainParams> TestNet();
+    static std::unique_ptr<const CChainParams> RegTest() { const RegTestOptions opts{}; return RegTest(opts); }
+    static std::unique_ptr<const CChainParams> Main(const MainNetOptions& options);
+    static std::unique_ptr<const CChainParams> Main() { const MainNetOptions opts{}; return Main(opts); }
+    static std::unique_ptr<const CChainParams> TestNet(const TestNetOptions& options);
+    static std::unique_ptr<const CChainParams> TestNet() { const TestNetOptions opts{}; return TestNet(opts); }
 
 protected:
     CChainParams() = default;
@@ -187,6 +202,8 @@ protected:
     CheckpointData checkpointData;
     std::vector<AssumeutxoData> m_assumeutxo_data;
     ChainTxData chainTxData;
+
+    void ApplyDeploymentOptions(const DeploymentOptions& opts);
 };
 
 std::optional<ChainType> GetNetworkForMagic(const MessageStartChars& pchMessageStart);

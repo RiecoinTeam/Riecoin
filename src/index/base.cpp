@@ -9,8 +9,7 @@
 #include <dbwrapper.h>
 #include <interfaces/chain.h>
 #include <interfaces/types.h>
-#include <kernel/chain.h>
-#include <logging.h>
+#include <kernel/types.h>
 #include <node/abort.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
@@ -21,7 +20,9 @@
 #include <tinyformat.h>
 #include <uint256.h>
 #include <undo.h>
+#include <util/check.h>
 #include <util/fs.h>
+#include <util/log.h>
 #include <util/string.h>
 #include <util/thread.h>
 #include <util/threadinterrupt.h>
@@ -30,17 +31,18 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-#include <cassert>
 #include <compare>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
+
+using kernel::ChainstateRole;
 
 constexpr uint8_t DB_BEST_BLOCK{'B'};
 
@@ -73,13 +75,16 @@ BaseIndex::DB::DB(const fs::path& path, size_t n_cache_size, bool f_memory, bool
         .options = [] { DBOptions options; node::ReadDatabaseArgs(gArgs, options); return options; }()}}
 {}
 
-bool BaseIndex::DB::ReadBestBlock(CBlockLocator& locator) const
+CBlockLocator BaseIndex::DB::ReadBestBlock() const
 {
+    CBlockLocator locator;
+
     bool success = Read(DB_BEST_BLOCK, locator);
     if (!success) {
         locator.SetNull();
     }
-    return success;
+
+    return locator;
 }
 
 void BaseIndex::DB::WriteBestBlock(CDBBatch& batch, const CBlockLocator& locator)
@@ -106,15 +111,12 @@ bool BaseIndex::Init()
     // m_chainstate member gives indexing code access to node internals. It is
     // removed in followup https://github.com/bitcoin/bitcoin/pull/24230
     m_chainstate = WITH_LOCK(::cs_main,
-        return &m_chain->context()->chainman->GetChainstateForIndexing());
+                             return &m_chain->context()->chainman->ValidatedChainstate());
     // Register to validation interface before setting the 'm_synced' flag, so that
     // callbacks are not missed once m_synced is true.
     m_chain->context()->validation_signals->RegisterValidationInterface(this);
 
-    CBlockLocator locator;
-    if (!GetDB().ReadBestBlock(locator)) {
-        locator.SetNull();
-    }
+    const auto locator{GetDB().ReadBestBlock()};
 
     LOCK(cs_main);
     CChain& index_chain = m_chainstate->m_chain;
@@ -145,7 +147,7 @@ bool BaseIndex::Init()
     return true;
 }
 
-static const CBlockIndex* NextSyncBlock(const CBlockIndex* pindex_prev, CChain& chain) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+static const CBlockIndex* NextSyncBlock(const CBlockIndex* const pindex_prev, CChain& chain) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     AssertLockHeld(cs_main);
 
@@ -153,14 +155,20 @@ static const CBlockIndex* NextSyncBlock(const CBlockIndex* pindex_prev, CChain& 
         return chain.Genesis();
     }
 
-    const CBlockIndex* pindex = chain.Next(pindex_prev);
-    if (pindex) {
+    if (const auto* pindex{chain.Next(*pindex_prev)}) {
         return pindex;
+    }
+
+    // If there is no next block, we might be synced
+    if (pindex_prev == chain.Tip()) {
+        return nullptr;
     }
 
     // Since block is not in the chain, return the next block in the chain AFTER the last common ancestor.
     // Caller will be responsible for rewinding back to the common ancestor.
-    return chain.Next(chain.FindFork(pindex_prev));
+    const auto* fork{chain.FindFork(*pindex_prev)};
+    // Common ancestor must exist (genesis).
+    return chain.Next(*Assert(fork));
 }
 
 bool BaseIndex::ProcessBlock(const CBlockIndex* pindex, const CBlock* block_data)
@@ -275,7 +283,7 @@ bool BaseIndex::Commit()
         ok = CustomCommit(batch);
         if (ok) {
             GetDB().WriteBestBlock(batch, GetLocator(*m_chain, m_best_block_index.load()->GetBlockHash()));
-            ok = GetDB().WriteBatch(batch);
+            GetDB().WriteBatch(batch);
         }
     }
     if (!ok) {
@@ -323,15 +331,13 @@ bool BaseIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new_ti
     return true;
 }
 
-void BaseIndex::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
+void BaseIndex::BlockConnected(const ChainstateRole& role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
 {
-    // Ignore events from the assumed-valid chain; we will process its blocks
-    // (sequentially) after it is fully verified by the background chainstate. This
-    // is to avoid any out-of-order indexing.
+    // Ignore events from not fully validated chains to avoid out-of-order indexing.
     //
     // TODO at some point we could parameterize whether a particular index can be
     // built out of order, but for now just do the conservative simple thing.
-    if (role == ChainstateRole::ASSUMEDVALID) {
+    if (!role.validated) {
         return;
     }
 
@@ -377,11 +383,10 @@ void BaseIndex::BlockConnected(ChainstateRole role, const std::shared_ptr<const 
     }
 }
 
-void BaseIndex::ChainStateFlushed(ChainstateRole role, const CBlockLocator& locator)
+void BaseIndex::ChainStateFlushed(const ChainstateRole& role, const CBlockLocator& locator)
 {
-    // Ignore events from the assumed-valid chain; we will process its blocks
-    // (sequentially) after it is fully verified by the background chainstate.
-    if (role == ChainstateRole::ASSUMEDVALID) {
+    // Ignore events from not fully validated chains to avoid out-of-order indexing.
+    if (!role.validated) {
         return;
     }
 

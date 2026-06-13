@@ -31,7 +31,6 @@ add_library(riecoinkernel
   ../consensus/merkle.cpp
   ../consensus/tx_check.cpp
   ../consensus/tx_verify.cpp
-  ../core_read.cpp
   ../dbwrapper.cpp
   ../deploymentinfo.cpp
   ../deploymentstatus.cpp
@@ -60,23 +59,22 @@ add_library(riecoinkernel
   ../script/sigcache.cpp
   ../script/solver.cpp
   ../streams.cpp
-  ../support/lockedpool.cpp
   ../sync.cpp
   ../txdb.cpp
+  ../txgraph.cpp
   ../txmempool.cpp
   ../uint256.cpp
   ../util/chaintype.cpp
   ../util/check.cpp
+  ../util/expected.cpp
   ../util/feefrac.cpp
   ../util/fs.cpp
   ../util/fs_helpers.cpp
   ../util/hasher.cpp
   ../util/moneystr.cpp
   ../util/rbf.cpp
-  ../util/serfloat.cpp
   ../util/signalinterrupt.cpp
   ../util/strencodings.cpp
-  ../util/string.cpp
   ../util/syserror.cpp
   ../util/threadnames.cpp
   ../util/time.cpp
@@ -89,15 +87,30 @@ add_library(riecoinkernel
   $<TARGET_OBJECTS:leveldb>
   $<TARGET_OBJECTS:crc32c>
 )
+
+# Compiler warnings that apply only to the kernel and its dependencies.
+# These can be more strict and/or warnings that only apply to shared
+# libs.
+add_library(kernel_warn_interface INTERFACE)
+if(NOT MSVC)
+  try_append_cxx_flags("-Wunique-object-duplication" TARGET kernel_warn_interface SKIP_LINK)
+endif()
+
+# Also manually apply the warnings to the kernel's internal dependencies
+target_link_libraries(riecoin_clientversion PRIVATE kernel_warn_interface)
+target_link_libraries(bitcoin_crypto PRIVATE kernel_warn_interface)
+target_link_libraries(leveldb PRIVATE kernel_warn_interface)
+target_link_libraries(crc32c PRIVATE kernel_warn_interface)
+
 target_link_libraries(riecoinkernel
   PRIVATE
     core_interface
+    kernel_warn_interface
     secp256k1_objs
     univalue
     $<$<PLATFORM_ID:Windows>:bcrypt>
     $<TARGET_NAME_IF_EXISTS:GMP::GMP>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
-  PUBLIC
     Boost::headers
 )
 

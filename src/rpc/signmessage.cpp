@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -15,9 +15,9 @@
 
 #include <string>
 
-static RPCHelpMan verifycode()
+static RPCMethod verifycode()
 {
-    return RPCHelpMan{"verifycode",
+    return RPCMethod{"verifycode",
         "Verify a code.",
         {
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to use for the code."},
@@ -30,13 +30,13 @@ static RPCHelpMan verifycode()
             "\nUnlock the wallet for 30 seconds\n"
             + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
             "\nCreate the code\n"
-            + HelpExampleCli("generatecode", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\"") +
+            + HelpExampleCli("generatecode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\"") +
             "\nVerify the code\n"
-            + HelpExampleCli("verifycode", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\" \"code\"") +
+            + HelpExampleCli("verifycode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\" \"code\"") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("verifycode", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\", \"code\"")
+            + HelpExampleRpc("verifycode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\", \"code\"")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [&](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
             std::string strAddress = request.params[0].get_str();
             std::string strSign = request.params[1].get_str();
@@ -66,9 +66,9 @@ static RPCHelpMan verifycode()
     };
 }
 
-static RPCHelpMan verifymessage()
+static RPCMethod verifymessage()
 {
-    return RPCHelpMan{"verifymessage",
+    return RPCMethod{"verifymessage",
         "Verify a signed message.",
         {
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The Riecoin address to use for the signature."},
@@ -82,13 +82,13 @@ static RPCHelpMan verifymessage()
             "\nUnlock the wallet for 30 seconds\n"
             + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
             "\nCreate the signature\n"
-            + HelpExampleCli("signmessage", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\" \"my message\"") +
+            + HelpExampleCli("signmessage", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\" \"my message\"") +
             "\nVerify the signature\n"
-            + HelpExampleCli("verifymessage", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\" \"signature\" \"my message\"") +
+            + HelpExampleCli("verifymessage", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\" \"signature\" \"my message\"") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("verifymessage", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\", \"signature\", \"my message\"")
+            + HelpExampleRpc("verifymessage", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\", \"signature\", \"my message\"")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
             switch (MessageVerify(std::string{self.Arg<std::string_view>("address")},
                                   std::string{self.Arg<std::string_view>("signature")},
@@ -118,9 +118,9 @@ static RPCHelpMan verifymessage()
     };
 }
 
-static RPCHelpMan generatecode()
+static RPCMethod generatecode()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "generatecode",
         "Generate a code with the private key of an address\n",
         {
@@ -133,11 +133,11 @@ static RPCHelpMan generatecode()
             "\nCreate the code\n"
             + HelpExampleCli("generatecode", "\"privkey\"") +
             "\nVerify the code\n"
-            + HelpExampleCli("verifycode", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\" \"code\"") +
+            + HelpExampleCli("verifycode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\" \"code\"") +
             "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("generatecode", "\"ric1pv3mxn0d5g59n6w6qkxdmavw767wgwqpg499xssqfkjfu5gjt0wjqkffwja\"")
+            + HelpExampleRpc("generatecode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\"")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [&](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
             std::string strPrivkey = request.params[0].get_str();
             const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
@@ -159,9 +159,9 @@ static RPCHelpMan generatecode()
     };
 }
 
-static RPCHelpMan signmessagewithprivkey()
+static RPCMethod signmessagewithprivkey()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "signmessagewithprivkey",
         "Sign a message with the private key of an address\n",
         {
@@ -179,7 +179,7 @@ static RPCHelpMan signmessagewithprivkey()
             "\nAs a JSON-RPC call\n"
             + HelpExampleRpc("signmessagewithprivkey", "\"privkey\", \"my message\"")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
             std::string strPrivkey = request.params[0].get_str();
             std::string strMessage = request.params[1].get_str();

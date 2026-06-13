@@ -18,12 +18,14 @@ add_executable(fuzz
   block.cpp
   block_header.cpp
   block_index.cpp
+  block_index_tree.cpp
   blockfilter.cpp
   bloom_filter.cpp
   buffered_file.cpp
   chain.cpp
   checkqueue.cpp
   cluster_linearize.cpp
+  cmpctblock.cpp
   coins_view.cpp
   coinscache_sim.cpp
   connman.cpp
@@ -37,6 +39,7 @@ add_executable(fuzz
   crypto_hkdf_hmac_sha256_l32.cpp
   crypto_poly1305.cpp
   cuckoocache.cpp
+  dbwrapper.cpp
   decode_tx.cpp
   descriptor_parse.cpp
   deserialize.cpp
@@ -116,6 +119,7 @@ add_executable(fuzz
   string.cpp
   strprintf.cpp
   system.cpp
+  threadpool.cpp
   timeoffsets.cpp
   torcontrol.cpp
   transaction.cpp

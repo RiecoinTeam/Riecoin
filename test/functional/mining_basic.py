@@ -120,7 +120,8 @@ class MiningTest(BitcoinTestFramework):
         tx_d = self.wallet.send_self_transfer(from_node=node,
                                               fee_rate=Decimal("0.00100"))
 
-        block_template_txs = node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)['transactions']
+        block_template = node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)
+        block_template_txs = block_template['transactions']
 
         block_template_fees = [tx['fee'] for tx in block_template_txs]
         assert_equal(block_template_fees, [
@@ -129,6 +130,10 @@ class MiningTest(BitcoinTestFramework):
             tx_b["fee"] * COIN,
             tx_c["fee"] * COIN
         ])
+        # verify that coinbasevalue field is set to claim full block reward (subsidy + fees)
+        expected_block_reward = create_coinbase(
+            height=int(block_template["height"]), fees=sum(block_template_fees)).vout[0].nValue
+        assert_equal(block_template["coinbasevalue"], expected_block_reward)
 
         block_template_sigops = [tx['sigops'] for tx in block_template_txs]
         assert_equal(block_template_sigops, [0, 4, 4, 4])
@@ -294,21 +299,28 @@ class MiningTest(BitcoinTestFramework):
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(
             extra_args=[f"-blockreservedweight={MAX_BLOCK_WEIGHT + 1}"],
-            expected_msg=f"Error: Specified -blockreservedweight ({MAX_BLOCK_WEIGHT + 1}) exceeds consensus maximum block weight ({MAX_BLOCK_WEIGHT})",
+            expected_msg=f"Error: -blockreservedweight ({MAX_BLOCK_WEIGHT + 1}) exceeds consensus maximum block weight ({MAX_BLOCK_WEIGHT})",
         )
 
         self.log.info(f"Test that node will fail to start when user provide -blockreservedweight below {MINIMUM_BLOCK_RESERVED_WEIGHT}")
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(
             extra_args=[f"-blockreservedweight={MINIMUM_BLOCK_RESERVED_WEIGHT - 1}"],
-            expected_msg=f"Error: Specified -blockreservedweight ({MINIMUM_BLOCK_RESERVED_WEIGHT - 1}) is lower than minimum safety value of ({MINIMUM_BLOCK_RESERVED_WEIGHT})",
+            expected_msg=f"Error: -blockreservedweight ({MINIMUM_BLOCK_RESERVED_WEIGHT - 1}) is lower than minimum safety value of ({MINIMUM_BLOCK_RESERVED_WEIGHT})",
         )
 
         self.log.info("Test that node will fail to start when user provide invalid -blockmaxweight")
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(
             extra_args=[f"-blockmaxweight={MAX_BLOCK_WEIGHT + 1}"],
-            expected_msg=f"Error: Specified -blockmaxweight ({MAX_BLOCK_WEIGHT + 1}) exceeds consensus maximum block weight ({MAX_BLOCK_WEIGHT})",
+            expected_msg=f"Error: -blockmaxweight ({MAX_BLOCK_WEIGHT + 1}) exceeds consensus maximum block weight ({MAX_BLOCK_WEIGHT})",
+        )
+
+        self.log.info("Test that node will fail to start when -blockmaxweight is lower than -blockreservedweight")
+        self.stop_node(0)
+        self.nodes[0].assert_start_raises_init_error(
+            extra_args=[f"-blockmaxweight={DEFAULT_BLOCK_RESERVED_WEIGHT - 1}"],
+            expected_msg=f"Error: -blockreservedweight ({DEFAULT_BLOCK_RESERVED_WEIGHT}) exceeds -blockmaxweight ({DEFAULT_BLOCK_RESERVED_WEIGHT - 1})",
         )
 
     def test_height_in_locktime(self):
@@ -371,6 +383,9 @@ class MiningTest(BitcoinTestFramework):
         block.nNonce = 2
         block.vtx = [coinbase_tx]
         block.hashMerkleRoot = block.calc_merkle_root()
+
+        self.log.info("getblocktemplate: result should set the right rules")
+        assert_equal(['csv', '!segwit', 'taproot'], self.nodes[0].getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)['rules'])
 
         self.log.info("submitblock: Test block decode failure")
         assert_raises_rpc_error(-22, "Block decode failed", node.submitblock, block.serialize()[:-15].hex())

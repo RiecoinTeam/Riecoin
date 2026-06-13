@@ -143,8 +143,8 @@
       "txs": 1,
       "utxo_increase": 2,
       "utxo_increase_actual": 1,
-      "utxo_size_inc": 163,
-      "utxo_size_inc_actual": 75
+      "utxo_size_inc": 161,
+      "utxo_size_inc_actual": 74
     },
     {
       "avgfee": 4680,
@@ -182,8 +182,8 @@
       "txs": 2,
       "utxo_increase": 3,
       "utxo_increase_actual": 2,
-      "utxo_size_inc": 247,
-      "utxo_size_inc_actual": 159
+      "utxo_size_inc": 244,
+      "utxo_size_inc_actual": 157
     },
     {
       "avgfee": 28750,
@@ -221,8 +221,8 @@
       "txs": 5,
       "utxo_increase": 6,
       "utxo_increase_actual": 4,
-      "utxo_size_inc": 459,
-      "utxo_size_inc_actual": 318
+      "utxo_size_inc": 453,
+      "utxo_size_inc_actual": 314
     }
   ]
 }

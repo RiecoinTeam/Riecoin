@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2021 The Bitcoin Core developers
-# Copyright (c) 2013-present The Riecoin developers
+# Copyright (c) 2014-present The Bitcoin Core developers
+# Copyright (c) 2014-present The Riecoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
@@ -10,7 +10,6 @@ This script expects two text files in the directory that is passed as an
 argument:
 
     nodes_main.txt
-    nodes_signet.txt
     nodes_test.txt
 
 These files must consist of lines in the format
@@ -22,7 +21,7 @@ These files must consist of lines in the format
 
 The output will be several data structures with the peers in binary format:
 
-   static const uint8_t chainparams_seed_{main,signet,test,testnet4}[]={
+   static const uint8_t chainparams_seed_{main,test,testnet4}[]={
    ...
    }
 
@@ -160,6 +159,9 @@ def main():
         sys.exit(1)
     g = sys.stdout
     indir = sys.argv[1]
+    g.write('// Copyright (c) The Riecoin Developers\n')
+    g.write('// Distributed under the MIT software license, see the accompanying\n')
+    g.write('// file COPYING or https://opensource.org/license/mit.\n\n')
     g.write('#ifndef BITCOIN_CHAINPARAMSSEEDS_H\n')
     g.write('#define BITCOIN_CHAINPARAMSSEEDS_H\n')
     g.write('/**\n')
@@ -168,13 +170,10 @@ def main():
     g.write(' *\n')
     g.write(' * Each line contains a BIP155 serialized (networkID, addr, port) tuple.\n')
     g.write(' */\n')
-    with open(os.path.join(indir,'nodes_main.txt'), 'r', encoding="utf8") as f:
+    with open(os.path.join(indir,'nodes_main.txt'), 'r') as f:
         process_nodes(g, f, 'chainparams_seed_main')
     g.write('\n')
-    with open(os.path.join(indir,'nodes_signet.txt'), 'r', encoding="utf8") as f:
-        process_nodes(g, f, 'chainparams_seed_signet')
-    g.write('\n')
-    with open(os.path.join(indir,'nodes_test.txt'), 'r', encoding="utf8") as f:
+    with open(os.path.join(indir,'nodes_test.txt'), 'r') as f:
         process_nodes(g, f, 'chainparams_seed_test')
     g.write('#endif // BITCOIN_CHAINPARAMSSEEDS_H\n')
 

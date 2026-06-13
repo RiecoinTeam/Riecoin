@@ -6,6 +6,7 @@
 """Helpful routines for regression testing."""
 
 from base64 import b64encode
+from copy import copy
 from decimal import Decimal
 from subprocess import CalledProcessError
 import hashlib
@@ -21,8 +22,6 @@ import shlex
 import time
 import types
 
-from . import coverage
-from .authproxy import AuthServiceProxy, JSONRPCException
 from .descriptors import descsum_create
 from collections.abc import Callable
 from typing import Optional, Union
@@ -30,6 +29,18 @@ from typing import Optional, Union
 SATOSHI_PRECISION = Decimal('0.00000001')
 
 logger = logging.getLogger("TestFramework.utils")
+
+class JSONRPCException(Exception):
+    def __init__(self, rpc_error, http_status=None):
+        self.error = rpc_error
+        self.http_status = http_status
+
+        # throw KeyError if any required fields are missing
+        copied_error = copy(rpc_error)
+        message = copied_error.pop("message")
+        code = copied_error.pop("code")
+        extra = f'{copied_error}' if copied_error else ''
+        super().__init__(f"{message} ({code}) {extra} [http_status={http_status}]")
 
 # Assert functions
 ##################
@@ -76,7 +87,10 @@ def summarise_dict_differences(thing1, thing2):
 def assert_equal(thing1, thing2, *args):
     if thing1 != thing2 and not args and isinstance(thing1, dict) and isinstance(thing2, dict):
         d1,d2 = summarise_dict_differences(thing1, thing2)
-        raise AssertionError("not(%s == %s)\n  in particular not(%s == %s)" % (thing1, thing2, d1, d2))
+        if d1 != thing1 or d2 != thing2:
+            raise AssertionError(f"not({thing1!s} == {thing2!s})\n  in particular not({d1!s} == {d2!s})")
+        else:
+            raise AssertionError(f"not({thing1!s} == {thing2!s})")
     if thing1 != thing2 or any(thing1 != arg for arg in args):
         raise AssertionError("not(%s)" % " == ".join(str(arg) for arg in (thing1, thing2) + args))
 
@@ -134,7 +148,7 @@ def assert_raises_process_error(returncode: int, output: str, fun: Callable, *ar
         if returncode != e.returncode:
             raise AssertionError("Unexpected returncode %i" % e.returncode)
         if output not in e.output:
-            raise AssertionError("Expected substring not found:" + e.output)
+            raise AssertionError(f"Expected substring not found in: {e.output!r}")
     else:
         raise AssertionError("No exception raised")
 
@@ -166,13 +180,13 @@ def try_rpc(code, message, fun, *args, **kwds):
     try:
         fun(*args, **kwds)
     except JSONRPCException as e:
-        # JSONRPCException was thrown as expected. Check the code and message values are correct.
-        if (code is not None) and (code != e.error["code"]):
-            raise AssertionError("Unexpected JSONRPC error code %i" % e.error["code"])
+        # JSONRPCException was thrown as expected. Check the message and code values are correct.
         if (message is not None) and (message not in e.error['message']):
             raise AssertionError(
                 "Expected substring not found in error message:\nsubstring: '{}'\nerror message: '{}'.".format(
                     message, e.error['message']))
+        if (code is not None) and (code != e.error["code"]):
+            raise AssertionError("Unexpected JSONRPC error code %i" % e.error["code"])
         return True
     except Exception as e:
         raise AssertionError("Unexpected exception raised: " + type(e).__name__)
@@ -249,9 +263,19 @@ class Binaries:
             binaries, which takes precedence over the paths above, if specified.
             This is used by tests calling binaries from previous releases.
     """
-    def __init__(self, paths, bin_dir):
+    def __init__(self, paths, bin_dir, *, use_valgrind=False):
         self.paths = paths
         self.bin_dir = bin_dir
+        suppressions_file = pathlib.Path(__file__).resolve().parents[3] / "test" / "sanitizer_suppressions" / "valgrind.supp"
+        self.valgrind_cmd = [
+            "valgrind",
+            f"--suppressions={suppressions_file}",
+            "--gen-suppressions=all",
+            "--trace-children=yes",  # Needed for 'bitcoin' wrapper
+            "--exit-on-first-error=yes",
+            "--error-exitcode=1",
+            "--quiet",
+        ] if use_valgrind else []
 
     def node_argv(self, **kwargs):
         "Return argv array that should be used to invoke bitcoind"
@@ -261,6 +285,10 @@ class Binaries:
         "Return argv array that should be used to invoke bitcoin-cli"
         # Add -nonamed because "bitcoin rpc" enables -named by default, but bitcoin-cli doesn't
         return self._argv("rpc", self.paths.bitcoincli) + ["-nonamed"]
+
+    def bench_argv(self):
+        "Return argv array that should be used to invoke bench_riecoin"
+        return self._argv("bench", self.paths.bitcoin_bench)
 
     def tx_argv(self):
         "Return argv array that should be used to invoke bitcoin-tx"
@@ -279,20 +307,26 @@ class Binaries:
         return self._argv("chainstate", self.paths.bitcoinchainstate)
 
     def _argv(self, command, bin_path, need_ipc=False):
-        """Return argv array that should be used to invoke the command. It
-        either uses the bitcoin wrapper executable (if BITCOIN_CMD is set or
+        """Return argv array that should be used to invoke the command.
+
+        It either uses the bitcoin wrapper executable (if BITCOIN_CMD is set or
         need_ipc is True), or the direct binary path (bitcoind, etc). When
         bin_dir is set (by tests calling binaries from previous releases) it
-        always uses the direct path."""
+        always uses the direct path.
+
+        The returned args include valgrind, except when bin_dir is set
+        (previous releases). Also, valgrind will only apply to the bitcoin
+        wrapper executable directly, not to the commands that `bitcoin` calls.
+        """
         if self.bin_dir is not None:
             return [os.path.join(self.bin_dir, os.path.basename(bin_path))]
         elif self.paths.bitcoin_cmd is not None or need_ipc:
             # If the current test needs IPC functionality, use the bitcoin
             # wrapper binary and append -m so it calls multiprocess binaries.
             bitcoin_cmd = self.paths.bitcoin_cmd or [self.paths.bitcoin_bin]
-            return bitcoin_cmd + (["-m"] if need_ipc else []) + [command]
+            return self.valgrind_cmd + bitcoin_cmd + (["-m"] if need_ipc else []) + [command]
         else:
-            return [bin_path]
+            return self.valgrind_cmd + [bin_path]
 
 
 def get_binary_paths(config):
@@ -302,6 +336,7 @@ def get_binary_paths(config):
     binaries = {
         "riecoin": "BITCOIN_BIN",
         "riecoind": "BITCOIND",
+        "bench_riecoin": "BITCOIN_BENCH",
         "riecoin-cli": "BITCOINCLI",
         "riecoin-tx": "BITCOINTX",
         "riecoin-chainstate": "BITCOINCHAINSTATE",
@@ -454,32 +489,6 @@ class PortSeed:
     # Must be initialized with a unique integer for each process
     n = None
 
-
-def get_rpc_proxy(url: str, node_number: int, *, timeout: Optional[int]=None, coveragedir: Optional[str]=None) -> coverage.AuthServiceProxyWrapper:
-    """
-    Args:
-        url: URL of the RPC server to call
-        node_number: the node number (or id) that this calls to
-
-    Kwargs:
-        timeout: HTTP timeout in seconds
-        coveragedir: Directory
-
-    Returns:
-        AuthServiceProxy. convenience object for making RPC calls.
-
-    """
-    proxy_kwargs = {}
-    if timeout is not None:
-        proxy_kwargs['timeout'] = int(timeout)
-
-    proxy = AuthServiceProxy(url, **proxy_kwargs)
-
-    coverage_logfile = coverage.get_filename(coveragedir, node_number) if coveragedir else None
-
-    return coverage.AuthServiceProxyWrapper(proxy, url, coverage_logfile)
-
-
 def p2p_port(n):
     assert n <= MAX_NODES
     return PORT_MIN + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
@@ -491,19 +500,6 @@ def rpc_port(n):
 
 def tor_port(n):
     return p2p_port(n) + PORT_RANGE * 2
-
-
-def rpc_url(datadir, i, chain, rpchost):
-    rpc_u, rpc_p = get_auth_cookie(datadir, chain)
-    host = '127.0.0.1'
-    port = rpc_port(i)
-    if rpchost:
-        parts = rpchost.split(':')
-        if len(parts) == 2:
-            host, port = parts
-        else:
-            host = rpchost
-    return "http://%s:%s@%s:%d" % (rpc_u, rpc_p, host, int(port))
 
 
 # Node functions
@@ -528,7 +524,7 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
     else:
         chain_name_conf_arg = chain
         chain_name_conf_section = chain
-    with open(config_path, 'w', encoding='utf8') as f:
+    with open(config_path, 'w') as f:
         if chain_name_conf_arg:
             f.write("{}=1\n".format(chain_name_conf_arg))
         if chain_name_conf_section:
@@ -552,7 +548,7 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
         # in tests.
         f.write("peertimeout=999999999\n")
         f.write("printtoconsole=0\n")
-        f.write("natpmp=0\n")
+        f.write("natpmp=0\n") # Avoid non-loopback network traffic during tests.
         f.write("shrinkdebugfile=0\n")
         # To improve SQLite wallet performance so that the tests don't timeout, use -unsafesqlitesync
         f.write("unsafesqlitesync=1\n")
@@ -594,7 +590,7 @@ def get_temp_default_datadir(temp_dir: pathlib.Path) -> tuple[dict, pathlib.Path
 
 
 def append_config(datadir, options):
-    with open(os.path.join(datadir, "riecoin.conf"), 'a', encoding='utf8') as f:
+    with open(os.path.join(datadir, "riecoin.conf"), 'a') as f:
         for option in options:
             f.write(option + "\n")
 
@@ -603,7 +599,7 @@ def get_auth_cookie(datadir, chain):
     user = None
     password = None
     if os.path.isfile(os.path.join(datadir, "riecoin.conf")):
-        with open(os.path.join(datadir, "riecoin.conf"), 'r', encoding='utf8') as f:
+        with open(os.path.join(datadir, "riecoin.conf"), 'r') as f:
             for line in f:
                 if line.startswith("rpcuser="):
                     assert user is None  # Ensure that there is only one rpcuser line
@@ -612,7 +608,7 @@ def get_auth_cookie(datadir, chain):
                     assert password is None  # Ensure that there is only one rpcpassword line
                     password = line.split("=")[1].strip("\n")
     try:
-        with open(os.path.join(datadir, chain, ".cookie"), 'r', encoding="ascii") as f:
+        with open(os.path.join(datadir, chain, ".cookie"), 'r') as f:
             userpass = f.read()
             split_userpass = userpass.split(':')
             user = split_userpass[0]
@@ -700,6 +696,16 @@ def find_vout_for_address(node, txid, addr):
     raise RuntimeError("Vout not found for address: txid=%s, addr=%s" % (txid, addr))
 
 
+def dumb_sync_blocks(*, src, dst, height=None):
+    """Sync blocks between `src` and `dst` nodes via RPC submitblock up to height."""
+    height = height or src.getblockcount()
+    for i in range(dst.getblockcount() + 1, height + 1):
+        block_hash = src.getblockhash(i)
+        block = src.getblock(blockhash=block_hash, verbosity=0)
+        dst.submitblock(block)
+    assert_equal(dst.getblockcount(), height)
+
+
 def sync_txindex(test_framework, node):
     test_framework.log.debug("Waiting for node txindex to sync")
     sync_start = int(time.time())
@@ -715,3 +721,13 @@ def wallet_importprivkey(wallet_rpc, privkey, timestamp, *, label=""):
     }]
     import_res = wallet_rpc.importdescriptors(req)
     assert_equal(import_res[0]["success"], True)
+
+def is_dir_writable(dir_path: pathlib.Path) -> bool:
+    """Return True if we can create a file in the directory, False otherwise"""
+    try:
+        tmp = dir_path / f".tmp_{random.randrange(1 << 32)}"
+        tmp.touch()
+        tmp.unlink()
+        return True
+    except OSError:
+        return False

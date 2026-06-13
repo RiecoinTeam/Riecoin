@@ -11,6 +11,7 @@ import argparse
 from datetime import datetime, timezone
 import logging
 import os
+from pathlib import Path
 import platform
 import pdb
 import random
@@ -22,8 +23,8 @@ import tempfile
 import time
 
 from .address import create_deterministic_address_bcrt1_p2tr_op_true
-from .authproxy import JSONRPCException
 from . import coverage
+from .messages import CAddress
 from .p2p import NetworkThread
 from .test_node import TestNode
 from .util import (
@@ -40,6 +41,7 @@ from .util import (
     p2p_port,
     wait_until_helper_internal,
     wallet_importprivkey,
+    JSONRPCException,
 )
 
 
@@ -149,7 +151,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             self.log.exception(f"Called Process failed with stdout='{e.stdout}'; stderr='{e.stderr}';")
             self.success = TestStatus.FAILED
         except BaseException:
-            self.log.exception("Unexpected exception")
+            # The `exception` log will add the exception info to the message.
+            # https://docs.python.org/3/library/logging.html#logging.exception
+            self.log.exception("Unexpected exception:")
             self.success = TestStatus.FAILED
         finally:
             exit_code = self.shutdown()
@@ -187,7 +191,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         parser.add_argument("--perf", dest="perf", default=False, action="store_true",
                             help="profile running nodes with perf for the duration of the test")
         parser.add_argument("--valgrind", dest="valgrind", default=False, action="store_true",
-                            help="run nodes under the valgrind memory error detector: expect at least a ~10x slowdown. valgrind 3.14 or later required.")
+                            help="Run binaries under the valgrind memory error detector: Expect at least a ~10x slowdown.")
         parser.add_argument("--randomseed", type=int,
                             help="set a random seed for deterministically reproducing a previous test run")
         parser.add_argument("--timeout-factor", dest="timeout_factor", type=float, help="adjust test timeouts by a factor. Setting it to 0 disables all timeouts")
@@ -217,7 +221,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         PortSeed.n = self.options.port_seed
 
     def get_binaries(self, bin_dir=None):
-        return Binaries(self.binary_paths, bin_dir)
+        return Binaries(self.binary_paths, bin_dir, use_valgrind=self.options.valgrind)
 
     def setup(self):
         """Call this method to start up the test framework object with options set."""
@@ -254,6 +258,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.log.debug('Setting up network thread')
         self.network_thread = NetworkThread()
         self.network_thread.start()
+        self.wait_until(lambda: self.network_thread.network_event_loop is not None and self.network_thread.network_event_loop.is_running())
 
         if self.options.usecli:
             if not self.supports_cli:
@@ -273,7 +278,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             pdb.set_trace()
 
         self.log.debug('Closing down network thread')
-        self.network_thread.close()
+        self.network_thread.close(timeout=self.options.timeout_factor * 10)
         if self.success == TestStatus.FAILED:
             self.log.info("Not stopping nodes as test failed. The dangling processes will be cleaned up later.")
         else:
@@ -324,7 +329,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             h.flush()
             rpc_logger.removeHandler(h)
         if cleanup_tree_on_exit:
-            shutil.rmtree(self.options.tmpdir)
+            self.cleanup_folder(self.options.tmpdir)
 
         self.nodes.clear()
         return exit_code
@@ -440,7 +445,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 extra_args=args,
                 use_cli=self.options.usecli,
                 start_perf=self.options.perf,
-                use_valgrind=self.options.valgrind,
                 v2transport=self.options.v2transport,
                 uses_wallet=self.uses_wallet,
             )
@@ -491,6 +495,27 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             # Wait for nodes to stop
             node.wait_until_stopped()
 
+    def cleanup_partially_started_nodes(self):
+        """Tear down nodes left running after a failed start_nodes().
+
+        After start_nodes() raises (e.g. FailedToStartError), some nodes may be
+        RPC-connected, some may have a live process without RPC, and some may
+        already have exited. Stop the connected ones cleanly and force-kill the
+        rest so the framework's teardown can proceed.
+        """
+        for node in self.nodes:
+            if not node.running:
+                continue
+            if node.rpc_connected:
+                node.stop_node(wait=node.rpc_timeout)
+            else:
+                node.process.kill()
+                node.process.wait(timeout=node.rpc_timeout)
+                node.process = None
+                node.stdout.close()
+                node.stderr.close()
+                node.running = False
+
     def restart_node(self, i, extra_args=None, clear_addrman=False):
         """Stop and start a test node"""
         self.stop_node(i)
@@ -505,16 +530,20 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def wait_for_node_exit(self, i, timeout):
         self.nodes[i].process.wait(timeout)
 
-    def connect_nodes(self, a, b, *, peer_advertises_v2=None, wait_for_connect: bool = True):
-        """
-        Kwargs:
-            wait_for_connect: if True, block until the nodes are verified as connected. You might
-                want to disable this when using -stopatheight with one of the connected nodes,
-                since there will be a race between the actual connection and performing
-                the assertions before one node shuts down.
-        """
+    def connect_nodes(self, a, b, *, peer_advertises_v2=None):
         from_connection = self.nodes[a]
         to_connection = self.nodes[b]
+
+        # Use subversion as peer id. Test nodes have their node number appended to the user agent string
+        from_connection_subver = from_connection.getnetworkinfo()['subversion']
+        to_connection_subver = to_connection.getnetworkinfo()['subversion']
+
+        def find_conn(node, peer_subversion, inbound):
+            return next(filter(lambda peer: peer['subver'] == peer_subversion and peer['inbound'] == inbound, node.getpeerinfo()), None)
+
+        self.wait_until(lambda: not find_conn(from_connection, to_connection_subver, inbound=False))
+        self.wait_until(lambda: not find_conn(to_connection, from_connection_subver, inbound=True))
+
         ip_port = "127.0.0.1:" + str(p2p_port(b))
 
         if peer_advertises_v2 is None:
@@ -526,16 +555,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             # skip the optional third argument if it matches the default, for
             # compatibility with older clients
             from_connection.addnode(ip_port, "onetry")
-
-        if not wait_for_connect:
-            return
-
-        # Use subversion as peer id. Test nodes have their node number appended to the user agent string
-        from_connection_subver = from_connection.getnetworkinfo()['subversion']
-        to_connection_subver = to_connection.getnetworkinfo()['subversion']
-
-        def find_conn(node, peer_subversion, inbound):
-            return next(filter(lambda peer: peer['subver'] == peer_subversion and peer['inbound'] == inbound, node.getpeerinfo()), None)
 
         self.wait_until(lambda: find_conn(from_connection, to_connection_subver, inbound=False) is not None)
         self.wait_until(lambda: find_conn(to_connection, from_connection_subver, inbound=True) is not None)
@@ -629,7 +648,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         `[{"txid": txid, "vout": vout1}, {"txid": txid, "vout": vout2}, ...]`.
         The result can be used to specify inputs for RPCs like `createrawtransaction`,
         `createpsbt`, `lockunspent` etc."""
-        assert all(len(output.keys()) == 1 for output in outputs)
+        for output in outputs:
+            assert_equal(len(output.keys()), 1)
         send_res = node.send(outputs)
         assert send_res["complete"]
         utxos = []
@@ -691,6 +711,125 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def wait_until(self, test_function, timeout=60, check_interval=0.05):
         return wait_until_helper_internal(test_function, timeout=timeout, timeout_factor=self.options.timeout_factor, check_interval=check_interval)
 
+    def fill_node_addrman(self, *, node_index, address_types_to_add):
+        ADDRESSES = {
+            CAddress.NET_IPV4: [
+                "20.0.0.1",
+                "30.0.0.1",
+                "40.0.0.1",
+                "50.0.0.1",
+                "60.0.0.1",
+                "70.0.0.1",
+                "80.0.0.1",
+                "90.0.0.1",
+                "100.0.0.1",
+                "110.0.0.1",
+                "120.0.0.1",
+                "130.0.0.1",
+                "140.0.0.1",
+                "150.0.0.1",
+                "160.0.0.1",
+                "170.0.0.1",
+                "180.0.0.1",
+                "190.0.0.1",
+                "200.0.0.1",
+                "210.0.0.1",
+            ],
+            CAddress.NET_IPV6: [
+                "[20::1]",
+                "[30::1]",
+                "[40::1]",
+                "[50::1]",
+                "[60::1]",
+                "[70::1]",
+                "[80::1]",
+                "[90::1]",
+                "[100::1]",
+                "[110::1]",
+                "[120::1]",
+                "[130::1]",
+                "[140::1]",
+                "[150::1]",
+                "[160::1]",
+                "[170::1]",
+                "[180::1]",
+                "[190::1]",
+                "[200::1]",
+                "[210::1]",
+            ],
+            CAddress.NET_TORV3: [
+                "testonlyad777777777777777777777777777777777777777775b6qd.onion",
+                "testonlyah77777777777777777777777777777777777777777z7ayd.onion",
+                "testonlyal77777777777777777777777777777777777777777vp6qd.onion",
+                "testonlyap77777777777777777777777777777777777777777r5qad.onion",
+                "testonlyat77777777777777777777777777777777777777777udsid.onion",
+                "testonlyax77777777777777777777777777777777777777777yciid.onion",
+                "testonlya777777777777777777777777777777777777777777rhgyd.onion",
+                "testonlybd77777777777777777777777777777777777777777rs4ad.onion",
+                "testonlybp77777777777777777777777777777777777777777zs2ad.onion",
+                "testonlybt777777777777777777777777777777777777777777x6id.onion",
+                "testonlybx777777777777777777777777777777777777777775styd.onion",
+                "testonlyb3777777777777777777777777777777777777777774ckid.onion",
+                "testonlycd77777777777777777777777777777777777777777733id.onion",
+                "testonlych77777777777777777777777777777777777777777t6kid.onion",
+                "testonlycl77777777777777777777777777777777777777777tt3ad.onion",
+                "testonlyct77777777777777777777777777777777777777777wvhyd.onion",
+                "testonlycx7777777777777777777777777777777777777777774bad.onion",
+                "testonlyc377777777777777777777777777777777777777777u6aid.onion",
+                "testonlydd777777777777777777777777777777777777777777u5ad.onion",
+                "testonlydh77777777777777777777777777777777777777777wgnyd.onion",
+            ],
+            CAddress.NET_I2P: [
+                "testonlyad77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyah77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyap77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyat77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyax77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlya377777777777777777777777777777777777777777q.b32.i2p",
+                "testonlya777777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybd77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybh77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybl77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybp77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybt77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlybx77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyb777777777777777777777777777777777777777777q.b32.i2p",
+                "testonlych77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlycp77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyct77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlycx77777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyc377777777777777777777777777777777777777777q.b32.i2p",
+                "testonlyc777777777777777777777777777777777777777777q.b32.i2p",
+            ],
+            CAddress.NET_CJDNS: [
+                "[fc00::1]",
+                "[fc00::2]",
+                "[fc00::3]",
+                "[fc00::5]",
+                "[fc00::6]",
+                "[fc00::7]",
+                "[fc00::8]",
+                "[fc00::9]",
+                "[fc00::10]",
+                "[fc00::11]",
+                "[fc00::12]",
+                "[fc00::13]",
+                "[fc00::15]",
+                "[fc00::16]",
+                "[fc00::17]",
+                "[fc00::18]",
+                "[fc00::19]",
+                "[fc00::20]",
+                "[fc00::22]",
+                "[fc00::23]",
+            ],
+        }
+        for addr_type in address_types_to_add:
+            for addr in ADDRESSES[addr_type]:
+                res = self.nodes[node_index].addpeeraddress(address=addr, port=0 if addr.endswith(".i2p") else 8333, tried=False)
+                if not res["success"]:
+                    self.log.debug(f"Could not add {addr} to nodes[{node_index}]'s addrman (collision?)")
+
     # Private helper methods. These should not be accessed by the subclass test scripts.
 
     def _start_logging(self):
@@ -698,7 +837,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.log = logging.getLogger('TestFramework')
         self.log.setLevel(logging.DEBUG)
         # Create file handler to log all messages
-        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log', encoding='utf-8')
+        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log')
         fh.setLevel(logging.DEBUG)
         # Create console handler to log messages to stderr. By default this logs only error messages, but can be configured with --loglevel.
         ch = logging.StreamHandler(sys.stdout)
@@ -884,6 +1023,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if not self.is_bitcoin_chainstate_compiled():
             raise SkipTest("bitcoin-chainstate has not been compiled")
 
+    def skip_if_no_bitcoin_bench(self):
+        """Skip the running test if bench_bitcoin has not been compiled."""
+        if not self.is_bench_compiled():
+            raise SkipTest("bench_bitcoin has not been compiled")
+
     def skip_if_no_cli(self):
         """Skip the running test if riecoin-cli has not been compiled."""
         if not self.is_cli_compiled():
@@ -903,6 +1047,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Skip the running test if Valgrind is being used."""
         if self.options.valgrind:
             raise SkipTest("This test is not compatible with Valgrind.")
+
+    def is_bench_compiled(self):
+        """Checks whether bench_bitcoin was compiled."""
+        return self.config["components"].getboolean("BUILD_BENCH")
 
     def is_cli_compiled(self):
         """Checks whether riecoin-cli was compiled."""
@@ -932,6 +1080,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the zmq module was compiled."""
         return self.config["components"].getboolean("ENABLE_ZMQ")
 
+    def is_embedded_asmap_compiled(self):
+        """Checks whether ASMap data was embedded during compilation."""
+        return self.config["components"].getboolean("ENABLE_EMBEDDED_ASMAP")
+
     def is_usdt_compiled(self):
         """Checks whether the USDT tracepoints were compiled."""
         return self.config["components"].getboolean("ENABLE_USDT_TRACEPOINTS")
@@ -953,3 +1105,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             return result
         except ImportError:
             self.log.warning("sqlite3 module not available, skipping tests that inspect the database")
+
+    def cleanup_folder(self, _path):
+        path = Path(_path)
+        if not path.is_relative_to(self.options.tmpdir):
+            raise AssertionError(f"Trying to delete #{path} outside of #{self.options.tmpdir}")
+        shutil.rmtree(path)

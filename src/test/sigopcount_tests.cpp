@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2022 The Bitcoin Core developers
+// Copyright (c) 2012-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -116,8 +116,7 @@ BOOST_AUTO_TEST_CASE(GetTxSigOpCost)
     CMutableTransaction spendingTx;
 
     // Create utxo set
-    CCoinsView coinsDummy;
-    CCoinsViewCache coins(&coinsDummy);
+    CCoinsViewCache coins{&CoinsViewEmpty::Get()};
     // Create key
     CKey key = GenerateRandomKey();
     CPubKey pubkey = key.GetPubKey();

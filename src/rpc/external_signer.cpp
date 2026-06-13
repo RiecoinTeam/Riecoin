@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022 The Bitcoin Core developers
+// Copyright (c) 2018-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -18,9 +18,9 @@
 
 #ifdef ENABLE_EXTERNAL_SIGNER
 
-static RPCHelpMan enumeratesigners()
+static RPCMethod enumeratesigners()
 {
-    return RPCHelpMan{"enumeratesigners",
+    return RPCMethod{"enumeratesigners",
         "Returns a list of external signers from -signer.",
         {},
         RPCResult{
@@ -41,7 +41,7 @@ static RPCHelpMan enumeratesigners()
             HelpExampleCli("enumeratesigners", "")
             + HelpExampleRpc("enumeratesigners", "")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
             const std::string command = gArgs.GetArg("-signer", "");
             if (command == "") throw JSONRPCError(RPC_MISC_ERROR, "Error: restart riecoind with -signer=<cmd>");

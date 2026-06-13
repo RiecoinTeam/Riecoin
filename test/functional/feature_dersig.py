@@ -10,7 +10,6 @@ Test the DERSIG soft-fork activation on regtest.
 
 from test_framework.blocktools import (
     create_block,
-    create_coinbase,
 )
 from test_framework.messages import msg_block
 from test_framework.p2p import P2PInterface
@@ -68,7 +67,7 @@ class BIP66Test(BitcoinTestFramework):
 
         tip = self.nodes[0].getbestblockhash()
         block_time = self.nodes[0].getblockheader(tip)['mediantime'] + 1
-        block = create_block(int(tip, 16), create_coinbase(DERSIG_HEIGHT - 1), block_time, txlist=[spendtx])
+        block = create_block(int(tip, 16), height=DERSIG_HEIGHT - 1, ntime=block_time, txlist=[spendtx])
         block.solve()
 
         peer.send_and_ping(msg_block(block))
@@ -78,7 +77,7 @@ class BIP66Test(BitcoinTestFramework):
         self.log.info("Test that blocks must now be at least version 3")
         tip = block.hash_int
         block_time += 1
-        block = create_block(tip, create_coinbase(DERSIG_HEIGHT), block_time, version=2)
+        block = create_block(tip, height=DERSIG_HEIGHT, ntime=block_time, version=2)
         block.solve()
 
         with self.nodes[0].assert_debug_log(expected_msgs=[f'{block.hash_hex}, bad-version(0x00000002)']):

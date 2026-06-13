@@ -50,7 +50,7 @@ constexpr int SIGNABLE = 1 << 3; // We can sign with this descriptor (this is no
 constexpr int DERIVE_HARDENED = 1 << 4; // The final derivation is hardened, i.e. ends with *' or *h
 constexpr int MIXED_PUBKEYS = 1 << 5;
 constexpr int XONLY_KEYS = 1 << 6; // X-only pubkeys are in use (and thus inferring/caching may swap parity of pubkeys/keyids)
-constexpr int MISSING_PRIVKEYS = 1 << 7; // Not all private keys are available, so ToPrivateString will fail.
+constexpr int MISSING_PRIVKEYS = 1 << 7; // Not all private keys are available. ToPrivateString() will return true if there is at least one private key and HavePrivateKeys() will return `false`.
 constexpr int SIGNABLE_FAILS = 1 << 8; // We can sign with this descriptor, but actually trying to sign will fail
 constexpr int MUSIG = 1 << 9; // This is a MuSig so key counts will have an extra key
 constexpr int MUSIG_DERIVATION = 1 << 10; // MuSig with BIP 328 derivation from the aggregate key
@@ -244,6 +244,9 @@ void DoCheck(std::string prv, std::string pub, const std::string& norm_pub, int 
         } else {
             BOOST_CHECK_MESSAGE(EqualDescriptor(prv, prv1), "Private ser: " + prv1 + " Private desc: " + prv);
         }
+        BOOST_CHECK(!parse_priv->HavePrivateKeys(keys_pub));
+        BOOST_CHECK(parse_pub->HavePrivateKeys(keys_priv));
+
         BOOST_CHECK(!parse_priv->ToPrivateString(keys_pub, prv1));
         BOOST_CHECK(parse_pub->ToPrivateString(keys_priv, prv1));
         if (expected_prv) {
@@ -262,6 +265,12 @@ void DoCheck(std::string prv, std::string pub, const std::string& norm_pub, int 
         parse_pub->ExpandPrivate(0, keys_priv, pub_prov);
 
         BOOST_CHECK_MESSAGE(EqualSigningProviders(priv_prov, pub_prov), "Private desc: " + prv + " Pub desc: " + pub);
+    } else if (keys_priv.keys.size() > 0) {
+        // If there is at least one private key, ToPrivateString() should return true and include that key
+        std::string prv_str;
+        BOOST_CHECK(parse_priv->ToPrivateString(keys_priv, prv_str));
+        size_t checksum_len = 9; // Including the '#' character
+        BOOST_CHECK_MESSAGE(prv == prv_str.substr(0, prv_str.length() - checksum_len), prv);
     }
 
     // Check that private can produce the normalized descriptors
@@ -274,6 +283,14 @@ void DoCheck(std::string prv, std::string pub, const std::string& norm_pub, int 
     // Check whether IsRange on both returns the expected result
     BOOST_CHECK_EQUAL(parse_pub->IsRange(), (flags & RANGE) != 0);
     BOOST_CHECK_EQUAL(parse_priv->IsRange(), (flags & RANGE) != 0);
+
+    // Check that the highest key expression index matches the number of keys in the descriptor
+    BOOST_TEST_INFO("Pub desc: " + pub);
+    uint32_t key_exprs = parse_pub->GetMaxKeyExpr();
+    BOOST_CHECK_EQUAL(key_exprs + 1, parse_pub->GetKeyCount());
+    BOOST_TEST_INFO("Priv desc: " + prv);
+    BOOST_CHECK_EQUAL(key_exprs, parse_priv->GetMaxKeyExpr());
+    BOOST_CHECK_EQUAL(key_exprs + 1, parse_priv->GetKeyCount());
 
     // * For ranged descriptors,  the `scripts` parameter is a list of expected result outputs, for subsequent
     //   positions to evaluate the descriptors on (so the first element of `scripts` is for evaluating the
@@ -431,7 +448,7 @@ void DoCheck(std::string prv, std::string pub, const std::string& norm_pub, int 
                     std::vector<CTxOut> utxos(1);
                     PrecomputedTransactionData txdata;
                     txdata.Init(spend, std::move(utxos), /*force=*/true);
-                    MutableTransactionSignatureCreator creator{spend, 0, CAmount{0}, &txdata, SIGHASH_DEFAULT};
+                    MutableTransactionSignatureCreator creator{spend, 0, CAmount{0}, &txdata, {.sighash_type = SIGHASH_DEFAULT}};
                     SignatureData sigdata;
                     // We assume there is no collision between the hashes (eg h1=SHA256(SHA256(x)) and h2=SHA256(x))
                     sigdata.sha256_preimages = preimages;
@@ -457,7 +474,7 @@ void DoCheck(std::string prv, std::string pub, const std::string& norm_pub, int 
             // Test whether the observed key path is present in the 'paths' variable (which contains expected, unobserved paths),
             // and then remove it from that set.
             for (const auto& origin : script_provider.origins) {
-                BOOST_CHECK_MESSAGE(paths.count(origin.second.second.path), "Unexpected key path: " + prv);
+                BOOST_CHECK_MESSAGE(paths.contains(origin.second.second.path), "Unexpected key path: " + prv);
                 left_paths.erase(origin.second.second.path);
             }
         }
@@ -1248,8 +1265,124 @@ BOOST_AUTO_TEST_CASE(descriptor_test)
     CheckUnparsable("tr(musig(xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc/*,xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y/*)/0)","tr(musig(xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/*,xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y/*)/0)", "tr(): musig(): Cannot have ranged participant keys if musig() also has derivation");
 
     // Fuzzer crash test cases
-    CheckUnparsable("pk(musig(dd}uue/00/)k(", "pk(musig(dd}uue/00/)k(", "Invalid musig() expression");
+    CheckUnparsable("pk(musig(dd}uue/00/)k(", "pk(musig(dd}uue/00/)k(", "'pk(musig(dd}uue/00/)k(' is not a valid descriptor function");
     CheckUnparsable("tr(musig(tuus(oldepk(gg)ggggfgg)<,z(((((((((((((((((((((st)", "tr(musig(tuus(oldepk(gg)ggggfgg)<,z(((((((((((((((((((((st)","tr(): Too many ')' in musig() expression");
+}
+
+BOOST_AUTO_TEST_CASE(descriptor_literal_null_byte)
+{
+    // Trailing '\0' string literal should be ignored.
+    FlatSigningProvider keys;
+    std::string err;
+    auto descs = Parse("tr(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)", keys, err);
+    BOOST_REQUIRE_MESSAGE(!descs.empty(), err);
+}
+
+BOOST_AUTO_TEST_CASE(descriptor_older_warnings)
+{
+    // A safe boundary value should yield no warnings.
+    {
+        FlatSigningProvider keys;
+        std::string err;
+        auto descs = Parse("wsh(and_v(v:pk(0379e45b3cf75f9c5f9befd8e9506fb962f6a9d185ac87001ec44a8d3df8d4a9e3),older(65535)))", keys, err);
+        BOOST_REQUIRE_MESSAGE(!descs.empty(), err);
+        BOOST_CHECK(descs[0]->Warnings().empty());
+    }
+
+    // Height-based unsafe value (65536) should produce one warning.
+    {
+        FlatSigningProvider keys;
+        std::string err;
+        const uint32_t height_unsafe = 65536;
+        auto descs = Parse(strprintf("wsh(and_v(v:pk(0379e45b3cf75f9c5f9befd8e9506fb962f6a9d185ac87001ec44a8d3df8d4a9e3),older(%u)))", height_unsafe), keys, err);
+        BOOST_REQUIRE_MESSAGE(!descs.empty(), err);
+        const auto& ws = descs[0]->Warnings();
+        BOOST_REQUIRE_EQUAL(ws.size(), 1U);
+        BOOST_CHECK_EQUAL(ws[0], strprintf("height-based relative locktime: older(%u) > 65535 blocks is unsafe", height_unsafe));
+    }
+
+    // Time-based unsafe value: add SEQUENCE_LOCKTIME_TYPE_FLAG (1<<22)
+    {
+        FlatSigningProvider keys;
+        std::string err;
+        const uint32_t time_unsafe = 65536 | CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG;
+        auto descs = Parse(strprintf("wsh(and_v(v:pk(0379e45b3cf75f9c5f9befd8e9506fb962f6a9d185ac87001ec44a8d3df8d4a9e3),older(%u)))", time_unsafe), keys, err);
+        BOOST_REQUIRE_MESSAGE(!descs.empty(), err);
+        const auto& warnings = descs[0]->Warnings();
+        BOOST_REQUIRE_EQUAL(warnings.size(), 1U);
+        BOOST_CHECK_EQUAL(warnings[0], strprintf("time-based relative locktime: older(%u) > (65535 * 512) seconds is unsafe", time_unsafe));
+    }
+
+    // Ensure no false positive warnings for absolute timelocks
+    {
+        FlatSigningProvider keys;
+        std::string err;
+        // Using after() with a large timestamp (> 65535)
+        auto descs = Parse("wsh(and_v(v:pk(0379e45b3cf75f9c5f9befd8e9506fb962f6a9d185ac87001ec44a8d3df8d4a9e3),after(1000000)))", keys, err);
+        BOOST_REQUIRE_MESSAGE(!descs.empty(), err);
+        BOOST_CHECK(descs[0]->Warnings().empty());
+    }
+}
+
+void CheckSingleUnparsable(const std::string& desc, const std::string& expected_error)
+{
+    FlatSigningProvider keys;
+    std::string error;
+    auto parsed = Parse(desc, keys, error);
+    BOOST_CHECK_MESSAGE(parsed.empty(), desc);
+    BOOST_CHECK_EQUAL(error, expected_error);
+}
+
+void CheckUnused(const std::string& prv, const std::string& pub)
+{
+    FlatSigningProvider keys_priv, keys_pub;
+    std::string error;
+
+    std::unique_ptr<Descriptor> parse_priv;
+    std::unique_ptr<Descriptor> parse_pub;
+    parse_priv = std::move(Parse(prv, keys_priv, error).at(0));
+    parse_pub = std::move(Parse(pub, keys_pub, error).at(0));
+    BOOST_CHECK_MESSAGE(parse_priv, error);
+    BOOST_CHECK_MESSAGE(parse_pub, error);
+
+    BOOST_CHECK(parse_priv->GetOutputType() == std::nullopt);
+    BOOST_CHECK(parse_pub->GetOutputType() == std::nullopt);
+
+    // Check private keys are extracted from the private version but not the public one.
+    BOOST_CHECK(keys_priv.keys.size());
+    BOOST_CHECK(!keys_pub.keys.size());
+
+    // Check that both versions serialize back to the public version.
+    std::string pub1 = parse_priv->ToString();
+    std::string pub2 = parse_pub->ToString();
+    BOOST_CHECK_MESSAGE(EqualDescriptor(pub, pub1), "Private ser: " + pub1 + " Public desc: " + pub);
+    BOOST_CHECK_MESSAGE(EqualDescriptor(pub, pub2), "Public ser: " + pub2 + " Public desc: " + pub);
+
+    // Check both only have one pubkey
+    std::set<CPubKey> prv_pubkeys;
+    std::set<CExtPubKey> prv_extpubs;
+    parse_pub->GetPubKeys(prv_pubkeys, prv_extpubs);
+    BOOST_CHECK_EQUAL(prv_pubkeys.size() + prv_extpubs.size(), 1);
+    std::set<CPubKey> pub_pubkeys;
+    std::set<CExtPubKey> pub_extpubs;
+    parse_pub->GetPubKeys(pub_pubkeys, pub_extpubs);
+    BOOST_CHECK_EQUAL(pub_pubkeys.size() + pub_extpubs.size(), 1);
+}
+
+// unused() descriptors don't produce scripts, so these need to be tested separately
+BOOST_AUTO_TEST_CASE(unused_descriptor_test)
+{
+    CheckUnparsable("unused(prve3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855,prve3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)", "unused(03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,04a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd5b8dec5235a0fa8722476c7709c02559e3aa73aa03918ba2d492eea75abea235)", "unused(): only one key expected");
+    CheckUnparsable("wsh(unused(prve3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855))", "wsh(unused(03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd))", "Can only have unused at top level");
+    CheckUnparsable("unused(xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc/*)", "unused(xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/*)", "unused(): key cannot be ranged");
+    CheckUnparsable("unused()", "unused()", "No key provided");
+
+    // x-only keys cannot be used in unused()
+    CheckSingleUnparsable("unused(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd)", "Pubkey 'a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd' is invalid");
+
+    CheckUnused("unused(xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc)", "unused(xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL)");
+    CheckUnused("unused(prve3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)", "unused(03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd)");
+    CheckUnused("unused(xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc/0h/0h/1)", "unused(xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/0h/0h/1)");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -10,9 +10,9 @@
 #include <common/args.h>
 #include <consensus/params.h>
 #include <deploymentinfo.h>
-#include <logging.h>
 #include <tinyformat.h>
 #include <util/chaintype.h>
+#include <util/log.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 
@@ -24,9 +24,8 @@
 
 using util::SplitString;
 
-void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
+static void HandleDeploymentArgs(const ArgsManager& args, CChainParams::DeploymentOptions& options)
 {
-    if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
 
     for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
         std::vector<std::string> vDeploymentParams = SplitString(strDeployment, ':');
@@ -69,6 +68,23 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
     }
 }
 
+void ReadMainNetArgs(const ArgsManager& args, CChainParams::MainNetOptions& options)
+{
+    HandleDeploymentArgs(args, options.dep_opts);
+}
+
+void ReadTestNetArgs(const ArgsManager& args, CChainParams::TestNetOptions& options)
+{
+    HandleDeploymentArgs(args, options.dep_opts);
+}
+
+void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
+{
+    if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
+
+    HandleDeploymentArgs(args, options.dep_opts);
+}
+
 static std::unique_ptr<const CChainParams> globalChainParams;
 
 const CChainParams &Params() {
@@ -79,10 +95,16 @@ const CChainParams &Params() {
 std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const ChainType chain)
 {
     switch (chain) {
-    case ChainType::MAIN:
-        return CChainParams::Main();
-    case ChainType::TESTNET:
-        return CChainParams::TestNet();
+    case ChainType::MAIN: {
+        auto opts = CChainParams::MainNetOptions{};
+        ReadMainNetArgs(args, opts);
+        return CChainParams::Main(opts);
+    }
+    case ChainType::TESTNET: {
+        auto opts = CChainParams::TestNetOptions{};
+        ReadTestNetArgs(args, opts);
+        return CChainParams::TestNet(opts);
+    }
     case ChainType::REGTEST: {
         auto opts = CChainParams::RegTestOptions{};
         ReadRegTestArgs(args, opts);

@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -11,9 +11,9 @@
 
 
 namespace wallet {
-RPCHelpMan walletpassphrase()
+RPCMethod walletpassphrase()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "walletpassphrase",
         "Stores the wallet decryption key in memory for 'timeout' seconds.\n"
                 "This is needed prior to performing transactions related to private keys such as sending Riecoins\n"
@@ -33,7 +33,7 @@ RPCHelpMan walletpassphrase()
             "\nAs a JSON-RPC call\n"
             + HelpExampleRpc("walletpassphrase", "\"my pass phrase\", 60")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return UniValue::VNULL;
@@ -46,7 +46,7 @@ RPCHelpMan walletpassphrase()
     {
         LOCK(pwallet->cs_wallet);
 
-        if (!pwallet->IsCrypted()) {
+        if (!pwallet->HasEncryptionKeys()) {
             throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
         }
 
@@ -116,9 +116,9 @@ RPCHelpMan walletpassphrase()
 }
 
 
-RPCHelpMan walletpassphrasechange()
+RPCMethod walletpassphrasechange()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "walletpassphrasechange",
         "Changes the wallet passphrase from 'oldpassphrase' to 'newpassphrase'.\n",
                 {
@@ -130,12 +130,12 @@ RPCHelpMan walletpassphrasechange()
                     HelpExampleCli("walletpassphrasechange", "\"old one\" \"new one\"")
             + HelpExampleRpc("walletpassphrasechange", "\"old one\", \"new one\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) return UniValue::VNULL;
 
-    if (!pwallet->IsCrypted()) {
+    if (!pwallet->HasEncryptionKeys()) {
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrasechange was called.");
     }
 
@@ -176,9 +176,9 @@ RPCHelpMan walletpassphrasechange()
 }
 
 
-RPCHelpMan walletlock()
+RPCMethod walletlock()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "walletlock",
         "Removes the wallet encryption key from memory, locking the wallet.\n"
                 "After calling this method, you will need to call walletpassphrase again\n"
@@ -195,12 +195,12 @@ RPCHelpMan walletlock()
             "\nAs a JSON-RPC call\n"
             + HelpExampleRpc("walletlock", "")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) return UniValue::VNULL;
 
-    if (!pwallet->IsCrypted()) {
+    if (!pwallet->HasEncryptionKeys()) {
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletlock was called.");
     }
 
@@ -219,9 +219,9 @@ RPCHelpMan walletlock()
 }
 
 
-RPCHelpMan encryptwallet()
+RPCMethod encryptwallet()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "encryptwallet",
         "Encrypts the wallet with 'passphrase'. This is for first time encryption.\n"
         "After this, any calls that interact with private keys such as sending or signing \n"
@@ -248,7 +248,7 @@ RPCHelpMan encryptwallet()
             "\nAs a JSON-RPC call\n"
             + HelpExampleRpc("encryptwallet", "\"my pass phrase\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) return UniValue::VNULL;
@@ -257,7 +257,7 @@ RPCHelpMan encryptwallet()
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: wallet does not contain private keys, nothing to encrypt.");
     }
 
-    if (pwallet->IsCrypted()) {
+    if (pwallet->HasEncryptionKeys()) {
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
     }
 

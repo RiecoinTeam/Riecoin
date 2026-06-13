@@ -1,4 +1,4 @@
-// Copyright (c) 2025 The Bitcoin Core developers
+// Copyright (c) 2025-present The Bitcoin Core developers
 // Copyright (c) 2025 The Riecoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -7,6 +7,7 @@
 
 #include <clientversion.h>
 #include <common/args.h>
+#include <common/license_info.h>
 #include <common/system.h>
 #include <util/fs.h>
 #include <util/exec.h>
@@ -92,9 +93,8 @@ int main(int argc, char* argv[])
             // Since "bitcoin rpc" is a new interface that doesn't need to be
             // backward compatible, enable -named by default so it is convenient
             // for callers to use a mix of named and unnamed parameters. Callers
-            // can override this by specifying -nonamed, but should not need to
-            // unless they are passing string values containing '=' characters
-            // as unnamed parameters.
+            // can override this by specifying -nonamed, but it handles parameters
+            // that contain '=' characters, so -nonamed should rarely be needed.
             args.emplace_back("-named");
         } else if (cmd.command == "wallet") {
             args.emplace_back("riecoin-wallet");

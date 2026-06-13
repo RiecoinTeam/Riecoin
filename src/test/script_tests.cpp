@@ -2,10 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/data/script_tests.json.h>
-#include <test/data/bip341_wallet_vectors.json.h>
-
 #include <common/system.h>
+#include <compressor.h>
 #include <core_io.h>
 #include <key.h>
 #include <rpc/util.h>
@@ -16,24 +14,25 @@
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/solver.h>
+#include <secp256k1.h>
 #include <streams.h>
+#include <test/data/bip341_wallet_vectors.json.h>
+#include <test/data/script_tests.json.h>
+#include <test/util/common.h>
 #include <test/util/json.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
+#include <univalue.h>
 #include <util/fs.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 
-#include <cstdint>
-#include <fstream>
-#include <string>
-#include <vector>
-
 #include <boost/test/unit_test.hpp>
 
-#include <secp256k1.h>
-#include <univalue.h>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 // Uncomment if you want to output updated JSON tests.
 // #define UPDATE_JSON_TESTS
@@ -52,7 +51,6 @@ struct ScriptErrorDesc
 
 static ScriptErrorDesc script_errors[]={
     {SCRIPT_ERR_OK, "OK"},
-    {SCRIPT_ERR_UNKNOWN_ERROR, "UNKNOWN_ERROR"},
     {SCRIPT_ERR_EVAL_FALSE, "EVAL_FALSE"},
     {SCRIPT_ERR_OP_RETURN, "OP_RETURN"},
     {SCRIPT_ERR_SCRIPT_SIZE, "SCRIPT_SIZE"},
@@ -92,8 +90,10 @@ static ScriptErrorDesc script_errors[]={
     {SCRIPT_ERR_WITNESS_MALLEATED_P2SH, "WITNESS_MALLEATED_P2SH"},
     {SCRIPT_ERR_WITNESS_UNEXPECTED, "WITNESS_UNEXPECTED"},
     {SCRIPT_ERR_WITNESS_PUBKEYTYPE, "WITNESS_PUBKEYTYPE"},
+    {SCRIPT_ERR_TAPSCRIPT_EMPTY_PUBKEY, "TAPSCRIPT_EMPTY_PUBKEY"},
     {SCRIPT_ERR_OP_CODESEPARATOR, "OP_CODESEPARATOR"},
     {SCRIPT_ERR_SIG_FINDANDDELETE, "SIG_FINDANDDELETE"},
+    {SCRIPT_ERR_SCRIPTNUM, "SCRIPTNUM"}
 };
 
 static std::string FormatScriptFlags(script_verify_flags flags)
@@ -666,7 +666,7 @@ BOOST_AUTO_TEST_CASE(script_build)
                                 "P2SH(P2PK) with non-push scriptSig but no P2SH or SIGPUSHONLY", 0, true
                                ).PushSig(keys.key2).Opcode(OP_NOP8).PushRedeem());
     tests.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey2C) << OP_CHECKSIG,
-                                "P2PK with non-push scriptSig but with P2SH validation", 0
+                                "P2PK with non-push scriptSig but with P2SH validation", SCRIPT_VERIFY_P2SH
                                ).PushSig(keys.key2).Opcode(OP_NOP8));
     tests.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey2C) << OP_CHECKSIG,
                                 "P2SH(P2PK) with non-push scriptSig but no SIGPUSHONLY", SCRIPT_VERIFY_P2SH, true
@@ -891,7 +891,7 @@ BOOST_AUTO_TEST_CASE(script_build)
 #ifdef UPDATE_JSON_TESTS
         strGen += str + ",\n";
 #else
-        if (tests_set.count(str) == 0) {
+        if (!tests_set.contains(str)) {
             BOOST_CHECK_MESSAGE(false, "Missing auto script_valid test: " + test.GetComment());
         }
 #endif
@@ -1264,7 +1264,7 @@ SignatureData CombineSignatures(const CTxOut& txout, const CMutableTransaction& 
     SignatureData data;
     data.MergeSignatureData(scriptSig1);
     data.MergeSignatureData(scriptSig2);
-    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(tx, 0, txout.nValue, SIGHASH_DEFAULT), txout.scriptPubKey, data);
+    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(tx, 0, txout.nValue, {.sighash_type = SIGHASH_DEFAULT}), txout.scriptPubKey, data);
     return data;
 }
 
@@ -1452,6 +1452,14 @@ BOOST_AUTO_TEST_CASE(script_IsPushOnly_on_invalid_scripts)
     // the invalid push. Still, it doesn't hurt to test it explicitly.
     static const unsigned char direct[] = { 1 };
     BOOST_CHECK(!CScript(direct, direct+sizeof(direct)).IsPushOnly());
+}
+
+BOOST_AUTO_TEST_CASE(script_CheckMinimalPush_boundary)
+{
+    // Test the boundary at exactly 65535 bytes: must use OP_PUSHDATA2, not OP_PUSHDATA4.
+    std::vector<unsigned char> data(65535, '\x42');
+    BOOST_CHECK(CheckMinimalPush(data, OP_PUSHDATA2));
+    BOOST_CHECK(!CheckMinimalPush(data, OP_PUSHDATA4));
 }
 
 BOOST_AUTO_TEST_CASE(script_GetScriptAsm)
@@ -1672,7 +1680,7 @@ BOOST_AUTO_TEST_CASE(bip341_keypath_test_vectors)
             // Sign and verify signature.
             FlatSigningProvider provider;
             provider.keys[key.GetPubKey().GetID()] = key;
-            MutableTransactionSignatureCreator creator(tx, txinpos, utxos[txinpos].nValue, &txdata, hashtype);
+            MutableTransactionSignatureCreator creator(tx, txinpos, utxos[txinpos].nValue, &txdata, {.sighash_type = hashtype});
             std::vector<unsigned char> signature;
             BOOST_CHECK(creator.CreateSchnorrSig(provider, signature, pubkey, nullptr, &merkle_root, SigVersion::TAPROOT));
             BOOST_CHECK_EQUAL(HexStr(signature), input["expected"]["witness"][0].get_str());

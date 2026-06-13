@@ -3,11 +3,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <script/keyorigin.h>
-#include <script/interpreter.h>
 #include <script/signingprovider.h>
 
-#include <logging.h>
+#include <musig.h>
+#include <script/interpreter.h>
+#include <script/keyorigin.h>
+#include <util/check.h>
+#include <util/log.h>
+
+#include <algorithm>
+#include <cstddef>
 
 const SigningProvider& DUMMY_SIGNING_PROVIDER = SigningProvider();
 
@@ -122,7 +127,9 @@ std::map<CPubKey, std::vector<CPubKey>> FlatSigningProvider::GetAllMuSig2Partici
 void FlatSigningProvider::SetMuSig2SecNonce(const uint256& session_id, MuSig2SecNonce&& nonce) const
 {
     if (!Assume(musig2_secnonces)) return;
-    musig2_secnonces->emplace(session_id, std::move(nonce));
+    auto [it, inserted] = musig2_secnonces->try_emplace(session_id, std::move(nonce));
+    // No secnonce should exist for this session yet.
+    Assert(inserted);
 }
 
 std::optional<std::reference_wrapper<MuSig2SecNonce>> FlatSigningProvider::GetMuSig2SecNonce(const uint256& session_id) const
@@ -196,7 +203,7 @@ bool FillableSigningProvider::AddKeyPubKey(const CKey& key, const CPubKey &pubke
 bool FillableSigningProvider::HaveKey(const CKeyID &address) const
 {
     LOCK(cs_KeyStore);
-    return mapKeys.count(address) > 0;
+    return mapKeys.contains(address);
 }
 
 std::set<CKeyID> FillableSigningProvider::GetKeys() const
@@ -235,7 +242,7 @@ bool FillableSigningProvider::AddCScript(const CScript& redeemScript)
 bool FillableSigningProvider::HaveCScript(const CScriptID& hash) const
 {
     LOCK(cs_KeyStore);
-    return mapScripts.count(hash) > 0;
+    return mapScripts.contains(hash);
 }
 
 std::set<CScriptID> FillableSigningProvider::GetCScripts() const

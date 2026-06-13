@@ -29,7 +29,7 @@ class arith_uint256;
  *
  * @return                the proof-of-work target or nullopt if nBits or powVersion is invalid
  */
-std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, unsigned int nBitsOffset, const int32_t powVersion, const uint32_t nBitsMin);
+std::optional<mpz_class> DeriveTarget(uint256 hash, unsigned int nBits, unsigned int nBitsOffset, int32_t powVersion, uint32_t nBitsMin);
 
 // MainNet Only, Pre Fork 2 SuperBlocks
 inline bool isInSuperblockInterval(int nHeight, const Consensus::Params& params) {return ((nHeight/288) % 14) == 12;} // once per week

@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Copyright (c) 2013-present The Riecoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -42,55 +42,6 @@ static constexpr int64_t TIMESTAMP_WINDOW = MAX_FUTURE_BLOCK_TIME;
 static constexpr int32_t SEQ_ID_BEST_CHAIN_FROM_DISK = 0;
 static constexpr int32_t SEQ_ID_INIT_FROM_DISK = 1;
 
-/**
- * Maximum gap between node time and block time used
- * for the "Catching up..." mode in GUI.
- *
- * Ref: https://github.com/bitcoin/bitcoin/pull/1026
- */
-static constexpr int64_t MAX_BLOCK_TIME_GAP = 90 * 60;
-
-class CBlockFileInfo
-{
-public:
-    unsigned int nBlocks{};      //!< number of blocks stored in file
-    unsigned int nSize{};        //!< number of used bytes of block file
-    unsigned int nUndoSize{};    //!< number of used bytes in the undo file
-    unsigned int nHeightFirst{}; //!< lowest height of block in file
-    unsigned int nHeightLast{};  //!< highest height of block in file
-    uint64_t nTimeFirst{};       //!< earliest time of block in file
-    uint64_t nTimeLast{};        //!< latest time of block in file
-
-    SERIALIZE_METHODS(CBlockFileInfo, obj)
-    {
-        READWRITE(VARINT(obj.nBlocks));
-        READWRITE(VARINT(obj.nSize));
-        READWRITE(VARINT(obj.nUndoSize));
-        READWRITE(VARINT(obj.nHeightFirst));
-        READWRITE(VARINT(obj.nHeightLast));
-        READWRITE(VARINT(obj.nTimeFirst));
-        READWRITE(VARINT(obj.nTimeLast));
-    }
-
-    CBlockFileInfo() = default;
-
-    std::string ToString() const;
-
-    /** update statistics (does not update nSize) */
-    void AddBlock(unsigned int nHeightIn, uint64_t nTimeIn)
-    {
-        if (nBlocks == 0 || nHeightFirst > nHeightIn)
-            nHeightFirst = nHeightIn;
-        if (nBlocks == 0 || nTimeFirst > nTimeIn)
-            nTimeFirst = nTimeIn;
-        nBlocks++;
-        if (nHeightIn > nHeightLast)
-            nHeightLast = nHeightIn;
-        if (nTimeIn > nTimeLast)
-            nTimeLast = nTimeIn;
-    }
-};
-
 enum BlockStatus : uint32_t {
     //! Unused.
     BLOCK_VALID_UNKNOWN      =    0,
@@ -129,8 +80,7 @@ enum BlockStatus : uint32_t {
     BLOCK_HAVE_MASK          =   BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO,
 
     BLOCK_FAILED_VALID       =   32, //!< stage after last reached validness failed
-    BLOCK_FAILED_CHILD       =   64, //!< descends from failed block
-    BLOCK_FAILED_MASK        =   BLOCK_FAILED_VALID | BLOCK_FAILED_CHILD,
+    BLOCK_FAILED_CHILD       =   64, //!< Unused flag that was previously set when descending from failed block
 
     BLOCK_OPT_WITNESS        =   128, //!< block data in blk*.dat was received with a witness-enforcing client
 
@@ -305,7 +255,7 @@ public:
     {
         AssertLockHeld(::cs_main);
         assert(!(nUpTo & ~BLOCK_VALID_MASK)); // Only validity flags allowed.
-        if (nStatus & BLOCK_FAILED_MASK)
+        if (nStatus & BLOCK_FAILED_VALID)
             return false;
         return ((nStatus & BLOCK_VALID_MASK) >= nUpTo);
     }
@@ -316,7 +266,7 @@ public:
     {
         AssertLockHeld(::cs_main);
         assert(!(nUpTo & ~BLOCK_VALID_MASK)); // Only validity flags allowed.
-        if (nStatus & BLOCK_FAILED_MASK) return false;
+        if (nStatus & BLOCK_FAILED_VALID) return false;
 
         if ((nStatus & BLOCK_VALID_MASK) < nUpTo) {
             nStatus = (nStatus & ~BLOCK_VALID_MASK) | nUpTo;
@@ -452,16 +402,16 @@ public:
     }
 
     /** Efficiently check whether a block is present in this chain. */
-    bool Contains(const CBlockIndex* pindex) const
+    bool Contains(const CBlockIndex& index) const
     {
-        return (*this)[pindex->nHeight] == pindex;
+        return (*this)[index.nHeight] == &index;
     }
 
     /** Find the successor of a block in this chain, or nullptr if the given index is not found or is the tip. */
-    CBlockIndex* Next(const CBlockIndex* pindex) const
+    CBlockIndex* Next(const CBlockIndex& index) const
     {
-        if (Contains(pindex))
-            return (*this)[pindex->nHeight + 1];
+        if (Contains(index))
+            return (*this)[index.nHeight + 1];
         else
             return nullptr;
     }
@@ -472,11 +422,20 @@ public:
         return int(vChain.size()) - 1;
     }
 
+    /** Check whether this chain's tip exists, has enough work, and is recent. */
+    bool IsTipRecent(const arith_uint256& min_chain_work, std::chrono::seconds max_tip_age) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        const auto tip{Tip()};
+        return tip &&
+               tip->nChainWork >= min_chain_work &&
+               tip->Time() >= Now<NodeSeconds>() - max_tip_age;
+    }
+
     /** Set/initialize a chain with a given tip. */
     void SetTip(CBlockIndex& block);
 
     /** Find the last common block between this chain and a block index entry. */
-    const CBlockIndex* FindFork(const CBlockIndex* pindex) const;
+    const CBlockIndex* FindFork(const CBlockIndex& index) const;
 
     /** Find the earliest block with timestamp equal or greater than the given time and height equal or greater than the given height. */
     CBlockIndex* FindEarliestAtLeast(int64_t nTime, int height) const;

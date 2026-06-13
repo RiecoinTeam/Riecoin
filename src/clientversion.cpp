@@ -6,10 +6,9 @@
 #include <riecoin-build-config.h> // IWYU pragma: keep
 
 #include <clientversion.h>
-#include <util/string.h>
-#include <util/translation.h>
 
 #include <tinyformat.h>
+#include <util/string.h>
 
 #include <string>
 #include <vector>
@@ -31,7 +30,8 @@ const std::string UA_NAME("Dev");
 //   - "#define BUILD_GIT_COMMIT ...", if the top commit is not tagged
 //   - "// No build information available", if proper git information is not available
 
-//! git will put "#define GIT_COMMIT_ID ..." on the next line inside archives. $Format:%n#define GIT_COMMIT_ID "%H"$
+// git will expand the next line to "#define GIT_COMMIT_ID ..." inside archives:
+//$Format:%n#define GIT_COMMIT_ID "%H"$
 
 #ifdef BUILD_GIT_TAG
     #define BUILD_DESC BUILD_GIT_TAG
@@ -68,32 +68,4 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
     std::string comments_str;
     if (!comments.empty()) comments_str = strprintf("(%s)", Join(comments, "; "));
     return strprintf("/%s:%s%s/", name, FormatVersion(nClientVersion), comments_str);
-}
-
-std::string CopyrightHolders(const std::string& strPrefix)
-{
-    std::string strCopyrightHolders = strPrefix + " 2009-" + std::to_string(COPYRIGHT_YEAR) + " The Bitcoin Core developers";
-    strCopyrightHolders += "\n" + strPrefix + " 2013-" + std::to_string(COPYRIGHT_YEAR) + " The Riecoin developers";
-    return strCopyrightHolders;
-}
-
-std::string LicenseInfo()
-{
-    const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
-
-    return CopyrightHolders("(C) ") + "" +
-           "\n Riecoin Core (Dev) is based on Bitcoin Core (Master).\n" +
-           strprintf(_("Please contribute if you find %s useful. "
-                       "Visit %s for further information about the software."),
-                     CLIENT_NAME, "<" CLIENT_URL ">")
-               .translated +
-           "\n" +
-           strprintf(_("The source code is currently available from %s."), URL_SOURCE_CODE).translated +
-           "\n\n Whitepaper: <https://riecoin.xyz/Whitepaper>" +
-           "\n Riecoin Forum: <https://riecoin.xyz/Forum>" +
-           "\n Discord: <https://discord.gg/2sJEayC>" +
-           "\n Mastodon: <https://steloj.xyz/@Riecoin>\n\n" +
-           _("This is experimental software.") + "\n" +
-           strprintf(_("Distributed under the GPLv3 license, see %s"), "<https://www.gnu.org/licenses/gpl-3.0.en.html>").translated +
-           "\n";
 }
