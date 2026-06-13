@@ -361,6 +361,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "addconnection", 2, "v2transport" },
     { "decodepsbt", 0, "psbt", ParamFormat::STRING },
     { "analyzepsbt", 0, "psbt", ParamFormat::STRING},
+    { "verifycode", 1, "code", ParamFormat::STRING },
     { "verifymessage", 1, "signature", ParamFormat::STRING },
     { "verifymessage", 2, "message", ParamFormat::STRING },
     { "getnewaddress", 0, "label", ParamFormat::STRING },

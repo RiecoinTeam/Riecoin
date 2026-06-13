@@ -886,7 +886,8 @@ RPCMethod walletprocesspsbt();
 RPCMethod walletcreatefundedpsbt();
 RPCMethod signrawtransactionwithwallet();
 
-// signmessage
+// codes/signmessage
+RPCMethod generatecode();
 RPCMethod signmessage();
 
 // transactions
@@ -913,6 +914,7 @@ std::span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &createwalletdescriptor},
         {"wallet", &restorewallet},
         {"wallet", &encryptwallet},
+        {"wallet", &generatecode},
         {"wallet", &getaddressesbylabel},
         {"wallet", &getaddressinfo},
         {"wallet", &getbalance},

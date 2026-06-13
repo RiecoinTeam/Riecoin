@@ -38,25 +38,26 @@ static RPCMethod verifycode()
         },
         [&](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
         {
-            std::string strAddress = request.params[0].get_str();
-            std::string strSign = request.params[1].get_str();
             const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-            const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
-
-            switch (MessageVerify(strAddress, strSign, timestampStr)) {
+            switch (MessageVerify(std::string{self.Arg<std::string_view>("address")},
+                                  std::string{self.Arg<std::string_view>("code")},
+                                  std::string{std::to_string(timestamp - (timestamp % 60))})) {
             case MessageVerificationResult::ERR_INVALID_ADDRESS:
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             case MessageVerificationResult::ERR_ADDRESS_NO_KEY:
                 throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
             case MessageVerificationResult::ERR_MALFORMED_SIGNATURE:
                 throw JSONRPCError(RPC_TYPE_ERROR, "Malformed base64 encoding");
+            case MessageVerificationResult::ERR_POF:
+                throw JSONRPCError(RPC_TYPE_ERROR, "BIP-322 Proof of funds is not yet supported"); // TODO: get access to UTXO set / mempool to handle this, then remove this error code?
+            case MessageVerificationResult::INCONCLUSIVE:
+                return false; // TODO: switch to a string based result? mix bool and strings?
+            case MessageVerificationResult::ERR_INVALID:
             case MessageVerificationResult::ERR_PUBKEY_NOT_RECOVERED:
             case MessageVerificationResult::ERR_NOT_SIGNED:
-            case MessageVerificationResult::INCONCLUSIVE:
-            case MessageVerificationResult::ERR_INVALID:
-            case MessageVerificationResult::ERR_POF:
                 return false;
             case MessageVerificationResult::OK_TIMELOCKED:
+                // TODO: switch to string based result? mix bool and strings?
             case MessageVerificationResult::OK:
                 return true;
             }
@@ -118,47 +119,6 @@ static RPCMethod verifymessage()
     };
 }
 
-static RPCMethod generatecode()
-{
-    return RPCMethod{
-        "generatecode",
-        "Generate a code with the private key of an address\n",
-        {
-            {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The private key to generate the message with."},
-        },
-        RPCResult{
-            RPCResult::Type::STR, "code", "The code"
-        },
-        RPCExamples{
-            "\nCreate the code\n"
-            + HelpExampleCli("generatecode", "\"privkey\"") +
-            "\nVerify the code\n"
-            + HelpExampleCli("verifycode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\" \"code\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("generatecode", "\"ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn\"")
-        },
-        [&](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
-        {
-            std::string strPrivkey = request.params[0].get_str();
-            const uint64_t timestamp(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-            const std::string& timestampStr(std::to_string(timestamp - (timestamp % 60)));
-
-            CKey key = DecodeSecret(strPrivkey);
-            if (!key.IsValid()) {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
-            }
-
-            std::string signature;
-
-            if (!MessageSign(key, timestampStr, signature)) {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Code generation failed");
-            }
-
-            return signature;
-        },
-    };
-}
-
 static RPCMethod signmessagewithprivkey()
 {
     return RPCMethod{
@@ -205,7 +165,6 @@ void RegisterSignMessageRPCCommands(CRPCTable& t)
     static const CRPCCommand commands[]{
         {"util", &verifycode},
         {"util", &verifymessage},
-        {"util", &generatecode},
         {"util", &signmessagewithprivkey},
     };
     for (const auto& c : commands) {
