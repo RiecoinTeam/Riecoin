@@ -117,7 +117,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
 
     data.clear();
     const auto dec = bech32::Decode(str);
-    if (dec.encoding == bech32::Encoding::BECH32 || dec.encoding == bech32::Encoding::BECH32M) {
+    if (dec.encoding == bech32::Encoding::BECH32M) {
         if (dec.data.empty()) {
             error_str = "Empty Bech32 data section";
             return CNoDestination();
@@ -128,14 +128,6 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
             return CNoDestination();
         }
         int version = dec.data[0]; // The first 5 bit symbol is the witness version (0-16)
-        if (version == 0 && dec.encoding != bech32::Encoding::BECH32 && dec.encoding != bech32::Encoding::BECH32M) {
-            error_str = "Version 0 witness address must use Bech32 or Bech32m checksum"; // Short term compatibility purpose, to be refactored into a single Bech32M check later.
-            return CNoDestination();
-        }
-        if (version != 0 && dec.encoding != bech32::Encoding::BECH32M) {
-            error_str = "Version 1+ witness address must use Bech32m checksum";
-            return CNoDestination();
-        }
         // The rest of the symbols are converted witness program bytes.
         data.reserve(((dec.data.size() - 1) * 5) / 8);
         if (ConvertBits<5, 8, false>([&](unsigned char c) { data.push_back(c); }, dec.data.begin() + 1, dec.data.end())) {

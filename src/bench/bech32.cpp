@@ -17,14 +17,14 @@ static void Bech32Encode(benchmark::Bench& bench)
     tmp.reserve(1 + v.size() * 8 / 5);
     ConvertBits<8, 5, true>([&](unsigned char c) { tmp.push_back(c); }, v.begin(), v.end());
     bench.batch(v.size()).unit("byte").run([&] {
-        bech32::Encode(bech32::Encoding::BECH32, "bc", tmp);
+        bech32::Encode(bech32::Encoding::BECH32M, "ric", tmp);
     });
 }
 
 
 static void Bech32Decode(benchmark::Bench& bench)
 {
-    std::string addr = "bc1qkallence7tjawwvy0dwt4twc62qjgaw8f4vlhyd006d99f09";
+    std::string addr = "ric1pstellap55ue6keg3ta2qwlxr0h58g66fd7y4ea78hzkj3r4lstrsk4clvn";
     bench.batch(addr.size()).unit("byte").run([&] {
         bech32::Decode(addr);
     });

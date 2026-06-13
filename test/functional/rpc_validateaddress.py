@@ -19,17 +19,17 @@ INVALID_DATA = [
     ("ric1qw508d6qejxtdg4y5r3zarvary0c5xw7kn4h7nl", "Invalid Bech32m checksum", [42]),
     (
         "RIC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KEMPD5T",
-        "Version 1+ witness address must use Bech32m checksum",
+        "Invalid checksum",
         [],
     ),
     (
         "ric1rw5cmwppx",
-        "Version 1+ witness address must use Bech32m checksum",  # Invalid program length
+        "Invalid checksum",  # Invalid program length
         [],
     ),
     (
         "ric10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5pgs7z9",
-        "Version 1+ witness address must use Bech32m checksum",  # Invalid program length
+        "Invalid checksum",  # Invalid program length
         [],
     ),
     (
@@ -49,7 +49,7 @@ INVALID_DATA = [
     ),
     (
         "ric1zw508d6qejxtdg4y5r3zarvaryvqdf7g2g",
-        "Version 1+ witness address must use Bech32m checksum",  # Wrong padding
+        "Invalid checksum",  # Wrong padding
         [],
     ),
     (
@@ -66,7 +66,7 @@ INVALID_DATA = [
     ),
     (
         "ric1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqc3hc2h",
-        "Version 1+ witness address must use Bech32m checksum",  # Invalid checksum (Bech32 instead of Bech32m)
+        "Invalid checksum",  # Invalid checksum (Bech32 instead of Bech32m)
         [],
     ),
     (
@@ -76,7 +76,7 @@ INVALID_DATA = [
     ),
     (
         "RIC1S0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQMWALZ9",
-        "Version 1+ witness address must use Bech32m checksum",  # Invalid checksum (Bech32 instead of Bech32m)
+        "Invalid checksum",  # Invalid checksum (Bech32 instead of Bech32m)
         [],
     ),
     (

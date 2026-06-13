@@ -20,10 +20,10 @@ namespace
 
 typedef std::vector<uint8_t> data;
 
-/** The Bech32 and Bech32m character set for encoding. */
+/** The Bech32m character set for encoding. */
 const char* CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-/** The Bech32 and Bech32m character set for decoding. */
+/** The Bech32m character set for decoding. */
 const int8_t CHARSET_REV[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -34,6 +34,9 @@ const int8_t CHARSET_REV[128] = {
     -1, 29, -1, 24, 13, 25,  9,  8, 23, -1, 18, 22, 31, 27, 19, -1,
      1,  0,  3, 16, 11, 28, 12, 14,  6,  4,  2, -1, -1, -1, -1, -1
 };
+
+/* The final constant to use for the Bech32m encoding. */
+constexpr uint32_t ENCODING_CONSTANT(0x2bc830a3);
 
 /** We work with the finite field GF(1024) defined as a degree 2 extension of the base field GF(32)
  * The defining polynomial of the extension is x^2 + 9x + 23.
@@ -118,12 +121,6 @@ constexpr std::pair<std::array<int16_t, 1023>, std::array<int16_t, 1024>> Genera
 constexpr auto tables = GenerateGFTables();
 constexpr const std::array<int16_t, 1023>& GF1024_EXP = tables.first;
 constexpr const std::array<int16_t, 1024>& GF1024_LOG = tables.second;
-
-/* Determine the final constant to use for the specified encoding. */
-uint32_t EncodingConstant(Encoding encoding) {
-    assert(encoding == Encoding::BECH32 || encoding == Encoding::BECH32M);
-    return 0x2bc830a3; // We use the same Constant for Bech32 and Bech32M in Riecoin, the distinction is obsolete and should be refactored. But for short term compatibility purposes, we still keep the Bech32/Bech32M logic and consider old Bech32 ric1q Checksums valid for now.
-}
 
 /** This function will compute what 6 5-bit values to XOR into the last 6 input values, in order to
  *  make the checksum 0. These 6 values are packed together in a single 30-bit integer. The higher
@@ -337,8 +334,7 @@ Encoding VerifyChecksum(const std::string& hrp, const data& values)
     // Unlike Bitcoin however, the new constant is applied to older Segwit V0 Addresses as well, simplifying implementations.
     auto enc = PreparePolynomialCoefficients(hrp, values);
     const uint32_t check = PolyMod(enc);
-    if (check == EncodingConstant(Encoding::BECH32M)) return Encoding::BECH32M;
-    if (check == 1) return Encoding::BECH32; // Short term compatibility, to be removed later.
+    if (check == ENCODING_CONSTANT) return Encoding::BECH32M;
     return Encoding::INVALID;
 }
 
@@ -347,7 +343,7 @@ data CreateChecksum(Encoding encoding, const std::string& hrp, const data& value
 {
     auto enc = PreparePolynomialCoefficients(hrp, values);
     enc.insert(enc.end(), CHECKSUM_SIZE, 0x00);
-    uint32_t mod = PolyMod(enc) ^ EncodingConstant(encoding); // Determine what to XOR into those 6 zeroes.
+    uint32_t mod = PolyMod(enc) ^ ENCODING_CONSTANT; // Determine what to XOR into those 6 zeroes.
     data ret(CHECKSUM_SIZE);
     for (size_t i = 0; i < CHECKSUM_SIZE; ++i) {
         // Convert the 5-bit groups in mod to checksum values.
@@ -444,7 +440,7 @@ std::pair<std::string, std::vector<int>> LocateErrors(const std::string& str, Ch
         values[i - pos - 1] = rev;
     }
 
-    // We attempt error detection with both bech32 and bech32m, and choose the one with the fewest errors
+    // We attempt error detection with bech32m.
     // We can't simply use the segwit version, because that may be one of the errors
     std::optional<Encoding> error_encoding;
     for (Encoding encoding : {Encoding::BECH32M}) {
@@ -452,7 +448,7 @@ std::pair<std::string, std::vector<int>> LocateErrors(const std::string& str, Ch
         // Recall that (expanded hrp + values) is interpreted as a list of coefficients of a polynomial
         // over GF(32). PolyMod computes the "remainder" of this polynomial modulo the generator G(x).
         auto enc = PreparePolynomialCoefficients(hrp, values);
-        uint32_t residue = PolyMod(enc) ^ EncodingConstant(encoding);
+        uint32_t residue = PolyMod(enc) ^ ENCODING_CONSTANT;
 
         // All valid codewords should be multiples of G(x), so this remainder (after XORing with the encoding
         // constant) should be 0 - hence 0 indicates there are no errors present.
