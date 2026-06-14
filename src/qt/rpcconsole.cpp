@@ -865,26 +865,22 @@ void RPCConsole::clear(bool keep_prompt)
         );
 
     static const QString welcome_message =
-        /*: RPC console welcome message.
-            Placeholders %7 and %8 are style tags for the warning content, and
-            they are not space separated from the rest of the text intentionally. */
+        /*: RPC console welcome message. */
         tr("Welcome to the %1 RPC console.\n"
            "Use up and down arrows to navigate history, and %2 to clear screen.\n"
            "Use %3 and %4 to increase or decrease the font size.\n"
            "Type %5 for an overview of available commands.\n"
            "For more information on using this console, type %6.\n"
-           "\n"
-           "%7WARNING: Scammers have been active, telling users to type"
-           " commands here, stealing their wallet contents. Do not use this console"
-           " without fully understanding the ramifications of a command.%8")
+           "\n<u>Examples</u> (never share any output containing prv or xprv):\n"
+           " - Import a Descriptor (or more): importdescriptors '[{\"desc\": \"tr(...)\", \"timestamp\": 0}]'\n"
+           " - Export/Backup Wallet Descriptors: listdescriptors true\n"
+           " - Some Basic Commands: getblockhash n, getblock hash [bool], getblockheader hash [bool], getblockchaininfo, getrawtransaction hash [bool]\n")
             .arg(CLIENT_NAME,
                  "<b>" + ui->clearButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
                  "<b>" + ui->fontBiggerButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
                  "<b>" + ui->fontSmallerButton->shortcut().toString(QKeySequence::NativeText) + "</b>",
                  "<b>help</b>",
-                 "<b>help-console</b>",
-                 "<span class=\"secwarning\">",
-                 "<span>");
+                 "<b>help-console</b>");
 
     message(CMD_REPLY, welcome_message, true);
 }
