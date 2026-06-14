@@ -24,7 +24,7 @@ std::string LicenseInfo()
     const std::string URL_SOURCE_CODE = "<https://github.com/RiecoinTeam/Riecoin>";
 
     return CopyrightHolders("(C) ") + "" +
-           "\n Riecoin Core (Dev) is based on Bitcoin Core (Master).\n" +
+           "\n Riecoin Core 2606 is based on Bitcoin Core (Master 2026-06-05/~31.x).\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
                      CLIENT_NAME, "<" CLIENT_URL ">")
