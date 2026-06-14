@@ -120,21 +120,21 @@ class ProxyTest(BitcoinTestFramework):
         # Note: proxies are not used to connect to local nodes. This is because the proxy to
         # use is based on CService.GetNetwork(), which returns NET_UNROUTABLE for localhost.
         args = [
-            ['-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}','-proxyrandomize=1'],
-            ['-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}',f'-onion={self.conf2.addr[0]}:{self.conf2.addr[1]}',
+            ['-listenonion', '-onion', '-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}','-proxyrandomize=1'],
+            ['-listenonion', '-onion', '-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}',f'-onion={self.conf2.addr[0]}:{self.conf2.addr[1]}',
                 f'-i2psam={self.i2p_sam[0]}:{self.i2p_sam[1]}', '-i2pacceptincoming=0', '-proxyrandomize=0'],
-            ['-listen', f'-proxy={self.conf2.addr[0]}:{self.conf2.addr[1]}','-proxyrandomize=1'],
-            [],
-            ['-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}','-proxyrandomize=1',
+            ['-listenonion', '-onion', '-listen', f'-proxy={self.conf2.addr[0]}:{self.conf2.addr[1]}','-proxyrandomize=1'],
+            ['-listenonion', '-onion', ],
+            ['-listenonion', '-onion', '-listen', f'-proxy={self.conf1.addr[0]}:{self.conf1.addr[1]}','-proxyrandomize=1',
                 '-cjdnsreachable'],
-            [],
-            []
+            ['-listenonion', '-onion', ],
+            ['-listenonion', '-onion', ]
         ]
         if self.have_ipv6:
-            args[3] = ['-listen', f'-proxy=[{self.conf3.addr[0]}]:{self.conf3.addr[1]}','-proxyrandomize=0', '-noonion']
+            args[3] = ['-listenonion', '-listen', f'-proxy=[{self.conf3.addr[0]}]:{self.conf3.addr[1]}','-proxyrandomize=0', '-noonion']
         if self.have_unix_sockets:
-            args[5] = ['-listen', f'-proxy=unix:{socket_path}']
-            args[6] = ['-listen', f'-onion=unix:{socket_path}']
+            args[5] = ['-listenonion', '-onion', '-listen', f'-proxy=unix:{socket_path}']
+            args[6] = ['-listenonion', '-listen', f'-onion=unix:{socket_path}']
         self.add_nodes(self.num_nodes, extra_args=args)
         self.start_nodes()
 
@@ -427,7 +427,7 @@ class ProxyTest(BitcoinTestFramework):
             self.nodes[1].assert_start_raises_init_error(expected_msg=msg)
 
         self.log.info("Test passing -onlynet=onion without -proxy, -onion or -listenonion raises expected init error")
-        self.nodes[1].extra_args = ["-onlynet=onion", "-listenonion=0"]
+        self.nodes[1].extra_args = ["-onion", "-onlynet=onion", "-listenonion=0"]
         msg = (
             "Error: Outbound connections restricted to Tor (-onlynet=onion) but the proxy for "
             "reaching the Tor network is not provided: none of -proxy, -onion or -listenonion is given"
@@ -435,7 +435,7 @@ class ProxyTest(BitcoinTestFramework):
         self.nodes[1].assert_start_raises_init_error(expected_msg=msg)
 
         self.log.info("Test passing -onlynet=onion without -proxy or -onion but with -listenonion=1 is ok")
-        self.start_node(1, extra_args=["-onlynet=onion", "-listenonion=1"])
+        self.start_node(1, extra_args=["-onion", "-onlynet=onion", "-listenonion=1"])
         self.stop_node(1)
 
         self.log.info("Test passing unknown network to -onlynet raises expected init error")
@@ -468,7 +468,7 @@ class ProxyTest(BitcoinTestFramework):
         self.stop_node(1)
 
         self.log.info("Test overriding the Onion proxy")
-        self.start_node(1, extra_args=["-proxy=127.1.1.1:1111", "-proxy=127.2.2.2:2222=onion"])
+        self.start_node(1, extra_args=["-onion", "-proxy=127.1.1.1:1111", "-proxy=127.2.2.2:2222=onion"])
         nets = networks_dict(self.nodes[1].getnetworkinfo())
         assert_equal(nets["ipv4"]["proxy"], "127.1.1.1:1111")
         assert_equal(nets["ipv6"]["proxy"], "127.1.1.1:1111")
@@ -476,7 +476,7 @@ class ProxyTest(BitcoinTestFramework):
         self.stop_node(1)
 
         self.log.info("Test removing CJDNS proxy")
-        self.start_node(1, extra_args=["-proxy=127.1.1.1:1111", "-proxy=0=cjdns"])
+        self.start_node(1, extra_args=["-onion", "-proxy=127.1.1.1:1111", "-proxy=0=cjdns"])
         nets = networks_dict(self.nodes[1].getnetworkinfo())
         assert_equal(nets["ipv4"]["proxy"], "127.1.1.1:1111")
         assert_equal(nets["ipv6"]["proxy"], "127.1.1.1:1111")

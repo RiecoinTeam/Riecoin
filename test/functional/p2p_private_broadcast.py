@@ -146,6 +146,8 @@ class P2PPrivateBroadcast(BitcoinTestFramework):
                 # selects such addresses as well. Pick a proxy address where nobody is listening
                 # and connection attempts fail quickly.
                 "-i2psam=127.0.0.1:1",
+                "-listenonion",
+                "-onion",
             ],
             [
                 "-connect=0",
